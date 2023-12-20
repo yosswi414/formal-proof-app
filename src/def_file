@@ -1,0 +1,155 @@
+// p.234 Figure 11.5; Definition and rules for => (implies)
+// A, B : *
+def2    // (1) =>(A, B) := A -> B : *
+2
+A
+*
+B
+*
+implies
+?a:(A).(B)
+*
+edef2
+
+// | u : A -> B   ( equivalent to u : ?x:(A).(B) )
+def2    // (2) =>-in(A, B, u) := u : A=>B
+3
+A
+*
+B
+*
+u
+?y:(A).(B)
+implies_in
+u
+implies[(A),(B)]
+edef2
+
+// | u : A -> B | v : A
+def2    // (3) =>-el(A, B, u, v) := uv : B
+4
+A
+*
+B
+*
+u
+?x:(A).(B)
+v
+A
+implies_el
+%(u)(v)
+B
+edef2
+
+// p.235 Figure 11.6; Definition and rules for _|_ (bottom)
+def2    // (1) bottom := (?A : * . A) : *
+0
+bottom
+?A:(*).(A)
+*
+edef2
+
+// A : *
+// | u : A | v : A => bottom
+def2    // (2) bottom_in(A, u, v) := vu : bottom
+3
+A
+*
+u
+A
+v
+implies[(A),(bottom[])]
+bottom_in   // name
+%(v)(u)
+bottom[]
+edef2
+
+// | u : bottom
+def2    // (3) bottom_el(A, u) := uA : A
+2
+A
+*
+u
+bottom[]
+bottom_el
+%(u)(A)
+A
+edef2
+
+// p.235 Figure 11.7; Definition and rules for ￢(bar)
+// A : *
+def2    // (1) neg(A) := A => bottom : *
+1
+A
+*
+neg
+implies[(A),(bottom[])]
+*
+edef2
+
+// | u : A -> bottom[]
+def2    // (2) neg_in(A, u) := u : neg(A)
+2
+A
+*
+u
+?x:(A).(bottom[])
+neg_in
+u
+neg[(A)]
+edef2
+
+// | u : neg(A) | v : A
+def2    // (3) neg_el(A, u, v) := uv : bottom[]
+3
+A
+*
+u
+neg[(A)]
+v
+A
+neg_el
+%(u)(v)
+bottom[]
+edef2
+
+// p.235 Figure 11.8; Derivation of A => ￢￢A in natural deduction style
+// A : * | u : A | v : neg(A)
+def2    // (1)
+3
+A
+*
+u
+A
+v
+neg[(A)]
+a_1     // name
+neg_el[(A),(v),(u)]
+bottom[]
+edef2
+
+def2    // (2)
+2
+A
+*
+u
+A
+a_2     // name
+neg_in[(neg[(A)]),($v:(neg[(A)]).(a_1[(A),(u),(v)]))]
+neg[(neg[(A)])]
+edef2
+
+def2    // (3)
+1
+A
+*
+a_3     // name
+implies_in[(A),(neg[(neg[(A)])]),($u:(A).(a_2[(A),(u)]))]
+implies[(A),(neg[(neg[(A)])])]
+edef2
+
+
+// p.236 Figure 11.9; Derivation of A => neg[neg[A]] in type-theoretic style
+
+
+END

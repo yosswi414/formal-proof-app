@@ -30,3 +30,15 @@
 *.exe
 *.out
 *.app
+
+test_read
+test_read_leak
+log
+script
+def_file_nocomm
+
+# test_automake3
+# test_book3
+.vscode/
+.clang-format
+
