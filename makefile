@@ -18,9 +18,3 @@ clean:
 leak: test_read_leak
 	./test_read_leak src/def_file
 
-def_name=implies
-
-def_test: src/def_file
-	cat src/def_file | sed "s/\/\/.*//g" | sed "s/\\s//g" > src/def_file_nocomm
-	./test_automake3 src/def_file_nocomm ${def_name} script
-	./test_book3 src/def_file_nocomm script
