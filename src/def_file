@@ -323,7 +323,7 @@ equiv[(A),(B)]
 edef2
 
 // | u: A<=>B
-def2    (3)
+def2    // (3)
 3
 A
 *
@@ -337,7 +337,7 @@ implies[(A),(B)]
 edef2
 
 // | |
-def2    (4)
+def2    // (4)
 3
 A
 *
@@ -521,5 +521,6 @@ sym_or
 $u:(or[(A),(B)]).(a3_fig11-14[(A),(B),(u)])
 implies[(or[(A),(B)]),(or[(B),(A)])]
 edef2
+
 
 END
