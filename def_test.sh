@@ -13,8 +13,20 @@ if [ $? -eq 1 ]; then
     exit 1
 fi
 
-cat src/def_file | sed "s/\/\/.*//g" | sed "s/\\s//g" > src/def_file_nocomm
-./test_automake3 src/def_file_nocomm ${def_name} script
-./test_book3 src/def_file_nocomm script
+./trim_comment.sh
+status=$?
+if [ ${status} != 0 ]; then
+    exit ${status}
+fi
+./gen_script.sh ${def_name} script
+status=$?
+if [ ${status} != 0 ]; then
+    exit ${status}
+fi
+./gen_proof.sh script
+status=$?
+if [ ${status} != 0 ]; then
+    exit ${status}
+fi
 
-echo "def_name = ${def_name}"
+echo "def_name = ${def_name} seems valid."
