@@ -18,12 +18,12 @@ status=$?
 if [ ${status} != 0 ]; then
     exit ${status}
 fi
-./gen_script.sh ${def_name} script
+./gen_script.sh ${def_name} script > /dev/null
 status=$?
 if [ ${status} != 0 ]; then
     exit ${status}
 fi
-./gen_proof.sh script
+./gen_proof.sh script > /dev/null
 status=$?
 if [ ${status} != 0 ]; then
     exit ${status}
