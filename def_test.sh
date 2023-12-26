@@ -6,27 +6,37 @@ if [ $# != 1 ]; then
 fi
 
 def_name=$1
+script_name="_script_def_test"
+defs_nocomm="src/_def_file_nocomm"
 
-grep -F "${def_name}" src/def_file > /dev/null
+function finally () {
+    rm -f ${script_name}
+    rm -f ${defs_nocomm}
+}
+
+trap finally EXIT   # run finally() before exiting except receiving SIGKILL
+
+./trim_comment.sh ${defs_nocomm}
+
+grep "^${def_name}$" ${defs_nocomm} > /dev/null
 if [ $? -eq 1 ]; then
     echo "No such name of definition found: \"${def_name}\""
     exit 1
 fi
 
-./trim_comment.sh
 status=$?
 if [ ${status} != 0 ]; then
     exit ${status}
 fi
-./gen_script.sh ${def_name} script > /dev/null
+./gen_script.sh ${def_name} ${script_name} ${defs_nocomm} > /dev/null
 status=$?
 if [ ${status} != 0 ]; then
     exit ${status}
 fi
-./gen_proof.sh script > /dev/null
+./gen_proof.sh ${script_name} ${defs_nocomm} > /dev/null
 status=$?
 if [ ${status} != 0 ]; then
     exit ${status}
 fi
 
-echo "def_name = ${def_name} seems valid."
+# echo "def_name = ${def_name} seems valid."
