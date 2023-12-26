@@ -20,6 +20,7 @@ enum class LambdaType {
     Variable,
     Square,
     Star,
+    Bottom,
     Application,
     AbstractionLambda,
     AbstractionPi,
@@ -39,6 +40,8 @@ std::ostream& operator<<(std::ostream& os, const LambdaType& T) {
             return os << "LambdaType::Square";
         case LambdaType::Star:
             return os << "LambdaType::Star";
+        case LambdaType::Bottom:
+            return os << "LambdaType::Bottom";
 
         case LambdaType::Application:
             return os << "LambdaType::Application";
@@ -183,6 +186,13 @@ class Star : public LambdaTerm {
   protected:
     static const LambdaType LT = LambdaType::Star;
 };
+class Bottom : public LambdaTerm {
+  public:
+    Bottom() : LambdaTerm('#', LT) {}
+
+  protected:
+    static const LambdaType LT = LambdaType::Bottom;
+};
 
 // LambdaTwo extension
 class Application : public LambdaTwo {
@@ -324,9 +334,9 @@ Lambda* parse_lambda(std::string line, int ofs) {
         case '@':  // square
             if (line.size() != 1) throw InvalidSyntaxLambdaException("lambda (Square): invalid string \"" + line.substr(1) + "\" following after '" + ch + "'");
             return new Square();
-        // case '#':  // bottom (_|_)
-        //     assert(line.size() == 1);
-        //     return new LambdaTerm('#');  // to be defined
+        case '#':  // bottom (_|_)
+            if (line.size() != 1) throw InvalidSyntaxLambdaException("lambda (Bottom): invalid string \"" + line.substr(1) + "\" following after '" + ch + "'");
+            return new Bottom();
         case '$':  // lambda
         case '?':  // pi
             var = line[++i];
@@ -450,13 +460,10 @@ std::ostream& operator<<(std::ostream& os, const Lambda& expr) {
     // should be done in one line
     switch (expr.type()) {
         case LambdaType::Variable:
-            os << dynamic_cast<const Variable&>(expr).var_name();
-            return os;
         case LambdaType::Square:
-            os << dynamic_cast<const Square&>(expr).var_name();
-            return os;
         case LambdaType::Star:
-            os << dynamic_cast<const Star&>(expr).var_name();
+        case LambdaType::Bottom:
+            os << dynamic_cast<const LambdaTerm&>(expr).var_name();
             return os;
         case LambdaType::Application: {
             const Application& obj = dynamic_cast<const Application&>(expr);
@@ -615,6 +622,9 @@ void cleanup() {
                 break;
             case LambdaType::Star:
                 delete (Star*)ptr;
+                break;
+            case LambdaType::Bottom:
+                delete (Bottom*)ptr;
                 break;
             case LambdaType::Application:
                 delete (Application*)ptr;
