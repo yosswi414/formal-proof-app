@@ -293,7 +293,7 @@ or_el
 C
 edef2
 
-// Figure 11.12; Definition and rules for <=>
+// p.237 Figure 11.12; Definition and rules for <=>
 // A, B : *
 def2    // (1)
 2
@@ -351,7 +351,7 @@ implies[(B),(A)]
 edef2
 
 
-// Figure 11.13; A derivation in natural deduction style of (A or B) => (not[A] => B)
+// p.238 Figure 11.13; A derivation in natural deduction style of (A or B) => (not[A] => B)
 // A, B: *
 // | x: A or B
 // | | y: not[A]
@@ -466,7 +466,7 @@ implies[(or[(A),(B)]),(implies[(not[(A)]),(B)])]
 edef2
 
 
-// Figure 11.14; Commutativity of or
+// p.239 Figure 11.14; Commutativity of or
 // A, B: *
 // | u: or[A,B]
 def2    // (1)
@@ -522,5 +522,1278 @@ $u:(or[(A),(B)]).(a3_fig11-14[(A),(B),(u)])
 implies[(or[(A),(B)]),(or[(B),(A)])]
 edef2
 
+
+// p.240 Figure 11.15; Suppressed parameter lists and short proof objects
+// A, B: *
+// | x: or[A, B]
+// | | y: not[A]
+// | | | u: A
+def2    // (1)
+5
+A
+*
+B
+*
+x
+or[(A),(B)]
+y
+not[(A)]
+u
+A
+a1_fig11-15     // name
+%(y)(u)
+contra[]
+edef2
+
+// | | | |
+def2    // (2)
+5
+A
+*
+B
+*
+x
+or[(A),(B)]
+y
+not[(A)]
+u
+A
+a2_fig11-15     // name
+%(a1_fig11-15[(A),(B),(x),(y),(u)])(B)
+B
+edef2
+
+// | | |
+def2    // (3)
+4
+A
+*
+B
+*
+x
+or[(A),(B)]
+y
+not[(A)]
+a3_fig11-15     // name
+$u:(A).(a2_fig11-15[(A),(B),(x),(y),(u)])
+implies[(A),(B)]
+edef2
+
+// | | |
+def2    // (4)
+4
+A
+*
+B
+*
+x
+or[(A),(B)]
+y
+not[(A)]
+a4_fig11-15     // name
+$v:(B).(v)
+implies[(B),(B)]
+edef2
+
+// | | |
+def2    // (5)
+4
+A
+*
+B
+*
+x
+or[(A),(B)]
+y
+not[(A)]
+a5_fig11-15     // name
+%(%(%(x)(B))(a3_fig11-15[(A),(B),(x),(y)]))(a4_fig11-15[(A),(B),(x),(y)])
+B
+edef2
+
+// | |
+def2    // (6)
+3
+A
+*
+B
+*
+x
+or[(A),(B)]
+a6_fig11-15     // name
+$y:(not[(A)]).(a5_fig11-15[(A),(B),(x),(y)])
+implies[(not[(A)]), (B)]
+edef2
+
+// |
+def2    // (7)
+2
+A
+*
+B
+*
+a7_fig11-15     // name
+$x:(or[(A),(B)]).(a6_fig11-15[(A),(B),(x)])
+implies[(or[(A),(B)]), (implies[(not[(A)]), (B)])]
+edef2
+
+
+// p.241 Figure 11.16; The law of the excluded third, entailing the double negation law
+// A: *
+def2    // (1)
+1
+A
+*
+exc_thrd
+#
+or[(A), (not[(A)])]
+edef2
+
+// |
+def2    // (2)
+1
+A
+*
+a2_fig11-16
+$v:(A).(v)
+implies[(A), (A)]
+edef2
+
+// | u: not[not[A]]
+// | | v: not[A]
+def2    // (3)
+3
+A
+*
+u
+not[(not[(A)])]
+v
+not[(A)]
+a3_fig11-16     // name
+%(u)(v)
+contra[]
+edef2
+
+// | | |
+def2    // (4)
+3
+A
+*
+u
+not[(not[(A)])]
+v
+not[(A)]
+a4_fig11-16     // name
+%(a3_fig11-16[(A),(u),(v)])(A)
+A
+edef2
+
+// | |
+def2    // (5)
+2
+A
+*
+u
+not[(not[(A)])]
+a5_fig11-16     // name
+$v:(not[(A)]).(a4_fig11-16[(A),(u),(v)])
+implies[(not[(A)]),(A)]
+edef2
+
+// | |
+def2    // (6)
+2
+A
+*
+u
+not[(not[(A)])]
+a6_fig11-16     // name
+%(%(%(exc_thrd[(A)])(A))(a2_fig11-16[(A)]))(a5_fig11-16[(A),(u)])
+A
+edef2
+
+// |
+def2    // (7)
+1
+A
+*
+doub_neg    // name
+$u:(not[(not[(A)])]).(a6_fig11-16[(A),(u)])
+implies[(not[(not[(A)])]), (A)]
+edef2
+
+
+// p.242 Figure 11.17; Natural deduction rules for not-not
+// A: *
+// | u: A
+def2    // (1)
+2
+A
+*
+u
+A
+notnot_in   // name
+$v:(not[(A)]).(%(v)(u))
+not[(not[(A)])]
+edef2
+
+// | u: not[not[A]]
+def2    // (2)
+2
+A
+*
+u
+not[(not[(A)])]
+notnot_el
+%(doub_neg[(A)])(u)
+A
+edef2
+
+
+// p.242 Figure 11.18; A derivation in natural deduction of (!A => B) => (A or B)
+// A, B: *
+// | u: not[A] => B
+// | | v: not[A or B]
+// | | | w: A
+def2    // (1)
+5
+A
+*
+B
+*
+u
+implies[(not[(A)]),(B)]
+v
+not[(or[(A),(B)])]
+w
+A
+a1_fig11-18     // name
+or_in1[(A), (B), (w)]
+or[(A), (B)]
+edef2
+
+// | | | |
+def2    // (2)
+5
+A
+*
+B
+*
+u
+implies[(not[(A)]),(B)]
+v
+not[(or[(A),(B)])]
+w
+A
+a2_fig11-18     // name
+%(v)(a1_fig11-18[(A),(B),(u),(v),(w)])
+contra[]
+edef2
+
+// | | |
+def2    // (3)
+4
+A
+*
+B
+*
+u
+implies[(not[(A)]),(B)]
+v
+not[(or[(A),(B)])]
+a3_fig11-18     // name
+$w:(A).(a2_fig11-18[(A),(B),(u),(v),(w)])
+not[(A)]
+edef2
+
+// | | | w: B
+def2    // (4)
+5
+A
+*
+B
+*
+u
+implies[(not[(A)]),(B)]
+v
+not[(or[(A),(B)])]
+w
+B
+a4_fig11-18     // name
+or_in2[(A), (B), (w)]
+or[(A), (B)]
+edef2
+
+// | | | |
+def2    // (5)
+5
+A
+*
+B
+*
+u
+implies[(not[(A)]),(B)]
+v
+not[(or[(A),(B)])]
+w
+B
+a5_fig11-18     // name
+%(v)(a4_fig11-18[(A),(B),(u),(v),(w)])
+contra[]
+edef2
+
+// | | |
+def2    // (6)
+4
+A
+*
+B
+*
+u
+implies[(not[(A)]),(B)]
+v
+not[(or[(A),(B)])]
+a6_fig11-18     // name
+$w:(B).(a5_fig11-18[(A),(B),(u),(v),(w)])
+not[(B)]
+edef2
+
+// | | |
+def2    // (7)
+4
+A
+*
+B
+*
+u
+implies[(not[(A)]),(B)]
+v
+not[(or[(A),(B)])]
+a7_fig11-18     // name
+%(u)(a3_fig11-18[(A),(B),(u),(v)])
+B
+edef2
+
+// | | |
+def2    // (8)
+4
+A
+*
+B
+*
+u
+implies[(not[(A)]),(B)]
+v
+not[(or[(A),(B)])]
+a8_fig11-18     // name
+%(a6_fig11-18[(A),(B),(u),(v)])(a7_fig11-18[(A),(B),(u),(v)])
+contra[]
+edef2
+
+// | |
+def2    // (9)
+3
+A
+*
+B
+*
+u
+implies[(not[(A)]),(B)]
+a9_fig11-18     // name
+$v:(not[(or[(A),(B)])]).(a8_fig11-18[(A),(B),(u),(v)])
+not[(not[(or[(A),(B)])])]
+edef2
+
+// | |
+def2    // (10)
+3
+A
+*
+B
+*
+u
+implies[(not[(A)]),(B)]
+a10_fig11-18     // name
+notnot_el[(or[(A), (B)]), (a9_fig11-18[(A), (B), (u)])]
+or[(A), (B)]
+edef2
+
+// |
+def2    // (11)
+2
+A
+*
+B
+*
+a11_fig11-18     // name
+$u:(implies[(not[(A)]), (B)]).(a10_fig11-18[(A), (B), (u)])
+implies[(implies[(not[(A)]), (B)]), (or[(A), (B)])]
+edef2
+
+
+// p.244 Figure 11.19; Alternative rules for or
+// A, B: *
+// | u: !A => B
+def2    // (1)
+3
+A
+*
+B
+*
+u
+implies[(not[(A)]), (B)]
+or_in_alt1      // name
+a10_fig11-18[(A), (B), (u)]
+or[(A), (B)]
+edef2
+
+// | v: !B => A
+def2    // (2)
+3
+A
+*
+B
+*
+v
+implies[(not[(B)]), (A)]
+a2_fig11-19      // name
+or_in_alt1[(B), (A), (v)]
+or[(B), (A)]
+edef2
+
+// | |
+def2    // (3)
+3
+A
+*
+B
+*
+v
+implies[(not[(B)]), (A)]
+or_in_alt2      // name
+a3_fig11-14[(B), (A), (a2_fig11-19[(A), (B), (v)])]
+or[(A), (B)]
+edef2
+
+// | u: or[A, B]
+// | | v: not[A]
+def2    // (4)
+4
+A
+*
+B
+*
+u
+or[(A), (B)]
+v
+not[(A)]
+or_el_alt1      // name
+a5_fig11-13[(A), (B), (u), (v)]
+B
+edef2
+
+// | | w: not[B]
+def2    // (5)
+4
+A
+*
+B
+*
+u
+or[(A), (B)]
+w
+not[(B)]
+or_el_alt2      // name
+or_el_alt1[(B), (A), (a3_fig11-14[(A), (B), (u)]), (w)]
+A
+edef2
+
+
+// p.245 Figure 11.20; Proof of the lemma: !(A and B) entails !A or !B
+// A, B: *
+// | u: !(A and B)
+// | | v: !!A
+def2    // (1)
+4
+A
+*
+B
+*
+u
+not[(and[(A),(B)])]
+v
+not[(not[(A)])]
+a1_fig11-20
+notnot_el[(A), (v)]
+A
+edef2
+
+// | | | w: B
+def2    // (2)
+5
+A
+*
+B
+*
+u
+not[(and[(A),(B)])]
+v
+not[(not[(A)])]
+w
+B
+a2_fig11-20
+and_in[(A), (B), (a1_fig11-20[(A),(B),(u),(v)]), (w)]
+and[(A), (B)]
+edef2
+
+// | | | |
+def2    // (3)
+5
+A
+*
+B
+*
+u
+not[(and[(A),(B)])]
+v
+not[(not[(A)])]
+w
+B
+a3_fig11-20
+%(u)(a2_fig11-20[(A), (B), (u), (v), (w)])
+contra[]
+edef2
+
+// | | |
+def2    // (4)
+4
+A
+*
+B
+*
+u
+not[(and[(A),(B)])]
+v
+not[(not[(A)])]
+a4_fig11-20
+$w:(B).(a3_fig11-20[(A), (B), (u), (v), (w)])
+not[(B)]
+edef2
+
+// | |
+def2    // (5)
+3
+A
+*
+B
+*
+u
+not[(and[(A),(B)])]
+a5_fig11-20
+or_in_alt1[(not[(A)]), (not[(B)]), ($v:(not[(not[(A)])]).(a4_fig11-20[(A), (B), (u), (v)]))]
+or[(not[(A)]), (not[(B)])]
+edef2
+
+
+// p.245 Figure 11.21; Proof of the lemma: !A or !B entails !(A and B)
+// A, B: *
+// | u: !A or !B
+// | | v: A and B
+def2    // (1)
+4
+A
+*
+B
+*
+u
+or[(not[(A)]), (not[(B)])]
+v
+and[(A), (B)]
+a1_fig11-21
+and_el1[(A), (B), (v)]
+A
+edef2
+
+// | | |
+def2    // (2)
+4
+A
+*
+B
+*
+u
+or[(not[(A)]), (not[(B)])]
+v
+and[(A), (B)]
+a2_fig11-21
+and_el2[(A), (B), (v)]
+B
+edef2
+
+// | | |
+def2    // (3)
+4
+A
+*
+B
+*
+u
+or[(not[(A)]), (not[(B)])]
+v
+and[(A), (B)]
+a3_fig11-21
+notnot_in[(A), (a1_fig11-21[(A), (B), (u), (v)])]
+not[(not[(A)])]
+edef2
+
+// | | |
+def2    // (4)
+4
+A
+*
+B
+*
+u
+or[(not[(A)]), (not[(B)])]
+v
+and[(A), (B)]
+a4_fig11-21
+or_el_alt1[(not[(A)]), (not[(B)]), (u), (a3_fig11-21[(A), (B), (u), (v)])]
+not[(B)]
+edef2
+
+// | | |
+def2    // (5)
+4
+A
+*
+B
+*
+u
+or[(not[(A)]), (not[(B)])]
+v
+and[(A), (B)]
+a5_fig11-21
+%(a4_fig11-21[(A), (B), (u), (v)])(a2_fig11-21[(A), (B), (u), (v)])
+contra[]
+edef2
+
+// | |
+def2    // (6)
+3
+A
+*
+B
+*
+u
+or[(not[(A)]), (not[(B)])]
+a6_fig11-21
+$v:(and[(A), (B)]).(a5_fig11-21[(A), (B), (u), (v)])
+not[(and[(A), (B)])]
+edef2
+
+
+// p.246 Figure 11.22; Definition and rules for forall
+// S: * | P: S -> *
+def2    // (1)
+2
+S
+*
+P
+?x:(S).(*)
+forall      // name
+?x:(S).(%(P)(x))
+*
+edef2
+
+// | u: ?x:(S).(%(P)(x))
+def2    // (2)
+3
+S
+*
+P
+?x:(S).(*)
+u
+?x:(S).(%(P)(x))
+forall_in   // name
+u
+forall[(S), (P)]
+edef2
+
+// | u: forall[(S),(P)] | v: S
+def2    // (3)
+4
+S
+*
+P
+?x:(S).(*)
+u
+forall[(S), (P)]
+v
+S
+forall_el   // name
+%(u)(v)
+%(P)(v)
+edef2
+
+
+// p.247 Figure 11.23; Definition and rules for exists
+// S: * | P: S -> *
+// def2    // (1)
+// 2
+// S
+// *
+// P
+// ?x:(S).(*)
+// exists      // name
+// ?A:(*).(implies[(?x:(S).(implies[(%(P)(x)), (A)])), (A)])
+// *
+// edef2
+// 
+// // | u: S | v: Pu
+// def2    // (2)
+// 4
+// S
+// *
+// P
+// ?x:(S).(*)
+// u
+// S
+// v
+// %(P)(u)
+// exists_in   // name
+// $A:(*).($w:(?x:(S).(implies[(%(P)(x)), (A)])).(%(%(w)(u))(v)))
+// exists[(S), (P)]
+// edef2
+// 
+// // | u: exists[(S), (P)] | A: * | v: ?x:(S).(implies[(%(P)(x)), (A)])
+// def2    // (3)
+// 5
+// S
+// *
+// P
+// ?x:(S).(*)
+// u
+// exists[(S), (P)]
+// A
+// *
+// v
+// ?x:(S).(implies[(%(P)(x)), (A)])
+// exists_el
+// %(%(u)(A))(v)
+// A
+// edef2
+
+def2    // (1')
+2
+S
+*
+P
+?x:(S).(*)
+exists
+?A:(*).(implies[(forall[(S), ($x:(S).(implies[(%(P)(x)), (A)]))]), (A)])
+*
+edef2
+
+def2    // (2')
+4
+S
+*
+P
+?x:(S).(*)
+u
+S
+v
+%(P)(u)
+exists_in   // name
+$A:(*).($w:(forall[(S), ($x:(S).(implies[(%(P)(x)), (A)]))]).(%(%(w)(u))(v)))
+exists[(S), (P)]
+edef2
+
+def2    // (3')
+5
+S
+*
+P
+?x:(S).(*)
+u
+exists[(S), (P)]
+A
+*
+v
+?x:(S).(implies[(%(P)(x)), (A)])
+exists_el
+%(%(u)(A))(v)
+A
+edef2
+
+
+// p.248 Figure 11.24; An example concerning the rules for exists
+// S: * | P: S -> * | Q: S -> *
+// | u: exists[S, P] | v: forall[S, Py => Qy]
+// | | x: S | w: Px
+def2    // (1)
+7
+S
+*
+P
+?x:(S).(*)
+Q
+?x:(S).(*)
+u
+exists[(S), (P)]
+v
+forall[(S), ($y:(S).(implies[(%(P)(y)), (%(Q)(y))]))]
+x
+S
+w
+%(P)(x)
+a1_fig11-24     // name
+%(v)(x)
+implies[(%(P)(x)), (%(Q)(x))]
+edef2
+
+// | | |
+def2    // (2)
+7
+S
+*
+P
+?x:(S).(*)
+Q
+?x:(S).(*)
+u
+exists[(S), (P)]
+v
+forall[(S), ($y:(S).(implies[(%(P)(y)), (%(Q)(y))]))]
+x
+S
+w
+%(P)(x)
+a2_fig11-24     // name
+%(a1_fig11-24[(S), (P), (Q), (u), (v), (x), (w)])(w)
+%(Q)(x)
+edef2
+
+// | | |
+def2    // (3)
+7
+S
+*
+P
+?x:(S).(*)
+Q
+?x:(S).(*)
+u
+exists[(S), (P)]
+v
+forall[(S), ($y:(S).(implies[(%(P)(y)), (%(Q)(y))]))]
+x
+S
+w
+%(P)(x)
+a3_fig11-24     // name
+exists_in[(S), (Q), (x), (a2_fig11-24[(S), (P), (Q), (u), (v), (x), (w)])]
+exists[(S), (Q)]
+edef2
+
+// | |
+def2    // (4)
+5
+S
+*
+P
+?x:(S).(*)
+Q
+?x:(S).(*)
+u
+exists[(S), (P)]
+v
+forall[(S), ($y:(S).(implies[(%(P)(y)), (%(Q)(y))]))]
+a4_fig11-24     // name
+$x:(S).($w:(%(P)(x)).(a3_fig11-24[(S), (P), (Q), (u), (v), (x), (w)]))
+forall[(S), ($x:(S).(implies[(%(P)(x)), (exists[(S), (Q)])]))]
+edef2
+
+// | |
+def2    // (5)
+5
+S
+*
+P
+?x:(S).(*)
+Q
+?x:(S).(*)
+u
+exists[(S), (P)]
+v
+forall[(S), ($y:(S).(implies[(%(P)(y)), (%(Q)(y))]))]
+a5_fig11-24     // name
+exists_el[(S), (P), (u), (exists[(S), (Q)]), (a4_fig11-24[(S), (P), (Q), (u), (v)])]
+exists[(S), (Q)]
+edef2
+
+// |
+def2    // (6)
+3
+S
+*
+P
+?x:(S).(*)
+Q
+?x:(S).(*)
+a6_fig11-24     // name
+$u:(exists[(S), (P)]).($v:(forall[(S), ($y:(S).(implies[(%(P)(y)), (%(Q)(y))]))]).(a5_fig11-24[(S), (P), (Q), (u), (v)]))
+implies[(exists[(S), (P)]), (implies[(forall[(S), ($y:(S).(implies[(%(P)(y)), (%(Q)(y))]))]), (exists[(S), (Q)])])]
+edef2
+
+
+// p.249 Figure 11.25; Example: exists[] implies not-forall-not
+// S: * | P: S -> *
+// | u: exists[S, P]
+// | | v: forall[S, not[Py]]
+def2    // (1)
+4
+S
+*
+P
+?x:(S).(*)
+u
+exists[(S), (P)]
+v
+forall[(S), ($y:(S).(not[(%(P)(y))]))]
+a1_fig11-25     // name
+exists_el[(S), (P), (u), (contra[]), (v)]
+contra[]
+edef2
+
+// | |
+def2    // (2)
+3
+S
+*
+P
+?x:(S).(*)
+u
+exists[(S), (P)]
+a2_fig11-25     // name
+$v:(forall[(S), ($y:(S).(not[(%(P)(y))]))]).(a1_fig11-25[(S), (P), (u), (v)])
+not[(forall[(S), ($y:(S).(not[(%(P)(y))]))])]
+edef2
+
+// |
+def2    // (3)
+2
+S
+*
+P
+?x:(S).(*)
+a3_fig11-25     // name
+$u:(exists[(S), (P)]).(a2_fig11-25[(S), (P), (u)])
+implies[(exists[(S), (P)]), (not[(forall[(S), ($y:(S).(not[(%(P)(y))]))])])]
+edef2
+
+
+// p.250 Figure 11.26; Example: not-exists implies forall-not
+// S: * | P: S -> *
+// | u: not[exists[S, P]]
+// | | y: S
+// | | | v: Py
+def2    // (1)
+5
+S
+*
+P
+?x:(S).(*)
+u
+not[(exists[(S), (P)])]
+y
+S
+v
+%(P)(y)
+a1_fig11-26     // name
+exists_in[(S), (P), (y), (v)]
+exists[(S), (P)]
+edef2
+
+// | | | |
+def2    // (2)
+5
+S
+*
+P
+?x:(S).(*)
+u
+not[(exists[(S), (P)])]
+y
+S
+v
+%(P)(y)
+a2_fig11-26     // name
+%(u)(a1_fig11-26[(S), (P), (u), (y), (v)])
+contra[]
+edef2
+
+// | | |
+def2    // (3)
+4
+S
+*
+P
+?x:(S).(*)
+u
+not[(exists[(S), (P)])]
+y
+S
+a3_fig11-26     // name
+$v:(%(P)(y)).(a2_fig11-26[(S), (P), (u), (y), (v)])
+not[(%(P)(y))]
+edef2
+
+// | |
+def2    // (4)
+3
+S
+*
+P
+?x:(S).(*)
+u
+not[(exists[(S), (P)])]
+a4_fig11-26     // name
+$y:(S).(a3_fig11-26[(S),(P),(u),(y)])
+forall[(S), ($y:(S).(not[(%(P)(y))]))]
+edef2
+
+// |
+def2    // (5)
+2
+S
+*
+P
+?x:(S).(*)
+a5_fig11-26     // name
+$u:(not[(exists[(S), (P)])]).(a4_fig11-26[(S),(P),(u)])
+implies[(not[(exists[(S), (P)])]), (forall[(S), ($y:(S).(not[(%(P)(y))]))])]
+edef2
+
+
+// p.251 Figure 11.27; Example: not-forall-not implies exists
+// S: * | P: S -> *
+// | u: not[forall[S, not[P-]]]
+// | | v: not[exists[S, P]]
+def2    // (1)
+4
+S
+*
+P
+?x:(S).(*)
+u
+not[(forall[(S), ($x:(S).(not[(%(P)(x))]))])]
+v
+not[(exists[(S), (P)])]
+a1_fig11-27
+a4_fig11-26[(S), (P), (v)]
+forall[(S), ($z:(S).(not[(%(P)(z))]))]
+edef2
+
+// | | |
+def2    // (2)
+4
+S
+*
+P
+?x:(S).(*)
+u
+not[(forall[(S), ($x:(S).(not[(%(P)(x))]))])]
+v
+not[(exists[(S), (P)])]
+a2_fig11-27
+%(u)(a1_fig11-27[(S), (P), (u), (v)])
+contra[]
+edef2
+
+// | |
+def2    // (3)
+3
+S
+*
+P
+?x:(S).(*)
+u
+not[(forall[(S), ($x:(S).(not[(%(P)(x))]))])]
+a3_fig11-27
+$v:(not[(exists[(S), (P)])]).(a2_fig11-27[(S), (P), (u), (v)])
+not[(not[(exists[(S), (P)])])]
+edef2
+
+// | |
+def2    // (4)
+3
+S
+*
+P
+?x:(S).(*)
+u
+not[(forall[(S), ($x:(S).(not[(%(P)(x))]))])]
+a4_fig11-27
+notnot_el[(exists[(S), (P)]), (a3_fig11-27[(S), (P), (u)])]
+exists[(S), (P)]
+edef2
+
+// |
+def2    // (5)
+2
+S
+*
+P
+?x:(S).(*)
+a5_fig11-27
+$u:(not[(forall[(S), ($x:(S).(not[(%(P)(x))]))])]).(a4_fig11-27[(S), (P), (u)])
+implies[(not[(forall[(S), ($x:(S).(not[(%(P)(x))]))])]), (exists[(S), (P)])]
+edef2
+
+
+// p.251 Figure 11.28; Alternative rules for exists
+// S: * | P: S -> *
+// | u: not[forall[S, not[Px]]]
+def2    // (1)
+3
+S
+*
+P
+?x:(S).(*)
+u
+not[(forall[(S), ($x:(S).(not[(%(P)(x))]))])]
+exists_in_alt   // name
+a4_fig11-27[(S), (P), (u)]
+exists[(S), (P)]
+edef2
+
+// | u: exists[S, P]
+def2    // (2)
+3
+S
+*
+P
+?x:(S).(*)
+u
+exists[(S), (P)]
+exists_el_alt   // name
+a2_fig11-25[(S), (P), (u)]
+not[(forall[(S), ($x:(S).(not[(%(P)(x))]))])]
+edef2
+
+
+// p.252 Figure 11.29; Example: not-forall implies exists-not
+// S: * | P: S -> *
+// | u: not[forall[S, P]]
+// | | v: forall[S, not[not[Py]]]
+// | | | x: S
+def2    // (1)
+5
+S
+*
+P
+?x:(S).(*)
+u
+not[(forall[(S), (P)])]
+v
+forall[(S), ($y:(S).(not[(not[(%(P)(y))])]))]
+x
+S
+a1_fig11-29     // name
+%(v)(x)
+not[(not[(%(P)(x))])]
+edef2
+
+// | | | |
+def2    // (2)
+5
+S
+*
+P
+?x:(S).(*)
+u
+not[(forall[(S), (P)])]
+v
+forall[(S), ($y:(S).(not[(not[(%(P)(y))])]))]
+x
+S
+a2_fig11-29     // name
+notnot_el[(%(P)(x)), (a1_fig11-29[(S), (P), (u), (v), (x)])]
+%(P)(x)
+edef2
+
+// | | |
+def2    // (3)
+4
+S
+*
+P
+?x:(S).(*)
+u
+not[(forall[(S), (P)])]
+v
+forall[(S), ($y:(S).(not[(not[(%(P)(y))])]))]
+a3_fig11-29     // name
+$x:(S).(a2_fig11-29[(S), (P), (u), (v), (x)])
+forall[(S), (P)]
+edef2
+
+// | | |
+def2    // (4)
+4
+S
+*
+P
+?x:(S).(*)
+u
+not[(forall[(S), (P)])]
+v
+forall[(S), ($y:(S).(not[(not[(%(P)(y))])]))]
+a4_fig11-29     // name
+%(u)(a3_fig11-29[(S), (P), (u), (v)])
+contra[]
+edef2
+
+// | |
+def2    // (5)
+3
+S
+*
+P
+?x:(S).(*)
+u
+not[(forall[(S), (P)])]
+a5_fig11-29     // name
+$v:(forall[(S), ($y:(S).(not[(not[(%(P)(y))])]))]).(a4_fig11-29[(S), (P), (u), (v)])
+not[(forall[(S), ($y:(S).(not[(not[(%(P)(y))])]))])]
+edef2
+
+// | |
+def2    // (6)
+3
+S
+*
+P
+?x:(S).(*)
+u
+not[(forall[(S), (P)])]
+a6_fig11-29     // name
+exists_in_alt[(S), ($y:(S).(not[(%(P)(y))])), (a5_fig11-29[(S), (P), (u)])]
+exists[(S), ($y:(S).(not[(%(P)(y))]))]
+edef2
+
+// |
+def2    // (7)
+2
+S
+*
+P
+?x:(S).(*)
+a7_fig11-29     // name
+$u:(not[(forall[(S), (P)])]).(a6_fig11-29[(S), (P), (u)])
+implies[(not[(forall[(S), (P)])]), (exists[(S), ($y:(S).(not[(%(P)(y))]))])]
+edef2
 
 END
