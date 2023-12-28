@@ -33,7 +33,7 @@ status=$?
 if [ ${status} != 0 ]; then
     exit ${status}
 fi
-./gen_proof.sh ${script_name} ${defs_nocomm} > /dev/null
+./gen_book.sh ${script_name} ${defs_nocomm} > /dev/null
 status=$?
 if [ ${status} != 0 ]; then
     exit ${status}
