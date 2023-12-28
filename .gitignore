@@ -33,8 +33,6 @@
 
 test_read
 test_read_leak
-log
-script
 def_file_nocomm
 
 # test_automake3
