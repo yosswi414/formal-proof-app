@@ -27,33 +27,6 @@ V               [a-zA-Z]
 Name            [a-zA-Z][a-zA-Z0-9_-]+
  */
 
-/*
-#####  specifications  #####
-
-Variable
-    char var_name
-Star
-Square
-    (none)
-    ---------
-
-Typed<T>
-    T term
-    ε type
-
-Application
-    ε operator
-    ε operand
-
-AbstLambda
-AbstPi
-    Typed<Variable> var
-    ε expr
-
-Constant
-    [ε] types
-
- */
 
 enum class Kind {
     Star,
@@ -99,23 +72,6 @@ std::ostream& operator<<(std::ostream& os, const Kind& k) {
     return os << to_string(k);
 }
 
-// template <typename T>
-// auto operator<<(std::ostream& os, const T& t) -> decltype(t->string(), std::ostream())& {
-//     os << "[2]";
-//     return os << t->string();
-// }
-
-// template <typename T>
-// decltype(std::declval<T>().string(), std::true_type{}) has_string_memf(int);
-// template <typename T>
-// std::false_type has_string_memf(...);
-// template <typename T>
-// struct has_string : decltype(has_string_memf<T>(0)) {};
-
-// template <typename T, typename std::enable_if_t<has_string<T>::value, int> = 0>
-// std::ostream& operator<<(std::ostream& os, const T& t) {
-//     return os << t.string();
-// }
 
 template <typename T>
 using has_string_t = decltype(std::declval<T>().string());
@@ -126,15 +82,6 @@ std::ostream& operator<<(std::ostream& os, const PtrType& ptr) {
     return os << ptr->string();
 }
 
-// template <typename T>
-// std::ostream& operator<<(std::ostream& os, const std::unique_ptr<T>& t) {
-//     return os << t->string();
-// }
-
-// template <typename T>
-// std::ostream& operator<<(std::ostream& os, const T*& t) {
-//     return os << t->string();
-// }
 
 class Term {
   public:
