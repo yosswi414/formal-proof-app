@@ -23,7 +23,7 @@ book: bin/verifier.out src/script_test
 	bin/verifier.out src/script_test
 
 lambda: src/lambda.cpp src/lambda.hpp
-	g++ -Wall -Wextra -o bin/lambda.out src/lambda.cpp
+	g++ -O0 -Wall -Wextra -fsanitize=address -fno-omit-frame-pointer -g -o bin/lambda.out src/lambda.cpp
 	bin/lambda.out
 
 clean:
