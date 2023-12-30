@@ -560,16 +560,16 @@ void parse(const std::vector<std::string>& lines, std::vector<Def2>& data) {
     }
 }
 
-class Definitions {
+class Environment {
   public:
     std::vector<Def2> list;
 
-    Definitions() {}
-    Definitions(const std::vector<std::string>& lines) { parse(lines, list); }
-    friend std::ostream& operator<<(std::ostream& os, const Definitions& defs);
+    Environment() {}
+    Environment(const std::vector<std::string>& lines) { parse(lines, list); }
+    friend std::ostream& operator<<(std::ostream& os, const Environment& defs);
 };
 
-std::ostream& operator<<(std::ostream& os, const Definitions& defs) {
+std::ostream& operator<<(std::ostream& os, const Environment& defs) {
     for (size_t i = 0; i < defs.list.size(); ++i) {
         os << "def [" << i << "]:" << std::endl;
         os << defs.list[i] << std::endl;
@@ -690,9 +690,9 @@ int main(int argc, char* argv[]) {
     }
 
     std::vector<std::string> lines = read_def_file(fname);
-    Definitions defs;
+    Environment defs;
     try {
-        defs = Definitions(lines);
+        defs = Environment(lines);
     } catch (const InvalidSyntaxFileException& e) {
         if(!e.isdef){
             int i = e.line, j = e.line2;

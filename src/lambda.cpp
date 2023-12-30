@@ -5,7 +5,6 @@
 #include <memory>
 #include <string>
 
-
 int main() {
     std::cout << Kind::Variable << std::endl;
     // Term* ts = new Star();
@@ -80,9 +79,9 @@ int main() {
         defds(std::make_shared<Definition>(conzx, const1, PxABz, PxAB)),
         defpr2(std::make_shared<Definition>(conyz, const3, PxABz));
 
-    std::shared_ptr<Definitions>
-        defs1(std::make_shared<Definitions>(defds, defpr1)),
-        defs2(std::make_shared<Definitions>(defpr2, defds));
+    std::shared_ptr<Environment>
+        defs1(std::make_shared<Environment>(defds, defpr1)),
+        defs2(std::make_shared<Environment>(defpr2, defds));
 
     // std::cout << defs1 << std::endl;
 

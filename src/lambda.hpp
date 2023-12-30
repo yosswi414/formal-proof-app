@@ -8,14 +8,16 @@
 #include <utility>
 #include <vector>
 
+#include "common.hpp"
+
 /*
 #####  definitions  #####
 note: [*] denotes a list of *
       <*> denotes a tuple
       M: N denotes that M is N
 Book            [Judgement]
-Judgement       <Definitions, Context, Proof: ε, Prop: ε>
-Definitions     [Definition]
+Judgement       <Environment, Context, Proof: ε, Prop: ε>
+Environment     [Definition]
 Definition      <Context, Constant, TypedTerm>
               | <Context, Constant, Axiom: ε>
 Context         [<V, Type: ε>]
@@ -26,7 +28,6 @@ Constant        <Name, [Type: ε]>
 V               [a-zA-Z]
 Name            [a-zA-Z][a-zA-Z0-9_-]+
  */
-
 
 enum class Kind {
     Star,
@@ -72,7 +73,6 @@ std::ostream& operator<<(std::ostream& os, const Kind& k) {
     return os << to_string(k);
 }
 
-
 template <typename T>
 using has_string_t = decltype(std::declval<T>().string());
 
@@ -81,7 +81,6 @@ template <typename PtrType, typename std::enable_if_t<
 std::ostream& operator<<(std::ostream& os, const PtrType& ptr) {
     return os << ptr->string();
 }
-
 
 class Term {
   public:
@@ -155,6 +154,9 @@ class Typed {
     std::shared_ptr<Term> _type;
 };
 
+const std::string SYMBOL_LAMBDA = (OnlyAscii ? "$" : "λ");
+const std::string SYMBOL_PI = (OnlyAscii ? "?" : "Π");
+
 class AbstLambda : public Term {
   public:
     AbstLambda(std::shared_ptr<Typed<Variable>> v, std::shared_ptr<Term> e) : Term(Kind::AbstLambda), _var(v), _expr(e) {}
@@ -164,7 +166,7 @@ class AbstLambda : public Term {
     const std::shared_ptr<Term>& expr() const { return _expr; }
 
     std::string string() const override {
-        return std::string("$") + _var->string() + ".(" + _expr->string() + ")";
+        return SYMBOL_LAMBDA + _var->string() + ".(" + _expr->string() + ")";
     }
 
   private:
@@ -181,7 +183,7 @@ class AbstPi : public Term {
     const std::shared_ptr<Term>& expr() const { return _expr; }
 
     std::string string() const override {
-        return std::string("?") + _var->string() + ".(" + _expr->string() + ")";
+        return SYMBOL_PI + _var->string() + ".(" + _expr->string() + ")";
     }
 
   private:
@@ -213,6 +215,8 @@ class Constant : public Term {
     std::vector<std::shared_ptr<Term>> _types;
 };
 
+const std::string HEADER_CONTEXT = (OnlyAscii ? "Context" : "Γ");
+
 class Context {
   public:
     Context(const std::vector<std::shared_ptr<Typed<Variable>>>& list) : _context(list) {}
@@ -220,7 +224,7 @@ class Context {
     Context(Ts... vals) : _context{vals...} {}
 
     std::string string() const {
-        std::string res("Γ{");
+        std::string res(HEADER_CONTEXT + "{");
         if (_context.size() > 0) res += _context[0]->string();
         for (size_t i = 1; i < _context.size(); ++i) res += ", " + _context[i]->string();
         res += "}";
@@ -231,57 +235,62 @@ class Context {
     std::vector<std::shared_ptr<Typed<Variable>>> _context;
 };
 
+const std::string DEFINITION_SEPARATOR = (OnlyAscii ? "|>" : "▷");
+const std::string EMPTY_DEFINIENS = (OnlyAscii ? "#" : "⫫");
+
 class Definition {
   public:
     Definition(std::shared_ptr<Context> context,
                std::shared_ptr<Constant> constant,
                std::shared_ptr<Term> prop) : _is_prim(true),
                                              _context(context),
-                                             _constant(constant),
-                                             _proof(nullptr),
-                                             _prop(prop) {}
+                                             _definiendum(constant),
+                                             _definiens(nullptr),
+                                             _type(prop) {}
 
     Definition(std::shared_ptr<Context> context,
                std::shared_ptr<Constant> constant,
                std::shared_ptr<Term> proof,
                std::shared_ptr<Term> prop) : _is_prim(false),
                                              _context(context),
-                                             _constant(constant),
-                                             _proof(proof),
-                                             _prop(prop) {}
+                                             _definiendum(constant),
+                                             _definiens(proof),
+                                             _type(prop) {}
 
     std::string string() const {
         std::string res;
-        res = (_is_prim ? "Def-prim<" : "Def<");
+        res = (_is_prim ? "Def-prim< " : "Def< ");
         res += _context->string();
-        res += " | " + _constant->string();
-        res += " | " + (_is_prim ? "#" : _proof->string());
-        res += " : " + _prop->string();
-        res += ">";
+        res += " " + DEFINITION_SEPARATOR + " " + _definiendum->string();
+        res += " := " + (_is_prim ? EMPTY_DEFINIENS : _definiens->string());
+        res += " : " + _type->string();
+        res += " >";
         return res;
     }
 
     bool is_prim() const { return _is_prim; }
     const std::shared_ptr<Context>& context() const { return _context; }
-    const std::shared_ptr<Constant>& constant() const { return _constant; }
-    const std::shared_ptr<Term>& proof() const { return _proof; }
-    const std::shared_ptr<Term>& prop() const { return _prop; }
+    const std::shared_ptr<Constant>& definiendum() const { return _definiendum; }
+    const std::shared_ptr<Term>& definiens() const { return _definiens; }
+    const std::shared_ptr<Term>& type() const { return _type; }
 
   private:
     bool _is_prim;
     std::shared_ptr<Context> _context;
-    std::shared_ptr<Constant> _constant;
-    std::shared_ptr<Term> _proof, _prop;
+    std::shared_ptr<Constant> _definiendum;
+    std::shared_ptr<Term> _definiens, _type;
 };
 
-class Definitions {
+const std::string HEADER_ENV = (OnlyAscii ? "Env" : "Δ");
+
+class Environment {
   public:
-    Definitions(const std::vector<std::shared_ptr<Definition>>& list) : _defs(list) {}
+    Environment(const std::vector<std::shared_ptr<Definition>>& list) : _defs(list) {}
     template <class... Ts>
-    Definitions(Ts... vals) : _defs{vals...} {}
+    Environment(Ts... vals) : _defs{vals...} {}
 
     std::string string() const {
-        std::string res("Δ{{ ");
+        std::string res(HEADER_ENV + "{{ ");
         if (_defs.size() > 0) res += _defs[0]->string();
         for (size_t i = 1; i < _defs.size(); ++i) res += ", " + _defs[i]->string();
         res += " }}";
@@ -294,31 +303,33 @@ class Definitions {
     std::vector<std::shared_ptr<Definition>> _defs;
 };
 
+const std::string TURNSTILE = (OnlyAscii ? "|-" : "⊢");
+
 class Judgement {
   public:
-    Judgement(std::shared_ptr<Definitions> defs,
+    Judgement(std::shared_ptr<Environment> defs,
               std::shared_ptr<Context> context,
               std::shared_ptr<Term> proof,
-              std::shared_ptr<Term> prop) : _defs(defs), _context(context), _proof(proof), _prop(prop) {}
+              std::shared_ptr<Term> prop) : _defs(defs), _context(context), _term(proof), _type(prop) {}
     std::string string() const {
         std::string res("Judge<< ");
         res += _defs->string();
-        res += " :: " + _context->string();
-        res += " :: " + _proof->string();
-        res += " : " + _prop->string();
+        res += " ; " + _context->string();
+        res += " " + TURNSTILE + " " + _term->string();
+        res += " : " + _type->string();
         res += " >>";
         return res;
     }
 
-    const std::shared_ptr<Definitions>& defs() const { return _defs; }
+    const std::shared_ptr<Environment>& defs() const { return _defs; }
     const std::shared_ptr<Context>& context() const { return _context; }
-    const std::shared_ptr<Term>& proof() const { return _proof; }
-    const std::shared_ptr<Term>& prop() const { return _prop; }
+    const std::shared_ptr<Term>& term() const { return _term; }
+    const std::shared_ptr<Term>& type() const { return _type; }
 
   private:
-    std::shared_ptr<Definitions> _defs;
+    std::shared_ptr<Environment> _defs;
     std::shared_ptr<Context> _context;
-    std::shared_ptr<Term> _proof, _prop;
+    std::shared_ptr<Term> _term, _type;
 };
 
 class Book {
