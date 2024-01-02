@@ -93,5 +93,31 @@ int main() {
         book(std::make_shared<Book>(judge1, judge2));
 
     std::cout << "\n\n";
+    std::cout << "defpr1 = " << defpr1 << std::endl;
+    std::cout << "defpr2 = " << defpr2 << std::endl;
+    std::cout << "defds  = " << defds << std::endl;
+    std::cout << "\n";
+    std::cout << "env defs1 = " << defs1 << std::endl;
+    std::cout << " = \n";
+    std::cout << defs1->repr() << std::endl;
+    std::cout << "\n";
+    std::cout << "judge judge1 = " << judge1 << std::endl;
+    std::cout << "judge judge2 = " << judge2->string(false) << std::endl;
+    std::cout << "\n";
     std::cout << book << std::endl;
+
+    std::vector<std::string> lines{
+        "def2   // (123)",
+        "1",
+        "A",
+        "*",
+        "test   // name",
+        "$x:(A).(*)",
+        "*",
+        "edef2",
+        "",
+        "END"
+    };
+
+
 }

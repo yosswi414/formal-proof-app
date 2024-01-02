@@ -88,6 +88,7 @@ class Term {
     virtual ~Term() = default;
     Kind kind() const { return _kind; }
     virtual std::string string() const = 0;
+    virtual std::string repr() const { return string(); }
 
   protected:
     Term(const Kind& k) : _kind(k) {}
@@ -99,21 +100,21 @@ class Term {
 class Star : public Term {
   public:
     Star() : Term(Kind::Star) {}
-    // ~Star() { std::cerr << "~Star()" << std::endl; }
     std::string string() const override { return "*"; }
 };
+
+const std::string SYMBOL_SQUARE = (OnlyAscii ? "@" : "□");
 
 class Square : public Term {
   public:
     Square() : Term(Kind::Square) {}
-    // ~Square() { std::cerr << "~Square()" << std::endl; }
-    std::string string() const override { return "@"; }
+    std::string string() const override { return SYMBOL_SQUARE; }
+    std::string repr() const override { return "@"; }
 };
 
 class Variable : public Term {
   public:
     Variable(char ch) : Term(Kind::Variable), _var_name(ch) {}
-    // ~Variable() { std::cerr << "~Variable(" << string() << ")" << std::endl; }
     std::string string() const override { return std::string(1, _var_name); }
 
   private:
@@ -123,13 +124,15 @@ class Variable : public Term {
 class Application : public Term {
   public:
     Application(std::shared_ptr<Term> m, std::shared_ptr<Term> n) : Term(Kind::Application), _M(m), _N(n) {}
-    // ~Application() { std::cerr << "~Application(" << _M << ", " << _N << ")" << std::endl; }
 
     const std::shared_ptr<Term>& M() const { return _M; }
     const std::shared_ptr<Term>& N() const { return _N; }
 
     std::string string() const override {
         return std::string("%(") + _M->string() + ")(" + _N->string() + ")";
+    }
+    std::string repr() const override {
+        return std::string("%(") + _M->repr() + ")(" + _N->repr() + ")";
     }
 
   private:
@@ -155,12 +158,10 @@ class Typed {
 };
 
 const std::string SYMBOL_LAMBDA = (OnlyAscii ? "$" : "λ");
-const std::string SYMBOL_PI = (OnlyAscii ? "?" : "Π");
 
 class AbstLambda : public Term {
   public:
     AbstLambda(std::shared_ptr<Typed<Variable>> v, std::shared_ptr<Term> e) : Term(Kind::AbstLambda), _var(v), _expr(e) {}
-    // ~AbstLambda() { std::cerr << "~AbstLambda(" << _var << ", " << _expr << ")" << std::endl; }
 
     const std::shared_ptr<Typed<Variable>>& var() const { return _var; }
     const std::shared_ptr<Term>& expr() const { return _expr; }
@@ -168,22 +169,29 @@ class AbstLambda : public Term {
     std::string string() const override {
         return SYMBOL_LAMBDA + _var->string() + ".(" + _expr->string() + ")";
     }
+    std::string repr() const override {
+        return "$" + _var->value()->repr() + ":(" + _var->type()->repr() + ").(" + _expr->repr() + ")";
+    }
 
   private:
     std::shared_ptr<Typed<Variable>> _var;
     std::shared_ptr<Term> _expr;
 };
 
+const std::string SYMBOL_PI = (OnlyAscii ? "?" : "Π");
+
 class AbstPi : public Term {
   public:
     AbstPi(std::shared_ptr<Typed<Variable>> v, std::shared_ptr<Term> e) : Term(Kind::AbstPi), _var(v), _expr(e) {}
-    // ~AbstPi() { std::cerr << "~AbstPi(" << _var << ", " << _expr << ")" << std::endl; }
 
     const std::shared_ptr<Typed<Variable>>& var() const { return _var; }
     const std::shared_ptr<Term>& expr() const { return _expr; }
 
     std::string string() const override {
         return SYMBOL_PI + _var->string() + ".(" + _expr->string() + ")";
+    }
+    std::string repr() const override {
+        return "?" + _var->value()->repr() + ":(" + _var->type()->repr() + ").(" + _expr->repr() + ")";
     }
 
   private:
@@ -197,8 +205,6 @@ class Constant : public Term {
     template <class... Ts>
     Constant(const std::string& name, Ts... ptrs) : Term(Kind::Constant), _name(name), _types{ptrs...} {}
 
-    // ~Constant() { std::cerr << "~Constant(" << _name << "[" << _types.size() << "])" << std::endl; }
-
     const std::vector<std::shared_ptr<Term>>& types() const { return _types; }
 
     std::string string() const override {
@@ -209,6 +215,15 @@ class Constant : public Term {
         res += "]";
         return res;
     }
+    std::string repr() const override {
+        std::string res(_name);
+        res += "[";
+        if (_types.size() > 0) res += "(" + _types[0]->repr() + ")";
+        for (size_t i = 1; i < _types.size(); ++i) res += ", (" + _types[i]->repr() + ")";
+        res += "]";
+        return res;
+    }
+    const std::string& name() const { return _name; }
 
   private:
     std::string _name;
@@ -228,6 +243,12 @@ class Context {
         if (_context.size() > 0) res += _context[0]->string();
         for (size_t i = 1; i < _context.size(); ++i) res += ", " + _context[i]->string();
         res += "}";
+        return res;
+    }
+    std::string repr() const {
+        std::string res("");
+        res += std::to_string(_context.size()) + "\n";
+        for (auto& ptr : _context) res += ptr->value()->repr() + "\n" + ptr->type()->repr() + "\n";
         return res;
     }
 
@@ -267,6 +288,16 @@ class Definition {
         res += " >";
         return res;
     }
+    std::string repr() const {
+        std::string res;
+        res = "def2\n";
+        res += _context->repr();
+        res += _definiendum->name() + "\n";
+        res += (_is_prim ? "#" : _definiens->repr()) + "\n";
+        res += _type->repr() + "\n";
+        res += "edef2\n";
+        return res;
+    }
 
     bool is_prim() const { return _is_prim; }
     const std::shared_ptr<Context>& context() const { return _context; }
@@ -289,11 +320,20 @@ class Environment {
     template <class... Ts>
     Environment(Ts... vals) : _defs{vals...} {}
 
-    std::string string() const {
-        std::string res(HEADER_ENV + "{{ ");
-        if (_defs.size() > 0) res += _defs[0]->string();
-        for (size_t i = 1; i < _defs.size(); ++i) res += ", " + _defs[i]->string();
-        res += " }}";
+    std::string string(bool inSingleLine = true, size_t indentSize = 0) const {
+        std::string res = "";
+        std::string indent_ex(indentSize, '\t'), indent_in(inSingleLine ? "" : "\t"), eol(inSingleLine ? " " : "\n");
+        res += indent_ex + HEADER_ENV + "{{" + eol;
+        if (_defs.size() > 0) res += indent_ex + indent_in + _defs[0]->string();
+        for (size_t i = 1; i < _defs.size(); ++i) res += "," + eol + indent_ex + indent_in + _defs[i]->string();
+        res += eol + indent_ex + "}}";
+        return res;
+    }
+
+    std::string repr() const {
+        std::string res = "";
+        for (auto& ptr : _defs) res += ptr->repr() + "\n";
+        res += "END\n";
         return res;
     }
 
@@ -311,13 +351,15 @@ class Judgement {
               std::shared_ptr<Context> context,
               std::shared_ptr<Term> proof,
               std::shared_ptr<Term> prop) : _defs(defs), _context(context), _term(proof), _type(prop) {}
-    std::string string() const {
-        std::string res("Judge<< ");
-        res += _defs->string();
-        res += " ; " + _context->string();
+    std::string string(bool inSingleLine = true, size_t indentSize = 0) const {
+        std::string res("");
+        std::string indent_ex(indentSize, '\t'), indent_in(inSingleLine ? "" : "\t"), eol(inSingleLine ? " " : "\n");
+        res += indent_ex + "Judge<<" + eol;
+        res += _defs->string(inSingleLine, indentSize + (inSingleLine ? 0 : 1));
+        res += " ;" + eol + indent_ex + indent_in + _context->string();
         res += " " + TURNSTILE + " " + _term->string();
         res += " : " + _type->string();
-        res += " >>";
+        res += eol + indent_ex + ">>";
         return res;
     }
 
@@ -340,9 +382,9 @@ class Book {
 
     std::string string() const {
         std::string res("Book[[");
-        if (_judges.size() > 0) res += "\n\t" + _judges[0]->string() + "\n";
-        for (size_t i = 1; i < _judges.size(); ++i) res += "\t" + _judges[i]->string() + "\n";
-        res += "]]";
+        if (_judges.size() > 0) res += "\n" + _judges[0]->string(false, 1);
+        for (size_t i = 1; i < _judges.size(); ++i) res += ",\n" + _judges[i]->string(false, 1);
+        res += "\n]]";
         return res;
     }
 
