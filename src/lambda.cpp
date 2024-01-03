@@ -1,9 +1,252 @@
 #include "lambda.hpp"
 
-#include <cstdlib>
+#include <algorithm>
+#include <cctype>
 #include <iostream>
 #include <memory>
 #include <string>
+
+struct Location {
+    Location() {}
+    Location(size_t lno, size_t pos, size_t len) : lno(lno), pos(pos), len(len) {}
+
+    std::string string(const std::vector<std::string>& lines) const { return lines[lno].substr(pos, len); }
+
+    size_t lno, pos, len;
+};
+
+using TokenMat = std::vector<std::vector<Location>>;
+
+class ParseError {
+  public:
+    ParseError(const std::vector<std::string>& lines, const std::string& msg, size_t lno, size_t pos, size_t len = 1) : srcname("unnamed"), msg(msg), lines(lines), loc(lno, pos, len) {}
+    ParseError(const std::string& srcname, const std::vector<std::string>& lines, const std::string& msg, size_t lno, size_t pos, size_t len = 1) : srcname(srcname), msg(msg), lines(lines), loc(lno, pos, len) {}
+
+    ParseError(const std::vector<std::string>& lines, const std::string& msg, const Location& loc) : srcname("unnamed"), msg(msg), lines(lines), loc(loc) {}
+    ParseError(const std::string& srcname, const std::vector<std::string>& lines, const std::string& msg, const Location& loc) : srcname(srcname), msg(msg), lines(lines), loc(loc) {}
+
+    virtual void puterror(std::ostream& os = std::cerr) {
+        os << srcname << ":" << loc.lno + 1 << ":" << loc.pos + 1 << ": " << msg << std::endl;
+        std::string lnostr = std::to_string(loc.lno + 1) + " ";
+        os << lnostr << "| " << lines[loc.lno] << std::endl;
+        os << std::string(lnostr.size(), ' ') << "| " << std::string(loc.pos, ' ') << "^" << std::string(loc.len - 1, '~') << std::endl;
+    }
+
+    std::string srcname;
+    std::string msg;
+    const std::vector<std::string>& lines;
+    Location loc;
+};
+
+class ParseErrorWithNote : public ParseError {
+  public:
+    ParseErrorWithNote(const ParseError& error, const ParseError& note) : ParseError(error), note(note) {}
+
+    void puterror(std::ostream& os = std::cerr) override {
+        static_cast<ParseError>(*this).puterror(os);
+        note.puterror(os);
+    }
+    ParseError note;
+};
+
+std::shared_ptr<Term> parse_lambda(const std::string& expr) {
+    return std::make_shared<Star>();
+}
+
+std::shared_ptr<Definition> parse_def(const std::vector<std::string>& lines, const TokenMat& tokenmat) {
+    std::cerr << "parse_def: tokenmat..." << std::endl;
+    for (int i = 0; i < (int)tokenmat.size(); ++i) {
+        std::cerr << "line " << i << ":";
+        for (int j = 0; j < (int)tokenmat[i].size(); ++j) std::cerr << " [" << tokenmat[i][j].string(lines) << "],";
+        std::cerr << std::endl;
+    }
+
+    int i = 0, j = 0;
+    auto incr = [&tokenmat](int& a, int& b) -> void {
+        b + 1 < (int)tokenmat[a].size() ? ++b : ++a, b = 0;
+    };
+    auto token = [&lines, &tokenmat](int i, int j) -> std::string {
+        return tokenmat[i][j].string(lines);
+    };
+    // line 1: # of variables (N)
+    size_t num_vars = std::stoi(token(i, j));
+    try {
+        num_vars = std::stoi(token(i, j));
+    }
+    catch (const std::invalid_argument& e) {
+        throw ParseError(lines, "failed to read a number from this token", tokenmat[i][j]);
+    }
+    std::cerr << "#vars = " << num_vars << std::endl;
+    incr(i, j);
+    std::vector<std::shared_ptr<Typed<Variable>>> vars;
+    std::vector<std::shared_ptr<Term>> types;
+    // line 2 ... (2*N + 1): context; pairs of variable and its type (lambda)
+    for (size_t k = 0; k < num_vars; ++k) {
+        // var
+        std::string t = token(i, j);
+        if (t.size() != 1) {
+            throw ParseError(lines, "expected variable", tokenmat[i][j]);
+        }
+        incr(i, j);
+        // type
+        if (token(i, j) == ":") incr(i, j);
+        std::string expr("");
+        for (int orig_i = i; orig_i == i; incr(i, j)) expr += token(i, j);
+        std::shared_ptr<Term> texpr = parse_lambda(expr);
+        vars.emplace_back(std::make_shared<Typed<Variable>>(std::make_shared<Variable>(t[0]), texpr));
+        types.emplace_back(texpr);
+    }
+    // line 2*N + 2: name of constant
+    std::string cname = token(i, j);
+    incr(i, j);
+    // line 2*N + 3: proof (lambda)
+    std::shared_ptr<Term> proof(parse_lambda(token(i, j)));
+    incr(i, j);
+    // line 2*N + 4: proposition (lambda)
+    std::shared_ptr<Term> prop(parse_lambda(token(i, j)));
+    incr(i, j);
+
+    std::shared_ptr<Context> context = std::make_shared<Context>(vars);
+    std::shared_ptr<Constant> constant = std::make_shared<Constant>(cname, types);
+    return std::make_shared<Definition>(context, constant, proof, prop);
+}
+
+// ### special character ###
+//      '\' (line continuation) (to be impl'ed),
+//      "//" (comment),
+//      "/*" (comment start),
+//      "*/" (comment end)
+
+// std::string nexttoken(std::string delims, const std::string& text, size_t pos, int end = -1) {
+//     int begin = -1;
+//     if (end < 0) end = text.size();
+//     delims += "\\";
+//     for (int i = pos; i < end; ++i) {
+//         if (delims.find(text[i]) == delims.size()) {
+//             if (begin < 0) begin = i;
+//         } else {
+//             if (begin >= 0) return text.substr(begin, i - begin);
+//         }
+//     }
+//     if (begin < 0) return "";
+//     else return text.substr(begin);
+// }
+
+// <line> ::= <token> <line> | <spaces> <line>
+// <token> ::= <variable> | <constant_name> | <lambda>
+// <variable> ::= [a-zA-Z]
+// <constant_name> ::= [a-zA-Z_][a-zA-Z0-9_-\.]*
+// <lambda> ::= (symbols and alphabets)
+
+std::shared_ptr<Environment> parse(const std::vector<std::string>& lines) {
+    std::vector<std::shared_ptr<Definition>> env;
+
+    bool eof = false;
+    bool comm = false;  // in a "/*" - "*/" clause
+    int def_begin = -1;
+
+    // last comms begin
+    int last_comms_begin_lno = -1, last_comms_begin_pos = -1;
+
+    Location last_def2;
+
+    TokenMat tokenss;
+
+    const std::string spaces(" \t\r\n");
+    int token_head = -1;
+    for (size_t lno = 0; lno < lines.size(); ++lno) {
+        const std::string& str = lines[lno];
+        std::vector<Location> tokens;
+        int m = str.size();
+        const std::string spaces(" \t\r\n");
+        int lazpos = 0;
+        for (int pos = 0; pos < m; ++pos) {
+            bool check_token_tail = false;
+            if (comm) {
+                if (str.substr(pos, 2) == "*/") {
+                    comm = false;
+                    last_comms_begin_lno = -1;
+                    last_comms_begin_pos = -1;
+                    lazpos = 1;
+                }
+            } else {
+                if (str.substr(pos, 2) == "/*") {
+                    check_token_tail = true;
+                    comm = true;
+                    last_comms_begin_lno = lno;
+                    last_comms_begin_pos = pos;
+                    lazpos = 1;
+                } else if (str.substr(pos, 2) == "*/") {
+                    throw ParseError(lines, "unexpected comment closing: \"*/\"", lno, pos, 2);
+                } else if (str.substr(pos, 2) == "//") {
+                    check_token_tail = true;
+                    break;
+                } else if (spaces.find(str[pos]) != std::string::npos) {
+                    check_token_tail = true;
+                } else {
+                    if (token_head < 0) token_head = pos;
+                }
+            }
+            if (check_token_tail && token_head >= 0) {
+                tokens.emplace_back(lno, token_head, pos - token_head);
+                // tokens.emplace_back(str.substr(token_head, pos - token_head));
+                token_head = -1;
+            }
+            pos += lazpos;
+            lazpos = 0;
+        }
+        if (token_head >= 0) {
+            // tokens.emplace_back(str.substr(token_head));
+            tokens.emplace_back(lno, token_head, m - token_head);
+            token_head = -1;
+        }
+        // std::cerr << "line " << lno << ": \"" << str << "\" -> [";
+        // for (auto&& tok : tokens) std::cerr << tok.string(lines) << ", ";
+        // std::cerr << "]" << std::endl;
+        // std::cerr << "flag: {comm: " << comm << "}" << std::endl;
+
+        if (tokens.size() == 0) continue;
+
+        bool omit_line = false;
+        if (tokens.size() == 1) {
+            std::string t = tokens[0].string(lines);
+            if (t == "END") {
+                if (def_begin >= 0) {
+                    throw ParseErrorWithNote(
+                        ParseError(lines, "expected \"edef2\" before reaching \"END\"", tokens[0]),
+                        ParseError(lines, "to match this \"def2\"", last_def2)
+                    );
+                }
+                eof = true;
+                break;
+            } else if (t == "def2") {
+                if (def_begin < 0) {
+                    def_begin = lno;
+                    last_def2 = tokens[0];
+                    omit_line = true;
+                } else throw ParseErrorWithNote(
+                    ParseError(lines, "expected \"edef2\" at end of definition", tokens[0]),
+                    ParseError(lines, "to match this \"def2\"", last_def2));
+            } else if (t == "edef2") {
+                if (def_begin < 0) throw ParseError(lines, "expected \"def2\" before \"edef2\"", tokens[0]);
+                else {
+                    env.emplace_back(parse_def(lines, tokenss));
+                    tokenss.clear();
+                    def_begin = -1;
+                }
+            }
+        }
+        if (def_begin >= 0 && !omit_line) tokenss.emplace_back(tokens);
+    }
+    if (comm) {
+        throw ParseError(lines, "unterminated comment", last_comms_begin_lno, last_comms_begin_pos, 2);
+    }
+    if (!eof) {
+        throw ParseError(lines, "reached end of file while parsing (did you forget \"END\"?)", lines.size() - 1, 1);
+    }
+
+    return std::make_shared<Environment>(env);
+}
 
 int main() {
     std::cout << Kind::Variable << std::endl;
@@ -108,16 +351,26 @@ int main() {
 
     std::vector<std::string> lines{
         "def2   // (123)",
-        "1",
+        "1/*//*/",
         "A",
         "*",
-        "test   // name",
-        "$x:(A).(*)",
-        "*",
-        "edef2",
+        "const-test  // name",
+        "$x:( A ).( * )",
+        "@/****//****//**//// //***",
+        "/*",
+        "*/edef2",
         "",
-        "END"
-    };
-
-
+        "haha",
+        " \tEND"};
+    try {
+        std::shared_ptr<Environment> input(parse(lines));
+        std::cout << "parse begin" << std::endl;
+        std::cout << input << std::endl;
+        std::cout << "parse end" << std::endl;
+    } catch (ParseError& e) {
+        auto ptr = dynamic_cast<ParseErrorWithNote*>(&e);
+        if (ptr) ptr->puterror();
+        else e.puterror();
+        exit(EXIT_FAILURE);
+    }
 }
