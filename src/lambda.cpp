@@ -56,28 +56,28 @@ class LambdaError {
     size_t pos, len;
 };
 
-std::shared_ptr<Term> parse_lambda(const std::string& expr, size_t begin = 0, size_t end = -1) {
-    end = std::min(end, expr.size());
-
-    size_t pos = begin;
-
+std::shared_ptr<Term> parse_lambda(const std::vector<std::string>& lines, const TokenMat& tokenmat, int& row, int& col, size_t pos = 0) {
     const std::string name_syms("-_.");
 
-    if (isalpha(expr[pos])) {
-        size_t tail = pos;
-        while (tail + 1 < end && (isalnum(expr[tail]) || name_syms.find(expr[tail]) != std::string::npos)) ++tail;
-        if (tail == pos) {
-            if (tail + 1 < end) {
-                throw LambdaError("unknown leading tokens", tail + 1, end - tail - 1);
-            }
-            return std::make_shared<Variable>(expr[tail]);
-        }
-        else {
-            // constant
-            std::string cname = expr.substr(pos, tail - pos + 1);
-            std::cerr << "parse_lambda/cname = " << cname << std::endl;
-        }
-    }
+    // auto getchar = [&lines, &tokenmat, &row, &col, &pos]() {
+    //     return tokenmat[row][col].string(lines)[pos];
+    // };
+
+    // if (isalpha(expr[pos])) {
+    //     size_t tail = pos;
+    //     while (tail + 1 < end && (isalnum(expr[tail]) || name_syms.find(expr[tail]) != std::string::npos)) ++tail;
+    //     if (tail == pos) {
+    //         if (tail + 1 < end) {
+    //             throw LambdaError("unknown leading tokens", tail + 1, end - tail - 1);
+    //         }
+    //         return std::make_shared<Variable>(expr[tail]);
+    //     }
+    //     else {
+    //         // constant
+    //         std::string cname = expr.substr(pos, tail - pos + 1);
+    //         std::cerr << "parse_lambda/cname = " << cname << std::endl;
+    //     }
+    // }
 
         return std::make_shared<Star>();
 }
@@ -115,28 +115,28 @@ std::shared_ptr<Definition> parse_def(const std::vector<std::string>& lines, con
     // line 2 ... (2*N + 1): context; pairs of variable and its type (lambda)
     for (size_t k = 0; k < num_vars; ++k) {
         // var
-        std::string t = token(i, j);
-        if (t.size() != 1) {
-            throw ParseError(lines, "expected variable", tokenmat[i][j]);
+        int i0 = i, j0 = j;
+        std::shared_ptr<Term> variable = parse_lambda(lines, tokenmat, i, j);
+        if (!isTermA<Kind::Variable>(variable)) {
+            throw ParseError(lines, "expected variable (got " + to_string(variable->kind()) + ")", tokenmat[i0][j0]);
         }
-        incr(i, j);
         // type
         if (token(i, j) == ":") incr(i, j);
         std::string expr("");
         for (int orig_i = i; orig_i == i; incr(i, j)) expr += token(i, j);
-        std::shared_ptr<Term> texpr = parse_lambda(expr);
-        vars.emplace_back(std::make_shared<Typed<Variable>>(std::make_shared<Variable>(t[0]), texpr));
+        std::shared_ptr<Term> texpr;
+        // texpr = parse_lambda(expr);
+        texpr = parse_lambda(lines, tokenmat, i, j);
+        vars.emplace_back(std::make_shared<Typed<Variable>>(std::dynamic_pointer_cast<Variable>(variable), texpr));
         types.emplace_back(texpr);
     }
     // line 2*N + 2: name of constant
     std::string cname = token(i, j);
     incr(i, j);
     // line 2*N + 3: proof (lambda)
-    std::shared_ptr<Term> proof(parse_lambda(token(i, j)));
-    incr(i, j);
+    std::shared_ptr<Term> proof(parse_lambda(lines, tokenmat, i, j));
     // line 2*N + 4: proposition (lambda)
-    std::shared_ptr<Term> prop(parse_lambda(token(i, j)));
-    incr(i, j);
+    std::shared_ptr<Term> prop(parse_lambda(lines, tokenmat, i, j));
     // line 2*N + 5: footer "edef2"
     if (token(i, j) != "edef2") throw ParseError(lines, "(This is a bug. Please report with your input) footer is not \"edef2\"", tokenmat[i][j]);
 
@@ -400,6 +400,15 @@ int main() {
         "emptydef",
         "*",
         "@",
+        "edef2",
+        "",
+        "def2",
+        "edef2",
+        "",
+        "def2//extended grammar",
+        "1",
+        "B:*",
+        "ext_def := * : @",
         "edef2",
         " \tEND"};
     try {
