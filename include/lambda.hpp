@@ -144,7 +144,7 @@ class Application : public Term {
     std::shared_ptr<Term> _M, _N;
 };
 
-template <class T>
+template <typename T, std::enable_if_t<std::is_base_of<Term, T>::value, bool> = true>
 class Typed {
   public:
     Typed(std::shared_ptr<T> val, std::shared_ptr<Term> t) : _value(val), _type(t) {}
@@ -234,6 +234,9 @@ class Constant : public Term {
     std::string _name;
     std::vector<std::shared_ptr<Term>> _types;
 };
+
+template <Kind kind>
+bool isTermA(const std::shared_ptr<Term> ptr) { return ptr->kind() == kind; }
 
 const std::string SYMBOL_EMPTY = (OnlyAscii ? "{}" : "∅");
 const std::string HEADER_CONTEXT = (OnlyAscii ? "Context" : "Γ");
