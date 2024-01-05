@@ -7,7 +7,7 @@ bin/test_read.out: src/def_validator.cpp
 bin/test_read_leak.out: src/def_validator.cpp
 	g++ ${CPPFLAGS} ${DEBUGFLAGS} -o $@ $<
 
-bin/%.obj: src/%.cpp
+bin/%.obj: src/%.cpp include/*
 	g++ ${CPPFLAGS} -c -Wl,-lstdc++ -o $@ $<
 
 bin/verifier.out: bin/verifier.obj bin/common.obj

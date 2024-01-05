@@ -49,8 +49,37 @@ class ParseErrorWithNote : public ParseError {
     ParseError note;
 };
 
-std::shared_ptr<Term> parse_lambda(const std::string& expr) {
-    return std::make_shared<Star>();
+class LambdaError {
+  public:
+    LambdaError(const std::string& msg, size_t pos, size_t len): msg(msg), pos(pos), len(len) {}
+    std::string msg;
+    size_t pos, len;
+};
+
+std::shared_ptr<Term> parse_lambda(const std::string& expr, size_t begin = 0, size_t end = -1) {
+    end = std::min(end, expr.size());
+
+    size_t pos = begin;
+
+    const std::string name_syms("-_.");
+
+    if (isalpha(expr[pos])) {
+        size_t tail = pos;
+        while (tail + 1 < end && (isalnum(expr[tail]) || name_syms.find(expr[tail]) != std::string::npos)) ++tail;
+        if (tail == pos) {
+            if (tail + 1 < end) {
+                throw LambdaError("unknown leading tokens", tail + 1, end - tail - 1);
+            }
+            return std::make_shared<Variable>(expr[tail]);
+        }
+        else {
+            // constant
+            std::string cname = expr.substr(pos, tail - pos + 1);
+            std::cerr << "parse_lambda/cname = " << cname << std::endl;
+        }
+    }
+
+        return std::make_shared<Star>();
 }
 
 std::shared_ptr<Definition> parse_def(const std::vector<std::string>& lines, const TokenMat& tokenmat) {
@@ -68,12 +97,15 @@ std::shared_ptr<Definition> parse_def(const std::vector<std::string>& lines, con
     auto token = [&lines, &tokenmat](int i, int j) -> std::string {
         return tokenmat[i][j].string(lines);
     };
+    // line 0: header "def2"
+    if (token(i, j) != "def2") throw ParseError(lines, "(This is a bug. Please report with your input) header is not \"def2\"", tokenmat[i][j]);
+    incr(i, j);
     // line 1: # of variables (N)
-    size_t num_vars = std::stoi(token(i, j));
+    size_t num_vars;
+    // emptyness check
     try {
         num_vars = std::stoi(token(i, j));
-    }
-    catch (const std::invalid_argument& e) {
+    } catch (const std::invalid_argument& e) {
         throw ParseError(lines, "failed to read a number from this token", tokenmat[i][j]);
     }
     std::cerr << "#vars = " << num_vars << std::endl;
@@ -105,6 +137,8 @@ std::shared_ptr<Definition> parse_def(const std::vector<std::string>& lines, con
     // line 2*N + 4: proposition (lambda)
     std::shared_ptr<Term> prop(parse_lambda(token(i, j)));
     incr(i, j);
+    // line 2*N + 5: footer "edef2"
+    if (token(i, j) != "edef2") throw ParseError(lines, "(This is a bug. Please report with your input) footer is not \"edef2\"", tokenmat[i][j]);
 
     std::shared_ptr<Context> context = std::make_shared<Context>(vars);
     std::shared_ptr<Constant> constant = std::make_shared<Constant>(cname, types);
@@ -207,7 +241,6 @@ std::shared_ptr<Environment> parse(const std::vector<std::string>& lines) {
 
         if (tokens.size() == 0) continue;
 
-        bool omit_line = false;
         if (tokens.size() == 1) {
             std::string t = tokens[0].string(lines);
             if (t == "END") {
@@ -223,20 +256,21 @@ std::shared_ptr<Environment> parse(const std::vector<std::string>& lines) {
                 if (def_begin < 0) {
                     def_begin = lno;
                     last_def2 = tokens[0];
-                    omit_line = true;
                 } else throw ParseErrorWithNote(
                     ParseError(lines, "expected \"edef2\" at end of definition", tokens[0]),
                     ParseError(lines, "to match this \"def2\"", last_def2));
             } else if (t == "edef2") {
                 if (def_begin < 0) throw ParseError(lines, "expected \"def2\" before \"edef2\"", tokens[0]);
                 else {
+                    std::cerr << "# of lines in def: " << tokenss.size() << std::endl;
+                    tokenss.emplace_back(tokens);
                     env.emplace_back(parse_def(lines, tokenss));
                     tokenss.clear();
                     def_begin = -1;
                 }
             }
         }
-        if (def_begin >= 0 && !omit_line) tokenss.emplace_back(tokens);
+        if (def_begin >= 0) tokenss.emplace_back(tokens);
     }
     if (comm) {
         throw ParseError(lines, "unterminated comment", last_comms_begin_lno, last_comms_begin_pos, 2);
@@ -360,7 +394,13 @@ int main() {
         "/*",
         "*/edef2",
         "",
-        "haha",
+        "",
+        "def2",
+        "0",
+        "emptydef",
+        "*",
+        "@",
+        "edef2",
         " \tEND"};
     try {
         std::shared_ptr<Environment> input(parse(lines));

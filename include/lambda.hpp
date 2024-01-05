@@ -82,6 +82,11 @@ std::ostream& operator<<(std::ostream& os, const PtrType& ptr) {
     return os << ptr->string();
 }
 
+template <class T, typename = std::enable_if_t<has_string_t<T>::value, void>>
+std::ostream& operator<<(std::ostream& os, const T& x) {
+    return os << x.string();
+}
+
 class Term {
   public:
     Term() = delete;
@@ -230,16 +235,20 @@ class Constant : public Term {
     std::vector<std::shared_ptr<Term>> _types;
 };
 
+const std::string SYMBOL_EMPTY = (OnlyAscii ? "{}" : "∅");
 const std::string HEADER_CONTEXT = (OnlyAscii ? "Context" : "Γ");
 
 class Context {
   public:
+    Context() : _context{} {}
     Context(const std::vector<std::shared_ptr<Typed<Variable>>>& list) : _context(list) {}
     template <class... Ts>
     Context(Ts... vals) : _context{vals...} {}
 
     std::string string() const {
-        std::string res(HEADER_CONTEXT + "{");
+        std::string res("");
+        if (_context.size() == 0) return SYMBOL_EMPTY;
+        res += HEADER_CONTEXT + "{";
         if (_context.size() > 0) res += _context[0]->string();
         for (size_t i = 1; i < _context.size(); ++i) res += ", " + _context[i]->string();
         res += "}";
@@ -316,13 +325,16 @@ const std::string HEADER_ENV = (OnlyAscii ? "Env" : "Δ");
 
 class Environment {
   public:
+    Environment() : _defs{} {}
     Environment(const std::vector<std::shared_ptr<Definition>>& list) : _defs(list) {}
     template <class... Ts>
     Environment(Ts... vals) : _defs{vals...} {}
 
     std::string string(bool inSingleLine = true, size_t indentSize = 0) const {
         std::string res = "";
-        std::string indent_ex(indentSize, '\t'), indent_in(inSingleLine ? "" : "\t"), eol(inSingleLine ? " " : "\n");
+        std::string indent_ex(indentSize, '\t'), indent_in(inSingleLine ?
+        "" : "\t"), eol(inSingleLine ? " " : "\n");
+        if (_defs.size() == 0) return indent_ex + SYMBOL_EMPTY;
         res += indent_ex + HEADER_ENV + "{{" + eol;
         if (_defs.size() > 0) res += indent_ex + indent_in + _defs[0]->string();
         for (size_t i = 1; i < _defs.size(); ++i) res += "," + eol + indent_ex + indent_in + _defs[i]->string();
@@ -376,17 +388,33 @@ class Judgement {
 
 class Book {
   public:
+    Book(): _judges{} {}
     Book(const std::vector<std::shared_ptr<Judgement>>& list) : _judges(list) {}
     template <class... Ts>
     Book(Ts... vals) : _judges{vals...} {}
 
+    // inference rules
+    void sort() {
+        _judges.emplace_back(std::make_shared<Judgement>(
+            std::make_shared<Environment>(),
+            std::make_shared<Context>(),
+            std::make_shared<Star>(),
+            std::make_shared<Square>()));
+    }
+    void var(int m, char x) {}
+    void weak(int m, int n, char x) {}
+    void form(int m, int n) {}
+
     std::string string() const {
         std::string res("Book[[");
-        if (_judges.size() > 0) res += "\n" + _judges[0]->string(false, 1);
-        for (size_t i = 1; i < _judges.size(); ++i) res += ",\n" + _judges[i]->string(false, 1);
+        bool singleLine = true;
+        int indentSize = 0;
+        if (_judges.size() > 0) res += "\n" + _judges[0]->string(singleLine, indentSize);
+        for (size_t i = 1; i < _judges.size(); ++i) res += ",\n" + _judges[i]->string(singleLine, indentSize);
         res += "\n]]";
         return res;
     }
+    std::string repr() const { return "to be impl'ed"; }
 
   private:
     std::vector<std::shared_ptr<Judgement>> _judges;

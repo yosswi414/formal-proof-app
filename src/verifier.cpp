@@ -2,8 +2,10 @@
 // generate a book from a given script
 
 #include <iostream>
+#include <sstream>
 
 #include "common.hpp"
+#include "lambda.hpp"
 
 int main(int argc, char* argv[]) {
     for(int i = 0; i < argc; ++i) {
@@ -22,5 +24,39 @@ int main(int argc, char* argv[]) {
 
     for (int i = 0; i < lines.size(); ++i) {
         std::cout << "line #" << i << ":\t[" << lines[i] << "]" << std::endl;
+    }
+    Book book;
+
+    std::cout << book.string() << std::endl;
+    book.sort();
+    std::cout << book.string() << std::endl;
+    return 0;
+
+    std::stringstream ss;
+    for (int i = 0; i < lines.size(); ++i){
+        ss << lines[i];
+        int lno;
+        std::string op;
+        ss >> lno >> op;
+        if (op == "sort") {
+            book.sort();
+        }
+        else if (op == "var") {
+            int m;
+            char x;
+            ss >> m >> x;
+            book.var(m, x);
+        }
+        else if (op == "weak") {
+            int m, n;
+            char x;
+            ss >> m >> n >> x;
+            book.weak(m, n, x);
+        }
+        else if (op == "form") {
+            int m, n;
+            ss >> m >> n;
+            book.form(m, n);
+        }
     }
 }
