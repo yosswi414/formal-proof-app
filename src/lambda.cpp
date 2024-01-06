@@ -126,7 +126,7 @@ void test_derived() {
 }
 
 void test_old_parse() {
-    std::vector<std::string> lines{
+    TextData lines{
         "def2   // (123)",
         "1/*//*/",
         "A",
@@ -250,33 +250,44 @@ std::ostream& operator<<(std::ostream& os, const TokenType& t) {
 
 class Token {
   public:
-    Token(const TextData& lines,
+    Token(const FileData& lines,
           size_t lno,
           size_t pos,
           size_t len,
           TokenType type = TokenType::Unclassified)
-        : _lines(lines),
+        : _data(lines),
           _lno(lno),
           _pos(pos),
           _len(len),
           _type(type) {}
-    Token(const TextData& lines,
+    Token(const FileData& lines,
           size_t lno,
           TokenType type = TokenType::Unclassified)
         : Token(lines, lno, std::string::npos, 0, type) {}
     std::string string() const {
-        if (_len == 0 || _lines[_lno].size() <= _pos) return "";
-        return _lines[_lno].substr(_pos, _len);
+        if (_len == 0 || _data[_lno].size() <= _pos) return "";
+        return _data[_lno].substr(_pos, _len);
     }
     TokenType type() const { return _type; }
+    size_t lno() const { return _lno; }
+    size_t pos() const { return _pos; }
+    size_t len() const { return _len; }
+    std::string pos_info_str() const {
+        std::string res(_data.name());
+        if (res.size() > 0) res += ":";
+        res += std::to_string(_lno + 1);
+        res += ":" + std::to_string(std::min(_pos, _data[_lno].size()) + 1);
+        if (_len > 1) res += "-" + std::to_string(std::min(_pos + _len, _data[_lno].size()) + 1);
+        return res;
+    }
 
   private:
-    const TextData& _lines;
+    const FileData& _data;
     const size_t _lno, _pos, _len;
     TokenType _type;
 };
 
-std::vector<Token> tokenize(const TextData& lines) {
+std::vector<Token> tokenize(const FileData& lines) {
     std::vector<Token> tokens;
     const std::string sym_const = "_-.";
     bool comment = false;
@@ -301,8 +312,8 @@ std::vector<Token> tokenize(const TextData& lines) {
                     }
                 }
             }
-            if (ch == ':'){
-                if (pos + 1 < lines[lno].size() && lines[lno][pos + 1] == '='){
+            if (ch == ':') {
+                if (pos + 1 < lines[lno].size() && lines[lno][pos + 1] == '=') {
                     tokens.emplace_back(lines, lno, pos, 2, TokenType::DefinedBy);
                     pos += 2;
                     continue;
@@ -343,12 +354,12 @@ std::vector<Token> tokenize(const TextData& lines) {
 }
 
 int main() {
-    TextData lines = read_file("src/def_file_test");
+    FileData data("src/def_file_test");
 
-    auto tokens = tokenize(lines);
+    auto tokens = tokenize(data);
 
     for (size_t i = 0; i < tokens.size(); ++i) {
-        std::cerr << "token " << i << ": [" << tokens[i].string() << "] (" << tokens[i].type() << ")" << std::endl;
+        std::cerr << "token " << i << " at " << tokens[i].pos_info_str() << ": [" << tokens[i].string() << "] (" << tokens[i].type() << ")" << std::endl;
     }
 
     return 0;
