@@ -1,0 +1,27 @@
+def2   // (123)
+1/*//*/
+A
+*
+const-test  // name
+$x:( A ).( * )
+@/****//****//**//// //***
+/*
+*/edef2
+
+
+def2
+0
+emptydef
+*
+@
+edef2
+
+def2
+edef2
+
+def2//extended grammar
+1
+B:*
+ext_def := * : @
+edef2
+ 	END
