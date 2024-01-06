@@ -404,9 +404,9 @@ class Book {
             std::make_shared<Star>(),
             std::make_shared<Square>()));
     }
-    void var(int m, char x) {}
-    void weak(int m, int n, char x) {}
-    void form(int m, int n) {}
+    void var(int m, char x) { unused(m, x); }
+    void weak(int m, int n, char x) { unused(m, n, x); }
+    void form(int m, int n) { unused(m, n); }
 
     std::string string() const {
         std::string res("Book[[");
