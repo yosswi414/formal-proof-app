@@ -24,8 +24,8 @@ src/def_file_nocomm: src/def_file
 book: bin/verifier.out src/script_test
 	bin/verifier.out src/script_test
 
-bin/lambda.out: src/lambda.cpp include/lambda.hpp
-	g++ -O0 ${CPPFLAGS} ${DEBUGFLAGS} -o $@ $<
+bin/lambda.out: bin/lambda.obj bin/common.obj
+	g++ -O0 ${CPPFLAGS} -o $@ $^
 
 lambda: bin/lambda.out
 	bin/lambda.out
