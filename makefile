@@ -5,12 +5,6 @@ INCDIR = -I./include
 bin/%.obj: src/%.cpp include/*
 	g++ ${CPPFLAGS} ${INCDIR} -c -o $@ $<
 
-bin/test_read.out: src/def_validator.cpp
-	g++ ${CPPFLAGS} -o $@ $<
-
-bin/test_read_leak.out: src/def_validator.cpp
-	g++ ${CPPFLAGS} ${DEBUGFLAGS} -o $@ $<
-
 bin/verifier.out: bin/verifier.obj bin/common.obj
 	g++ ${CPPFLAGS} $^ -O2 -o $@
 
@@ -24,10 +18,10 @@ src/def_file_nocomm: src/def_file bin/def_conv.out
 	bin/def_conv.out -f $< -c > $@
 
 
-.PHONY: book parse clean read_leak lambda conv conv_leak
+.PHONY: book parse clean test_read lambda conv conv_leak
 
-read_leak: bin/test_read_leak.out src/def_file
-	$< src/def_file
+test_read: bin/def_conv.out src/def_file
+	$^ -r
 
 parse: bin/test_read.out src/def_file
 	$< src/def_file
