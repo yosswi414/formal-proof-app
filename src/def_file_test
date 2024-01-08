@@ -17,11 +17,10 @@ emptydef
 edef2
 
 def2
-edef2
 
 def2//extended grammar
 1
 B:*
 ext_def := * : @
 edef2
- 	END
+ END

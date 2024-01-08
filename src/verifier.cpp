@@ -15,7 +15,7 @@ int main(int argc, char* argv[]) {
     std::vector<std::string> lines;
 
     if (argc == 2) {
-        lines = read_file(argv[1]);
+        lines = read_lines(argv[1]);
     }
     else {
         std::string line;
