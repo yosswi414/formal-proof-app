@@ -194,12 +194,30 @@ std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::s
     }
 }
 
-std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::shared_ptr<Term>& var_bind, const std::shared_ptr<Term>& expr){
+std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::shared_ptr<Term>& var_bind, const std::shared_ptr<Term>& expr) {
     if (var_bind->kind() != Kind::Variable) {
         std::cerr << "substitute(): var_bind kind error (expected Kind::Variable, got " << to_string(var_bind->kind()) << ")" << std::endl;
         exit(EXIT_FAILURE);
     }
     return substitute(term, std::dynamic_pointer_cast<Variable>(var_bind), expr);
+}
+
+std::shared_ptr<Variable> variable(const char& ch) { return std::make_shared<Variable>(ch); }
+std::shared_ptr<Star> star = std::make_shared<Star>();
+std::shared_ptr<Square> sq = std::make_shared<Square>();
+std::shared_ptr<Application> appl(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) {
+    return std::make_shared<Application>(copy(a), copy(b));
+}
+std::shared_ptr<AbstLambda> lambda(const std::shared_ptr<Term>& v, const std::shared_ptr<Term>& t, const std::shared_ptr<Term>& e) {
+    return std::make_shared<AbstLambda>(std::dynamic_pointer_cast<Variable>(copy(v)), copy(t), copy(e));
+}
+std::shared_ptr<AbstPi> pi(const std::shared_ptr<Term>& v, const std::shared_ptr<Term>& t, const std::shared_ptr<Term>& e) {
+    return std::make_shared<AbstPi>(std::dynamic_pointer_cast<Variable>(copy(v)), copy(t), copy(e));
+}
+std::shared_ptr<Constant> constant(const std::string& name, const std::vector<std::shared_ptr<Term>>& ts) {
+    std::vector<std::shared_ptr<Term>> types;
+    for (auto& type : ts) types.emplace_back(copy(type));
+    return std::make_shared<Constant>(name, types);
 }
 
 bool alpha_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) {

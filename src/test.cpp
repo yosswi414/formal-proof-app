@@ -5,28 +5,12 @@
 #include "lambda.hpp"
 
 int main(){
-    std::shared_ptr<Term> x, y, z, u, v, e1, e2, e3;
-    x = std::make_shared<Variable>('x');
-    y = std::make_shared<Variable>('y');
-    z = std::make_shared<Variable>('z');
-    u = std::make_shared<Variable>('u');
-    v = std::make_shared<Variable>('v');
-    auto star = std::make_shared<Star>();
-    auto sq = std::make_shared<Square>();
-    auto appl = [](const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) {
-        return std::make_shared<Application>(a, b);
-    };
-    auto lambda = [](const std::shared_ptr<Term>& v, const std::shared_ptr<Term>& t, const std::shared_ptr<Term>& e) {
-        return std::make_shared<AbstLambda>(std::dynamic_pointer_cast<Variable>(v), t, e);
-    };
-    auto pi = [](const std::shared_ptr<Term>& v, const std::shared_ptr<Term>& t, const std::shared_ptr<Term>& e) {
-        return std::make_shared<AbstPi>(std::dynamic_pointer_cast<Variable>(v), t, e);
-    };
-    auto constant = [](const std::string& name, const std::vector<std::shared_ptr<Term>>& ts) {
-        return std::make_shared<Constant>(name, ts);
-    };
-
-    unused(pi, constant);
+    std::shared_ptr<Term> e1, e2, e3;
+    auto x = variable('x');
+    auto y = variable('y');
+    auto z = variable('z');
+    auto u = variable('u');
+    auto v = variable('v');
 
 #define bout(expr) \
     do { std::cerr << #expr " --> " << (expr ? "true" : "false") << std::endl; } while (false)

@@ -259,7 +259,7 @@ std::set<char> free_var(const std::shared_ptr<Term>& term, Ts... data) {
 bool is_free_var(const std::shared_ptr<Term>& term, const std::shared_ptr<Variable>& var);
 
 std::shared_ptr<Variable> get_fresh_var(const std::shared_ptr<Term>& term);
-template<class... Ts>
+template <class... Ts>
 std::shared_ptr<Variable> get_fresh_var(const std::shared_ptr<Term>& term, Ts... data) {
     std::set<char> univ;
     for (char ch = 'A'; ch <= 'Z'; ++ch) univ.insert(ch);
@@ -273,10 +273,19 @@ std::shared_ptr<Variable> get_fresh_var(const std::shared_ptr<Term>& term, Ts...
 std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::shared_ptr<Variable>& var_bind, const std::shared_ptr<Term>& expr);
 std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::shared_ptr<Term>& var_bind, const std::shared_ptr<Term>& expr);
 
+// shared_ptr constructors
+std::shared_ptr<Variable> variable(const char& ch);
+extern std::shared_ptr<Star> star;
+extern std::shared_ptr<Square> sq;
+std::shared_ptr<Application> appl(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b);
+std::shared_ptr<AbstLambda> lambda(const std::shared_ptr<Term>& v, const std::shared_ptr<Term>& t, const std::shared_ptr<Term>& e);
+std::shared_ptr<AbstPi> pi(const std::shared_ptr<Term>& v, const std::shared_ptr<Term>& t, const std::shared_ptr<Term>& e);
+std::shared_ptr<Constant> constant(const std::string& name, const std::vector<std::shared_ptr<Term>>& ts);
+
 bool exact_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b);
 bool alpha_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b);
 
-template<class T, class U>
+template <class T, class U>
 bool alpha_comp(const std::shared_ptr<T>& a, const std::shared_ptr<U>& b) {
     return alpha_comp(std::static_pointer_cast<Term>(a), std::static_pointer_cast<Term>(b));
 }
