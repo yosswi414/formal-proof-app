@@ -47,12 +47,17 @@ std::string to_string(const Kind& k);
 template <typename PtrType, typename std::enable_if_t<
                                 std::is_pointer<PtrType>::value || std::is_same<PtrType, std::unique_ptr<typename PtrType::element_type>>::value || std::is_same<PtrType, std::shared_ptr<typename PtrType::element_type>>::value,
                                 int> = 0>
-std::ostream& operator<<(std::ostream& os, const PtrType& ptr);
+std::ostream& operator<<(std::ostream& os, const PtrType& ptr) {
+    return os << ptr->string();
+}
 
 std::ostream& operator<<(std::ostream& os, const Kind& k);
 
 template <typename T, typename = std::void_t<decltype(std::declval<T>().string())>>
-std::ostream& operator<<(std::ostream& os, const T& x);
+std::ostream& operator<<(std::ostream& os, const T& x) {
+    os << x.string();
+    return os;
+}
 
 class Term {
   public:
@@ -89,6 +94,8 @@ class Variable : public Term {
   public:
     Variable(char ch) : Term(Kind::Variable), _var_name(ch) {}
     std::string string() const override { return std::string(1, _var_name); }
+    const char& name() const { return _var_name; }
+    char& name() { return _var_name; }
 
   private:
     char _var_name;
@@ -100,6 +107,8 @@ class Application : public Term {
 
     const std::shared_ptr<Term>& M() const { return _M; }
     const std::shared_ptr<Term>& N() const { return _N; }
+    std::shared_ptr<Term>& M() { return _M; }
+    std::shared_ptr<Term>& N() { return _N; }
 
     std::string string() const override {
         return std::string("%") + _M->string() + " " + _N->string();
@@ -123,6 +132,8 @@ class Typed {
 
     const std::shared_ptr<T>& value() const { return _value; }
     const std::shared_ptr<Term>& type() const { return _type; }
+    std::shared_ptr<T>& value() { return _value; }
+    std::shared_ptr<Term>& type() { return _type; }
 
     std::string string() const {
         return _value->string() + ":" + _type->string();
@@ -141,9 +152,15 @@ const std::string SYMBOL_LAMBDA = (OnlyAscii ? "$" : "λ");
 class AbstLambda : public Term {
   public:
     AbstLambda(std::shared_ptr<Typed<Variable>> v, std::shared_ptr<Term> e) : Term(Kind::AbstLambda), _var(v), _expr(e) {}
+    AbstLambda(std::shared_ptr<Term> v, std::shared_ptr<Term> t, std::shared_ptr<Term> e)
+        : Term(Kind::AbstLambda),
+          _var(std::make_shared<Typed<Variable>>(std::dynamic_pointer_cast<Variable>(v), t)),
+          _expr(e) {}
 
     const std::shared_ptr<Typed<Variable>>& var() const { return _var; }
     const std::shared_ptr<Term>& expr() const { return _expr; }
+    std::shared_ptr<Typed<Variable>>& var() { return _var; }
+    std::shared_ptr<Term>& expr() { return _expr; }
 
     std::string string() const override {
         return SYMBOL_LAMBDA + _var->string() + "." + _expr->string();
@@ -165,9 +182,15 @@ const std::string SYMBOL_PI = (OnlyAscii ? "?" : "Π");
 class AbstPi : public Term {
   public:
     AbstPi(std::shared_ptr<Typed<Variable>> v, std::shared_ptr<Term> e) : Term(Kind::AbstPi), _var(v), _expr(e) {}
+    AbstPi(std::shared_ptr<Term> v, std::shared_ptr<Term> t, std::shared_ptr<Term> e)
+        : Term(Kind::AbstPi),
+          _var(std::make_shared<Typed<Variable>>(std::dynamic_pointer_cast<Variable>(v), t)),
+          _expr(e) {}
 
     const std::shared_ptr<Typed<Variable>>& var() const { return _var; }
     const std::shared_ptr<Term>& expr() const { return _expr; }
+    std::shared_ptr<Typed<Variable>>& var() { return _var; }
+    std::shared_ptr<Term>& expr() { return _expr; }
 
     std::string string() const override {
         return SYMBOL_PI + _var->string() + "." + _expr->string();
@@ -191,6 +214,9 @@ class Constant : public Term {
     Constant(const std::string& name, Ts... ptrs) : Term(Kind::Constant), _name(name), _types{ptrs...} {}
 
     const std::vector<std::shared_ptr<Term>>& types() const { return _types; }
+    std::vector<std::shared_ptr<Term>>& types() { return _types; }
+    const std::string& name() const { return _name; }
+    std::string& name() { return _name; }
 
     std::string string() const override {
         std::string res(_name);
@@ -216,15 +242,44 @@ class Constant : public Term {
         res += "]";
         return res;
     }
-    const std::string& name() const { return _name; }
 
   private:
     std::string _name;
     std::vector<std::shared_ptr<Term>> _types;
 };
 
-// template <Kind kind>
-// bool isTermA(const std::shared_ptr<Term> ptr) { return ptr->kind() == kind; }
+std::shared_ptr<Term> copy(const std::shared_ptr<Term>& term);
+
+std::set<char> free_var(const std::shared_ptr<Term>& term);
+template <class... Ts>
+std::set<char> free_var(const std::shared_ptr<Term>& term, Ts... data) {
+    return set_union(free_var(term), free_var(data...));
+}
+
+bool is_free_var(const std::shared_ptr<Term>& term, const std::shared_ptr<Variable>& var);
+
+std::shared_ptr<Variable> get_fresh_var(const std::shared_ptr<Term>& term);
+template<class... Ts>
+std::shared_ptr<Variable> get_fresh_var(const std::shared_ptr<Term>& term, Ts... data) {
+    std::set<char> univ;
+    for (char ch = 'A'; ch <= 'Z'; ++ch) univ.insert(ch);
+    for (char ch = 'a'; ch <= 'z'; ++ch) univ.insert(ch);
+    set_minus_inplace(univ, free_var(term, data...));
+    if (!univ.empty()) return std::make_shared<Variable>(*univ.begin());
+    std::cerr << "out of fresh variable" << std::endl;
+    exit(EXIT_FAILURE);
+}
+
+std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::shared_ptr<Variable>& var_bind, const std::shared_ptr<Term>& expr);
+std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::shared_ptr<Term>& var_bind, const std::shared_ptr<Term>& expr);
+
+bool exact_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b);
+bool alpha_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b);
+
+template<class T, class U>
+bool alpha_comp(const std::shared_ptr<T>& a, const std::shared_ptr<U>& b) {
+    return alpha_comp(std::static_pointer_cast<Term>(a), std::static_pointer_cast<Term>(b));
+}
 
 const std::string SYMBOL_EMPTY = (OnlyAscii ? "{}" : "∅");
 const std::string HEADER_CONTEXT = (OnlyAscii ? "Context" : "Γ");
@@ -235,6 +290,9 @@ class Context {
     Context(const std::vector<std::shared_ptr<Typed<Variable>>>& list) : _context(list) {}
     template <class... Ts>
     Context(Ts... vals) : _context{vals...} {}
+
+    const auto& data() const { return _context; }
+    auto& data() { return _context; }
 
     std::string string() const {
         std::string res("");
@@ -270,8 +328,7 @@ class Definition {
     Definition(std::shared_ptr<Context> context,
                std::shared_ptr<Constant> constant,
                std::shared_ptr<Term> prop)
-        : _is_prim(true),
-          _context(context),
+        : _context(context),
           _definiendum(constant),
           _definiens(nullptr),
           _type(prop) {}
@@ -280,18 +337,17 @@ class Definition {
                std::shared_ptr<Constant> constant,
                std::shared_ptr<Term> proof,
                std::shared_ptr<Term> prop)
-        : _is_prim(false),
-          _context(context),
+        : _context(context),
           _definiendum(constant),
           _definiens(proof),
           _type(prop) {}
 
     std::string string() const {
         std::string res;
-        res = (_is_prim ? "Def-prim< " : "Def< ");
+        res = (_definiens ? "Def< " : "Def-prim< ");
         res += _context->string();
         res += " " + DEFINITION_SEPARATOR + " " + _definiendum->name();
-        res += " := " + (_is_prim ? EMPTY_DEFINIENS : _definiens->string());
+        res += " := " + (_definiens ? _definiens->string() : EMPTY_DEFINIENS);
         res += " : " + _type->string();
         res += " >";
         return res;
@@ -301,7 +357,7 @@ class Definition {
         res = "def2\n";
         res += _context->repr();
         res += _definiendum->name() + "\n";
-        res += (_is_prim ? "#" : _definiens->repr()) + "\n";
+        res += (_definiens ? _definiens->repr() : "#") + "\n";
         res += _type->repr() + "\n";
         res += "edef2\n";
         return res;
@@ -311,19 +367,23 @@ class Definition {
         std::string res;
         res = "def2\n";
         res += _context->repr_new();
-        res += _definiendum->name() + " := " + (_is_prim ? "#" : _definiens->repr_new()) + " : " + _type->repr_new() + "\n";
+        res += _definiendum->name() + " := " + (_definiens ? _definiens->repr_new() : "#") + " : " + _type->repr_new() + "\n";
         res += "edef2\n";
         return res;
     }
 
-    bool is_prim() const { return _is_prim; }
+    bool is_prim() const { return !_definiens; }
     const std::shared_ptr<Context>& context() const { return _context; }
     const std::shared_ptr<Constant>& definiendum() const { return _definiendum; }
     const std::shared_ptr<Term>& definiens() const { return _definiens; }
     const std::shared_ptr<Term>& type() const { return _type; }
 
+    std::shared_ptr<Context>& context() { return _context; }
+    std::shared_ptr<Constant>& definiendum() { return _definiendum; }
+    std::shared_ptr<Term>& definiens() { return _definiens; }
+    std::shared_ptr<Term>& type() { return _type; }
+
   private:
-    bool _is_prim;
     std::shared_ptr<Context> _context;
     std::shared_ptr<Constant> _definiendum;
     std::shared_ptr<Term> _definiens, _type;
@@ -379,9 +439,10 @@ class Judgement {
         : _defs(defs), _context(context), _term(proof), _type(prop) {}
     std::string string(bool inSingleLine = true, size_t indentSize = 0) const {
         std::string res("");
-        std::string indent_ex(indentSize, '\t'), indent_in(inSingleLine ? "" : "\t"), eol(inSingleLine ? " " : "\n");
-        res += indent_ex + "Judge<<" + eol;
-        res += _defs->string(inSingleLine, indentSize + (inSingleLine ? 0 : 1));
+        std::string indent_ex_1(indentSize, '\t');
+        std::string indent_ex(inSingleLine ? 0 : indentSize, '\t'), indent_in(inSingleLine ? "" : "\t"), eol(inSingleLine ? " " : "\n");
+        res += indent_ex_1 + "Judge<<" + eol;
+        res += _defs->string(inSingleLine, inSingleLine ? 0 : indentSize + 1);
         res += " ;" + eol + indent_ex + indent_in + _context->string();
         res += " " + TURNSTILE + " " + _term->string();
         res += " : " + _type->string();
@@ -422,7 +483,7 @@ class Book {
     std::string string() const {
         std::string res("Book[[");
         bool singleLine = true;
-        int indentSize = 0;
+        int indentSize = 1;
         if (_judges.size() > 0) res += "\n" + _judges[0]->string(singleLine, indentSize);
         for (size_t i = 1; i < _judges.size(); ++i) res += ",\n" + _judges[i]->string(singleLine, indentSize);
         res += "\n]]";
