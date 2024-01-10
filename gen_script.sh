@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ $# -lt 2 ] || [ $# -gt 3 ]; then
-    echo "Usage: $0 definition_name output_file [defs]"
+    echo "Usage: $0 definition_name output_file [def_file = nocomm]"
     exit 2
 fi
 

@@ -6,17 +6,17 @@ if [ $# != 1 ]; then
 fi
 
 def_name=$1
-script_name="_script_def_test"
-defs_nocomm="src/_def_file_nocomm"
+script_name="script"
+defs_nocomm="src/def_file_nocomm"
 
 function finally () {
-    rm -f ${script_name}
+    # rm -f ${script_name}
     rm -f ${defs_nocomm}
 }
 
 trap finally EXIT   # run finally() before exiting except receiving SIGKILL
 
-./trim_comment.sh ${defs_nocomm}
+make nocomm
 
 grep "^${def_name}$" ${defs_nocomm} > /dev/null
 if [ $? -eq 1 ]; then

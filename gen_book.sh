@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ $# -lt 1 ] || [ $# -gt 2 ]; then
-    echo "Usage: $0 in_file [defs]"
+    echo "Usage: $0 input_file [def_file = nocomm]"
     exit 2
 fi
 
