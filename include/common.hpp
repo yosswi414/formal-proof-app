@@ -74,3 +74,12 @@ std::set<T>& set_minus_inplace(std::set<T>& a, const std::set<T>& b) {
     return a;
 }
 
+#define check_true(expr)           \
+    do {                           \
+        if (!(expr)) return false; \
+    } while (false);
+#define check_false(expr)       \
+    do {                        \
+        if (expr) return false; \
+    } while (false);
+
