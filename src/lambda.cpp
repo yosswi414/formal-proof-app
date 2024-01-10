@@ -66,30 +66,30 @@ std::ostream& operator<<(std::ostream& os, const Kind& k) {
 std::shared_ptr<Term> copy(const std::shared_ptr<Term>& term) {
     switch (term->kind()) {
         case Kind::Star:
-            return std::make_shared<Star>();
+            return star;
         case Kind::Square:
-            return std::make_shared<Square>();
+            return sq;
         case Kind::Variable: {
-            auto t = std::dynamic_pointer_cast<Variable>(term);
+            auto t = variable(term);
             return std::make_shared<Variable>(t->name());
         }
         case Kind::Application: {
-            auto t = std::dynamic_pointer_cast<Application>(term);
+            auto t = appl(term);
             return std::make_shared<Application>(copy(t->M()), copy(t->N()));
         }
         case Kind::AbstLambda: {
-            auto t = std::dynamic_pointer_cast<AbstLambda>(term);
+            auto t = lambda(term);
             return std::make_shared<AbstLambda>(copy(t->var().value()), copy(t->var().type()), copy(t->expr()));
         }
         case Kind::AbstPi: {
-            auto t = std::dynamic_pointer_cast<AbstPi>(term);
+            auto t = pi(term);
             return std::make_shared<AbstPi>(copy(t->var().value()), copy(t->var().type()), copy(t->expr()));
         }
         case Kind::Constant: {
-            auto t = std::dynamic_pointer_cast<Constant>(term);
+            auto t = constant(term);
             std::vector<std::shared_ptr<Term>> types;
             for (auto&& ptr : t->types()) types.emplace_back(copy(ptr));
-            return std::make_shared<Constant>(t->name(), types);
+            return constant(t->name(), types);
         }
         default:
             std::cerr << "copy(): unknown kind: " << to_string(term->kind()) << std::endl;
@@ -104,29 +104,29 @@ std::set<char> free_var(const std::shared_ptr<Term>& term) {
         case Kind::Square:
             return FV;
         case Kind::Variable: {
-            auto t = std::dynamic_pointer_cast<Variable>(term);
+            auto t = variable(term);
             FV.insert(t->name());
             return FV;
         }
         case Kind::Application: {
-            auto t = std::dynamic_pointer_cast<Application>(term);
+            auto t = appl(term);
             set_union(free_var(t->M()), free_var(t->N()), FV);
             return FV;
         }
         case Kind::AbstLambda: {
-            auto t = std::dynamic_pointer_cast<AbstLambda>(term);
+            auto t = lambda(term);
             FV = free_var(t->expr());
             FV.erase(t->var().value()->name());
             return FV;
         }
         case Kind::AbstPi: {
-            auto t = std::dynamic_pointer_cast<AbstPi>(term);
+            auto t = pi(term);
             FV = free_var(t->expr());
             FV.erase(t->var().value()->name());
             return FV;
         }
         case Kind::Constant: {
-            auto t = std::dynamic_pointer_cast<Constant>(term);
+            auto t = constant(term);
             for (auto& type : t->types()) set_union_inplace(FV, free_var(type));
             return FV;
         }
@@ -146,7 +146,7 @@ std::shared_ptr<Variable> get_fresh_var(const std::shared_ptr<Term>& term) {
     for (char ch = 'A'; ch <= 'Z'; ++ch) univ.insert(ch);
     for (char ch = 'a'; ch <= 'z'; ++ch) univ.insert(ch);
     set_minus_inplace(univ, free_var(term));
-    if (!univ.empty()) return std::make_shared<Variable>(*univ.begin());
+    if (!univ.empty()) return variable(*univ.begin());
     std::cerr << "out of fresh variable" << std::endl;
     exit(EXIT_FAILURE);
 }
@@ -155,36 +155,36 @@ std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::s
     switch (term->kind()) {
         case Kind::Star:
         case Kind::Square:
-            return copy(term);
+            return term;
         case Kind::Variable:
-            return copy(alpha_comp(term, bind) ? expr : term);
+            return alpha_comp(term, bind) ? copy(expr) : term;
         case Kind::Application: {
-            auto t = std::dynamic_pointer_cast<Application>(term);
-            return std::make_shared<Application>(
+            auto t = appl(term);
+            return appl(
                 substitute(t->M(), bind, expr),
                 substitute(t->N(), bind, expr));
         }
         case Kind::AbstLambda: {
-            auto t = std::dynamic_pointer_cast<AbstLambda>(term);
+            auto t = lambda(term);
             auto z = get_fresh_var(t, expr);
-            return std::make_shared<AbstLambda>(
+            return lambda(
                 z,
                 substitute(t->var().type(), bind, expr),
                 substitute(substitute(t->expr(), t->var().value(), z), bind, expr));
         }
         case Kind::AbstPi: {
-            auto t = std::dynamic_pointer_cast<AbstPi>(term);
+            auto t = pi(term);
             auto z = get_fresh_var(t, expr);
-            return std::make_shared<AbstPi>(
+            return pi(
                 z,
                 substitute(t->var().type(), bind, expr),
                 substitute(substitute(t->expr(), t->var().value(), z), bind, expr));
         }
         case Kind::Constant: {
-            auto t = std::dynamic_pointer_cast<Constant>(term);
+            auto t = constant(term);
             std::vector<std::shared_ptr<Term>> types;
             for (auto& type : t->types()) types.emplace_back(substitute(type, bind, expr));
-            return std::make_shared<Constant>(t->name(), types);
+            return constant(t->name(), types);
         }
         default:
             std::cerr << "substitute(): unknown kind: " << to_string(term->kind()) << std::endl;
@@ -197,25 +197,40 @@ std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::s
         std::cerr << "substitute(): var_bind kind error (expected Kind::Variable, got " << to_string(var_bind->kind()) << ")" << std::endl;
         exit(EXIT_FAILURE);
     }
-    return substitute(term, std::dynamic_pointer_cast<Variable>(var_bind), expr);
+    return substitute(term, variable(var_bind), expr);
 }
 
 std::shared_ptr<Variable> variable(const char& ch) { return std::make_shared<Variable>(ch); }
+std::shared_ptr<Variable> variable(const std::shared_ptr<Term>& t) {
+    return std::dynamic_pointer_cast<Variable>(t);
+}
 std::shared_ptr<Star> star = std::make_shared<Star>();
 std::shared_ptr<Square> sq = std::make_shared<Square>();
 std::shared_ptr<Application> appl(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) {
     return std::make_shared<Application>(copy(a), copy(b));
 }
+std::shared_ptr<Application> appl(const std::shared_ptr<Term>& t) {
+    return std::dynamic_pointer_cast<Application>(t);
+}
 std::shared_ptr<AbstLambda> lambda(const std::shared_ptr<Term>& v, const std::shared_ptr<Term>& t, const std::shared_ptr<Term>& e) {
-    return std::make_shared<AbstLambda>(std::dynamic_pointer_cast<Variable>(copy(v)), copy(t), copy(e));
+    return std::make_shared<AbstLambda>(variable(copy(v)), copy(t), copy(e));
+}
+std::shared_ptr<AbstLambda> lambda(const std::shared_ptr<Term>& t) {
+    return std::dynamic_pointer_cast<AbstLambda>(t);
 }
 std::shared_ptr<AbstPi> pi(const std::shared_ptr<Term>& v, const std::shared_ptr<Term>& t, const std::shared_ptr<Term>& e) {
-    return std::make_shared<AbstPi>(std::dynamic_pointer_cast<Variable>(copy(v)), copy(t), copy(e));
+    return std::make_shared<AbstPi>(variable(copy(v)), copy(t), copy(e));
+}
+std::shared_ptr<AbstPi> pi(const std::shared_ptr<Term>& t) {
+    return std::dynamic_pointer_cast<AbstPi>(t);
 }
 std::shared_ptr<Constant> constant(const std::string& name, const std::vector<std::shared_ptr<Term>>& ts) {
     std::vector<std::shared_ptr<Term>> types;
     for (auto& type : ts) types.emplace_back(copy(type));
     return std::make_shared<Constant>(name, types);
+}
+std::shared_ptr<Constant> constant(const std::shared_ptr<Term>& t){
+    return std::dynamic_pointer_cast<Constant>(t);
 }
 
 bool alpha_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) {
@@ -225,30 +240,30 @@ bool alpha_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) 
         case Kind::Square:
             return true;
         case Kind::Variable: {
-            auto la = std::dynamic_pointer_cast<Variable>(a);
-            auto lb = std::dynamic_pointer_cast<Variable>(b);
+            auto la = variable(a);
+            auto lb = variable(b);
             return la->name() == lb->name();
         }
         case Kind::AbstLambda: {
-            auto la = std::dynamic_pointer_cast<AbstLambda>(a);
-            auto lb = std::dynamic_pointer_cast<AbstLambda>(b);
+            auto la = lambda(a);
+            auto lb = lambda(b);
             if (!alpha_comp(la->var().type(), lb->var().type())) return false;
             return alpha_comp(la->expr(), substitute(lb->expr(), lb->var().value(), la->var().value()));
         }
         case Kind::AbstPi: {
-            auto la = std::dynamic_pointer_cast<AbstPi>(a);
-            auto lb = std::dynamic_pointer_cast<AbstPi>(b);
+            auto la = pi(a);
+            auto lb = pi(b);
             if (!alpha_comp(la->var().type(), lb->var().type())) return false;
             return alpha_comp(la->expr(), substitute(lb->expr(), lb->var().value(), la->var().value()));
         }
         case Kind::Application: {
-            auto la = std::dynamic_pointer_cast<Application>(a);
-            auto lb = std::dynamic_pointer_cast<Application>(b);
+            auto la = appl(a);
+            auto lb = appl(b);
             return alpha_comp(la->M(), lb->M()) && alpha_comp(la->N(), lb->N());
         }
         case Kind::Constant: {
-            auto la = std::dynamic_pointer_cast<Constant>(a);
-            auto lb = std::dynamic_pointer_cast<Constant>(b);
+            auto la = constant(a);
+            auto lb = constant(b);
             if (la->name() != lb->name()) return false;
             if (la->types().size() != lb->types().size()) return false;
             for (size_t idx = 0; idx < la->types().size(); ++idx) {
@@ -269,28 +284,28 @@ bool exact_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) 
         case Kind::Square:
             return true;
         case Kind::Variable: {
-            auto la = std::dynamic_pointer_cast<Variable>(a);
-            auto lb = std::dynamic_pointer_cast<Variable>(b);
+            auto la = variable(a);
+            auto lb = variable(b);
             return la->name() == lb->name();
         }
         case Kind::AbstLambda: {
-            auto la = std::dynamic_pointer_cast<AbstLambda>(a);
-            auto lb = std::dynamic_pointer_cast<AbstLambda>(b);
+            auto la = lambda(a);
+            auto lb = lambda(b);
             return exact_comp(la->var().value(), lb->var().value()) && exact_comp(la->var().type(), lb->var().type()) && exact_comp(la->expr(), lb->expr());
         }
         case Kind::AbstPi: {
-            auto la = std::dynamic_pointer_cast<AbstPi>(a);
-            auto lb = std::dynamic_pointer_cast<AbstPi>(b);
+            auto la = pi(a);
+            auto lb = pi(b);
             return exact_comp(la->var().value(), lb->var().value()) && exact_comp(la->var().type(), lb->var().type()) && exact_comp(la->expr(), lb->expr());
         }
         case Kind::Application: {
-            auto la = std::dynamic_pointer_cast<Application>(a);
-            auto lb = std::dynamic_pointer_cast<Application>(b);
+            auto la = appl(a);
+            auto lb = appl(b);
             return exact_comp(la->M(), lb->M()) && exact_comp(la->N(), lb->N());
         }
         case Kind::Constant: {
-            auto la = std::dynamic_pointer_cast<Constant>(a);
-            auto lb = std::dynamic_pointer_cast<Constant>(b);
+            auto la = constant(a);
+            auto lb = constant(b);
             if (la->name() != lb->name()) return false;
             if (la->types().size() != lb->types().size()) return false;
             for (size_t idx = 0; idx < la->types().size(); ++idx) {
@@ -360,7 +375,7 @@ bool has_variable(const Context& g, const std::shared_ptr<Variable>& v) {
 }
 
 bool has_variable(const Context& g, const std::shared_ptr<Term>& v) {
-    return has_variable(g, std::dynamic_pointer_cast<Variable>(v));
+    return has_variable(g, variable(v));
 }
 
 bool has_variable(const Context& g, char v) {
@@ -431,7 +446,7 @@ bool is_appl_applicable(const Book& book, size_t idx1, size_t idx2) {
     check_true(equiv_env(judge1.env(), judge2.env()));
     check_true(equiv_context(judge1.context(), judge2.context()));
     check_true(judge1.type()->kind() == Kind::AbstPi);
-    auto p = std::dynamic_pointer_cast<AbstPi>(judge1.type());
+    auto p = pi(judge1.type());
     check_true(alpha_comp(p->var().type(), judge2.type()));
     return true;
 }
@@ -447,7 +462,7 @@ bool is_abst_applicable(const Book& book, size_t idx1, size_t idx2) {
     check_true(equiv_context_n(judge1.context(), judge2.context(), judge2.context().size()));
     check_true(judge1.context().size() == judge2.context().size() + 1);
     check_true(judge2.term()->kind() == Kind::AbstPi);
-    auto p = std::dynamic_pointer_cast<AbstPi>(judge2.term());
+    auto p = pi(judge2.term());
     auto x = judge1.context().back().value();
     auto A = judge1.context().back().type();
     auto B = judge1.type();

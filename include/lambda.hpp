@@ -287,6 +287,12 @@ std::shared_ptr<AbstLambda> lambda(const std::shared_ptr<Term>& v, const std::sh
 std::shared_ptr<AbstPi> pi(const std::shared_ptr<Term>& v, const std::shared_ptr<Term>& t, const std::shared_ptr<Term>& e);
 std::shared_ptr<Constant> constant(const std::string& name, const std::vector<std::shared_ptr<Term>>& ts);
 
+std::shared_ptr<Variable> variable(const std::shared_ptr<Term>& t);
+std::shared_ptr<Application> appl(const std::shared_ptr<Term>& t);
+std::shared_ptr<AbstLambda> lambda(const std::shared_ptr<Term>& t);
+std::shared_ptr<AbstPi> pi(const std::shared_ptr<Term>& t);
+std::shared_ptr<Constant> constant(const std::shared_ptr<Term>& t);
+
 bool exact_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b);
 bool alpha_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b);
 
