@@ -21,6 +21,9 @@
  *              "A:*" -> "A\n*"
  *              "implies := ?x:A.B : *" -> "implies\n?x:(A).(B)\n*"
  * - [done] alpha equiv
+ * - beta reduction
+ *      essential for conv
+ * - delta reduction
  * [IDEA]
  * - rename: AbstLambda -> Lambda, AbstPi -> Pi
  * - flag: environment variable for definition
@@ -50,14 +53,9 @@ std::string to_string(const Kind& k) {
             return "Kind::AbstPi";
         case Kind::Constant:
             return "Kind::Constant";
-        case Kind::Test01:
-            return "Kind::Test01";
-        case Kind::Test02:
-            return "Kind::Test02";
-        case Kind::Test03:
-            return "Kind::Test03";
         default:
-            return "[to_string(const Kind&): TBI]";
+            std::cerr << "to_string(): not implemented (type:" << (int)k << ")" << std::endl;
+            exit(EXIT_FAILURE);
     }
 }
 
@@ -81,11 +79,11 @@ std::shared_ptr<Term> copy(const std::shared_ptr<Term>& term) {
         }
         case Kind::AbstLambda: {
             auto t = std::dynamic_pointer_cast<AbstLambda>(term);
-            return std::make_shared<AbstLambda>(copy(t->var()->value()), copy(t->var()->type()), copy(t->expr()));
+            return std::make_shared<AbstLambda>(copy(t->var().value()), copy(t->var().type()), copy(t->expr()));
         }
         case Kind::AbstPi: {
             auto t = std::dynamic_pointer_cast<AbstPi>(term);
-            return std::make_shared<AbstPi>(copy(t->var()->value()), copy(t->var()->type()), copy(t->expr()));
+            return std::make_shared<AbstPi>(copy(t->var().value()), copy(t->var().type()), copy(t->expr()));
         }
         case Kind::Constant: {
             auto t = std::dynamic_pointer_cast<Constant>(term);
@@ -118,13 +116,13 @@ std::set<char> free_var(const std::shared_ptr<Term>& term) {
         case Kind::AbstLambda: {
             auto t = std::dynamic_pointer_cast<AbstLambda>(term);
             FV = free_var(t->expr());
-            FV.erase(t->var()->value()->name());
+            FV.erase(t->var().value()->name());
             return FV;
         }
         case Kind::AbstPi: {
             auto t = std::dynamic_pointer_cast<AbstPi>(term);
             FV = free_var(t->expr());
-            FV.erase(t->var()->value()->name());
+            FV.erase(t->var().value()->name());
             return FV;
         }
         case Kind::Constant: {
@@ -171,16 +169,16 @@ std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::s
             auto z = get_fresh_var(t, expr);
             return std::make_shared<AbstLambda>(
                 z,
-                substitute(t->var()->type(), bind, expr),
-                substitute(substitute(t->expr(), t->var()->value(), z), bind, expr));
+                substitute(t->var().type(), bind, expr),
+                substitute(substitute(t->expr(), t->var().value(), z), bind, expr));
         }
         case Kind::AbstPi: {
             auto t = std::dynamic_pointer_cast<AbstPi>(term);
             auto z = get_fresh_var(t, expr);
             return std::make_shared<AbstPi>(
                 z,
-                substitute(t->var()->type(), bind, expr),
-                substitute(substitute(t->expr(), t->var()->value(), z), bind, expr));
+                substitute(t->var().type(), bind, expr),
+                substitute(substitute(t->expr(), t->var().value(), z), bind, expr));
         }
         case Kind::Constant: {
             auto t = std::dynamic_pointer_cast<Constant>(term);
@@ -234,14 +232,14 @@ bool alpha_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) 
         case Kind::AbstLambda: {
             auto la = std::dynamic_pointer_cast<AbstLambda>(a);
             auto lb = std::dynamic_pointer_cast<AbstLambda>(b);
-            if (!alpha_comp(la->var()->type(), lb->var()->type())) return false;
-            return alpha_comp(la->expr(), substitute(lb->expr(), lb->var()->value(), la->var()->value()));
+            if (!alpha_comp(la->var().type(), lb->var().type())) return false;
+            return alpha_comp(la->expr(), substitute(lb->expr(), lb->var().value(), la->var().value()));
         }
         case Kind::AbstPi: {
             auto la = std::dynamic_pointer_cast<AbstPi>(a);
             auto lb = std::dynamic_pointer_cast<AbstPi>(b);
-            if (!alpha_comp(la->var()->type(), lb->var()->type())) return false;
-            return alpha_comp(la->expr(), substitute(lb->expr(), lb->var()->value(), la->var()->value()));
+            if (!alpha_comp(la->var().type(), lb->var().type())) return false;
+            return alpha_comp(la->expr(), substitute(lb->expr(), lb->var().value(), la->var().value()));
         }
         case Kind::Application: {
             auto la = std::dynamic_pointer_cast<Application>(a);
@@ -278,12 +276,12 @@ bool exact_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) 
         case Kind::AbstLambda: {
             auto la = std::dynamic_pointer_cast<AbstLambda>(a);
             auto lb = std::dynamic_pointer_cast<AbstLambda>(b);
-            return exact_comp(la->var()->value(), lb->var()->value()) && exact_comp(la->var()->type(), lb->var()->type()) && exact_comp(la->expr(), lb->expr());
+            return exact_comp(la->var().value(), lb->var().value()) && exact_comp(la->var().type(), lb->var().type()) && exact_comp(la->expr(), lb->expr());
         }
         case Kind::AbstPi: {
             auto la = std::dynamic_pointer_cast<AbstPi>(a);
             auto lb = std::dynamic_pointer_cast<AbstPi>(b);
-            return exact_comp(la->var()->value(), lb->var()->value()) && exact_comp(la->var()->type(), lb->var()->type()) && exact_comp(la->expr(), lb->expr());
+            return exact_comp(la->var().value(), lb->var().value()) && exact_comp(la->var().type(), lb->var().type()) && exact_comp(la->expr(), lb->expr());
         }
         case Kind::Application: {
             auto la = std::dynamic_pointer_cast<Application>(a);
@@ -304,4 +302,198 @@ bool exact_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) 
             std::cerr << "exact_comp(): unknown kind: " << to_string(a->kind()) << std::endl;
             exit(EXIT_FAILURE);
     }
+}
+
+bool equiv_context_n(const Context& a, const Context& b, size_t n) {
+    check_true(n <= a.data().size());
+    check_true(n <= b.data().size());
+    for (size_t i = 0; i < n; ++i) {
+        check_true(alpha_comp(a.data()[i].value(), b.data()[i].value()));
+        check_true(alpha_comp(a.data()[i].type(), b.data()[i].type()));
+    }
+    return true;
+}
+
+bool equiv_context_n(const std::shared_ptr<Context>& a, const std::shared_ptr<Context>& b, size_t n) {
+    return equiv_context_n(*a, *b, n);
+}
+
+bool equiv_context(const Context& a, const Context& b) {
+    check_true(a.data().size() == b.data().size());
+    return equiv_context_n(a, b, a.data().size());
+}
+
+bool equiv_context(const std::shared_ptr<Context>& a, const std::shared_ptr<Context>& b) {
+    return equiv_context(*a, *b);
+}
+
+bool equiv_def(const Definition& a, const Definition& b) {
+    check_true(equiv_context(a.context(), b.context()));
+    check_true(alpha_comp(a.definiendum(), b.definiendum()));
+    check_true(a.is_prim() != b.is_prim());
+    check_true(a.is_prim() || alpha_comp(a.definiens(), b.definiens()));
+    check_true(alpha_comp(a.type(), b.type()));
+    return true;
+}
+
+bool equiv_def(const std::shared_ptr<Definition>& a, const std::shared_ptr<Definition>& b) {
+    return equiv_def(*a, *b);
+}
+
+bool equiv_env(const Environment& a, const Environment& b) {
+    check_true(a.defs().size() == b.defs().size());
+    for (size_t i = 0; i < a.defs().size(); ++i) {
+        check_true(equiv_def(a.defs()[i], b.defs()[i]));
+    }
+    return true;
+}
+
+bool equiv_env(const std::shared_ptr<Environment>& a, const std::shared_ptr<Environment>& b) {
+    return equiv_env(*a, *b);
+}
+
+bool has_variable(const Context& g, const std::shared_ptr<Variable>& v) {
+    for (auto& tv : g.data()) {
+        if (alpha_comp(tv.value(), v)) return true;
+    }
+    return false;
+}
+
+bool has_variable(const Context& g, const std::shared_ptr<Term>& v) {
+    return has_variable(g, std::dynamic_pointer_cast<Variable>(v));
+}
+
+bool has_variable(const Context& g, char v) {
+    return has_variable(g, std::make_shared<Variable>(v));
+}
+
+bool has_constant(const Environment& env, const std::string& name) {
+    for(auto& def: env.defs()) {
+        if (def.definiendum()->name() == name) return true;
+    }
+    return false;
+}
+
+bool is_beta_reachable(const std::shared_ptr<Term>& from, const std::shared_ptr<Term>& to) {
+    unused(from, to);
+    std::cerr << "is_beta_reachable not implemented" << std::endl;
+    exit(EXIT_FAILURE);
+}
+
+bool is_sort(const std::shared_ptr<Term>& t) {
+    return t->kind() == Kind::Star || t->kind() == Kind::Square;
+}
+
+bool is_var_applicable(const Book& book, size_t idx, char var) {
+    auto& judge = book[idx];
+    check_true(is_sort(judge.type()));
+    check_false(has_variable(judge.context(), var));
+    return true;
+}
+
+bool is_var_applicable(const std::shared_ptr<Book>& book, size_t idx, char var) {
+    return is_var_applicable(*book, idx, var);
+}
+
+bool is_weak_applicable(const Book& book, size_t idx1, size_t idx2, char var){
+    auto& judge1 = book[idx1];
+    auto& judge2 = book[idx2];
+    check_true(equiv_env(judge1.env(), judge2.env()));
+    check_true(equiv_context(judge1.context(), judge2.context()));
+    check_true(is_sort(judge2.type()));
+    check_false(has_variable(judge1.context(), var));
+    return true;
+}
+
+bool is_weak_applicable(const std::shared_ptr<Book>& book, size_t idx1, size_t idx2, char var) {
+    return is_weak_applicable(*book, idx1, idx2, var);
+}
+
+bool is_form_applicable(const Book& book, size_t idx1, size_t idx2) {
+    auto& judge1 = book[idx1];
+    auto& judge2 = book[idx2];
+    check_true(equiv_env(judge1.env(), judge2.env()));
+    check_true(equiv_context_n(judge1.context(), judge2.context(), judge1.context().size()));
+    check_true(judge1.context().size() + 1 == judge2.context().size());
+    check_true(alpha_comp(judge1.term(), judge2.context().back().type()));
+    check_true(is_sort(judge1.type()));
+    check_true(is_sort(judge2.type()));
+    return true;
+}
+
+bool is_form_applicable(const std::shared_ptr<Book>& book, size_t idx1, size_t idx2) {
+    return is_form_applicable(*book, idx1, idx2);
+}
+
+bool is_appl_applicable(const Book& book, size_t idx1, size_t idx2) {
+    auto& judge1 = book[idx1];
+    auto& judge2 = book[idx2];
+    check_true(equiv_env(judge1.env(), judge2.env()));
+    check_true(equiv_context(judge1.context(), judge2.context()));
+    check_true(judge1.type()->kind() == Kind::AbstPi);
+    auto p = std::dynamic_pointer_cast<AbstPi>(judge1.type());
+    check_true(alpha_comp(p->var().type(), judge2.type()));
+    return true;
+}
+
+bool is_appl_applicable(const std::shared_ptr<Book>& book, size_t idx1, size_t idx2) {
+    return is_appl_applicable(*book, idx1, idx2);
+}
+
+bool is_abst_applicable(const Book& book, size_t idx1, size_t idx2) {
+    auto& judge1 = book[idx1];
+    auto& judge2 = book[idx2];
+    check_true(equiv_env(judge1.env(), judge2.env()));
+    check_true(equiv_context_n(judge1.context(), judge2.context(), judge2.context().size()));
+    check_true(judge1.context().size() == judge2.context().size() + 1);
+    check_true(judge2.term()->kind() == Kind::AbstPi);
+    auto p = std::dynamic_pointer_cast<AbstPi>(judge2.term());
+    auto x = judge1.context().back().value();
+    auto A = judge1.context().back().type();
+    auto B = judge1.type();
+    check_true(alpha_comp(p->var().value(), x));
+    check_true(alpha_comp(p->var().type(), A));
+    check_true(alpha_comp(p->expr(), B));
+    check_true(is_sort(judge2.type()));
+    return true;
+}
+
+bool is_abst_applicable(const std::shared_ptr<Book>& book, size_t idx1, size_t idx2) {
+    return is_abst_applicable(*book, idx1, idx2);
+}
+
+bool is_conv_applicable(const Book& book, size_t idx1, size_t idx2) {
+    auto& judge1 = book[idx1];
+    auto& judge2 = book[idx2];
+    unused(judge1, judge2);
+    std::cerr << "is_conv not implemented" << std::endl;
+    exit(EXIT_FAILURE);
+}
+
+bool is_conv_applicable(const std::shared_ptr<Book>& book, size_t idx1, size_t idx2) {
+    return is_conv_applicable(*book, idx1, idx2);
+}
+
+bool is_def_applicable(const Book& book, size_t idx1, size_t idx2, const std::string& name) {
+    auto& judge1 = book[idx1];
+    auto& judge2 = book[idx2];
+    unused(judge1, judge2, name);
+    std::cerr << "is_def not implemented" << std::endl;
+    exit(EXIT_FAILURE);
+}
+
+bool is_def_applicable(const std::shared_ptr<Book>& book, size_t idx1, size_t idx2, const std::string& name) {
+    return is_def_applicable(*book, idx1, idx2, name);
+}
+
+bool is_def_prim_applicable(const Book& book, size_t idx1, size_t idx2, const std::string& name) {
+    auto& judge1 = book[idx1];
+    auto& judge2 = book[idx2];
+    unused(judge1, judge2, name);
+    std::cerr << "is_def_prim not implemented" << std::endl;
+    exit(EXIT_FAILURE);
+}
+
+bool is_def_prim_applicable(const std::shared_ptr<Book>& book, size_t idx1, size_t idx2, const std::string& name) {
+    return is_def_prim_applicable(*book, idx1, idx2, name);
 }
