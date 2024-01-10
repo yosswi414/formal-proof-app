@@ -34,6 +34,9 @@
 test_read
 test_read_leak
 def_file_nocomm
+script
+verifier_out*
+def_conv_out*
 
 # test_automake3
 # test_book3
