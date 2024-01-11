@@ -184,7 +184,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
         case TokenType::Percent: {
             size_t appl_hdr = idx;
             std::shared_ptr<ParseLambdaToken> expr1, expr2;
-            
+
             // if (idx + 1 >= tokens.size()) throw ExprError(
             //     "expected an expr, reached end of tokens", tokens[idx],
             //     "during parsing an application", tokens[appl_hdr], tokens[idx]);
@@ -497,12 +497,12 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                 // add definition to env
                 read_def_end = false;
                 if (term) {
-                    env.defs().emplace_back(
+                    env.emplace_back(
                         tvars,
                         std::make_shared<Constant>(cname, types),
                         term, type);
                 } else {
-                    env.defs().emplace_back(
+                    env.emplace_back(
                         tvars,
                         std::make_shared<Constant>(cname, types),
                         type);
