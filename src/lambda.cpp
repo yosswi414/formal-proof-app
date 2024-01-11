@@ -229,7 +229,7 @@ std::shared_ptr<Constant> constant(const std::string& name, const std::vector<st
     for (auto& type : ts) types.emplace_back(copy(type));
     return std::make_shared<Constant>(name, types);
 }
-std::shared_ptr<Constant> constant(const std::shared_ptr<Term>& t){
+std::shared_ptr<Constant> constant(const std::shared_ptr<Term>& t) {
     return std::dynamic_pointer_cast<Constant>(t);
 }
 
@@ -320,11 +320,11 @@ bool exact_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) 
 }
 
 bool equiv_context_n(const Context& a, const Context& b, size_t n) {
-    check_true(n <= a.data().size());
-    check_true(n <= b.data().size());
+    check_true(n <= a.size());
+    check_true(n <= b.size());
     for (size_t i = 0; i < n; ++i) {
-        check_true(alpha_comp(a.data()[i].value(), b.data()[i].value()));
-        check_true(alpha_comp(a.data()[i].type(), b.data()[i].type()));
+        check_true(alpha_comp(a[i].value(), b[i].value()));
+        check_true(alpha_comp(a[i].type(), b[i].type()));
     }
     return true;
 }
@@ -334,8 +334,8 @@ bool equiv_context_n(const std::shared_ptr<Context>& a, const std::shared_ptr<Co
 }
 
 bool equiv_context(const Context& a, const Context& b) {
-    check_true(a.data().size() == b.data().size());
-    return equiv_context_n(a, b, a.data().size());
+    check_true(a.size() == b.size());
+    return equiv_context_n(a, b, a.size());
 }
 
 bool equiv_context(const std::shared_ptr<Context>& a, const std::shared_ptr<Context>& b) {
@@ -356,9 +356,9 @@ bool equiv_def(const std::shared_ptr<Definition>& a, const std::shared_ptr<Defin
 }
 
 bool equiv_env(const Environment& a, const Environment& b) {
-    check_true(a.defs().size() == b.defs().size());
-    for (size_t i = 0; i < a.defs().size(); ++i) {
-        check_true(equiv_def(a.defs()[i], b.defs()[i]));
+    check_true(a.size() == b.size());
+    for (size_t i = 0; i < a.size(); ++i) {
+        check_true(equiv_def(a[i], b[i]));
     }
     return true;
 }
@@ -368,7 +368,7 @@ bool equiv_env(const std::shared_ptr<Environment>& a, const std::shared_ptr<Envi
 }
 
 bool has_variable(const Context& g, const std::shared_ptr<Variable>& v) {
-    for (auto& tv : g.data()) {
+    for (auto&& tv : g) {
         if (alpha_comp(tv.value(), v)) return true;
     }
     return false;
@@ -383,7 +383,7 @@ bool has_variable(const Context& g, char v) {
 }
 
 bool has_constant(const Environment& env, const std::string& name) {
-    for(auto& def: env.defs()) {
+    for (auto&& def : env) {
         if (def.definiendum()->name() == name) return true;
     }
     return false;
@@ -410,7 +410,7 @@ bool is_var_applicable(const std::shared_ptr<Book>& book, size_t idx, char var) 
     return is_var_applicable(*book, idx, var);
 }
 
-bool is_weak_applicable(const Book& book, size_t idx1, size_t idx2, char var){
+bool is_weak_applicable(const Book& book, size_t idx1, size_t idx2, char var) {
     auto& judge1 = book[idx1];
     auto& judge2 = book[idx2];
     check_true(equiv_env(judge1.env(), judge2.env()));
@@ -511,4 +511,391 @@ bool is_def_prim_applicable(const Book& book, size_t idx1, size_t idx2, const st
 
 bool is_def_prim_applicable(const std::shared_ptr<Book>& book, size_t idx1, size_t idx2, const std::string& name) {
     return is_def_prim_applicable(*book, idx1, idx2, name);
+}
+
+std::string Term::repr() const { return string(); }
+std::string Term::repr_new() const { return repr(); }
+std::string Term::repr_book() const { return repr(); }
+
+Star::Star() : Term(Kind::Star) {}
+std::string Star::string() const { return "*"; }
+
+Square::Square() : Term(Kind::Square) {}
+const std::string SYMBOL_SQUARE = (OnlyAscii ? "@" : "□");
+std::string Square::string() const { return SYMBOL_SQUARE; }
+std::string Square::repr() const { return "@"; }
+
+Variable::Variable(char ch) : Term(Kind::Variable), _var_name(ch) {}
+std::string Variable::string() const { return std::string(1, _var_name); }
+const char& Variable::name() const { return _var_name; }
+char& Variable::name() { return _var_name; }
+
+Application::Application(std::shared_ptr<Term> m, std::shared_ptr<Term> n) : Term(Kind::Application), _M(m), _N(n) {}
+
+const std::shared_ptr<Term>& Application::M() const { return _M; }
+const std::shared_ptr<Term>& Application::N() const { return _N; }
+std::shared_ptr<Term>& Application::M() { return _M; }
+std::shared_ptr<Term>& Application::N() { return _N; }
+
+std::string Application::string() const {
+    return std::string("%") + _M->string() + " " + _N->string();
+}
+std::string Application::repr() const {
+    return std::string("%(") + _M->repr() + ")(" + _N->repr() + ")";
+}
+std::string Application::repr_new() const {
+    return std::string("%") + _M->repr_new() + " " + _N->repr_new();
+}
+
+const std::string SYMBOL_LAMBDA = (OnlyAscii ? "$" : "λ");
+AbstLambda::AbstLambda(const Typed<Variable>& v, std::shared_ptr<Term> e) : Term(Kind::AbstLambda), _var(v), _expr(e) {}
+AbstLambda::AbstLambda(std::shared_ptr<Term> v, std::shared_ptr<Term> t, std::shared_ptr<Term> e)
+    : Term(Kind::AbstLambda),
+      _var(variable(v), t),
+      _expr(e) {}
+
+const Typed<Variable>& AbstLambda::var() const { return _var; }
+const std::shared_ptr<Term>& AbstLambda::expr() const { return _expr; }
+Typed<Variable>& AbstLambda::var() { return _var; }
+std::shared_ptr<Term>& AbstLambda::expr() { return _expr; }
+
+std::string AbstLambda::string() const {
+    return SYMBOL_LAMBDA + _var.string() + "." + _expr->string();
+}
+std::string AbstLambda::repr() const {
+    return "$" + _var.value()->repr() + ":(" + _var.type()->repr() + ").(" + _expr->repr() + ")";
+}
+std::string AbstLambda::repr_new() const {
+    return "$" + _var.repr_new() + "." + _expr->repr_new();
+}
+std::string AbstLambda::repr_book() const {
+    return "Lam " + _var.value()->repr_book() + ":(" + _var.type()->repr_book() + ").(" + _expr->repr_book() + ")";
+}
+
+const std::string SYMBOL_PI = (OnlyAscii ? "?" : "Π");
+AbstPi::AbstPi(const Typed<Variable>& v, std::shared_ptr<Term> e) : Term(Kind::AbstPi), _var(v), _expr(e) {}
+AbstPi::AbstPi(std::shared_ptr<Term> v, std::shared_ptr<Term> t, std::shared_ptr<Term> e)
+    : Term(Kind::AbstPi),
+      _var(std::dynamic_pointer_cast<Variable>(v), t),
+      _expr(e) {}
+
+const Typed<Variable>& AbstPi::var() const { return _var; }
+const std::shared_ptr<Term>& AbstPi::expr() const { return _expr; }
+Typed<Variable>& AbstPi::var() { return _var; }
+std::shared_ptr<Term>& AbstPi::expr() { return _expr; }
+
+std::string AbstPi::string() const {
+    return SYMBOL_PI + _var.string() + "." + _expr->string();
+}
+std::string AbstPi::repr() const {
+    return "?" + _var.value()->repr() + ":(" + _var.type()->repr() + ").(" + _expr->repr() + ")";
+}
+std::string AbstPi::repr_new() const {
+    return "?" + _var.repr_new() + "." + _expr->repr_new();
+}
+std::string AbstPi::repr_book() const {
+    return "Pai " + _var.value()->repr_book() + ":(" + _var.type()->repr_book() + ").(" + _expr->repr_book() + ")";
+}
+
+Constant::Constant(const std::string& name, std::vector<std::shared_ptr<Term>> list) : Term(Kind::Constant), _name(name), _types(list) {}
+
+const std::vector<std::shared_ptr<Term>>& Constant::types() const { return _types; }
+std::vector<std::shared_ptr<Term>>& Constant::types() { return _types; }
+const std::string& Constant::name() const { return _name; }
+std::string& Constant::name() { return _name; }
+
+std::string Constant::string() const {
+    std::string res(_name);
+    res += "[";
+    if (_types.size() > 0) res += _types[0]->string();
+    for (size_t i = 1; i < _types.size(); ++i) res += ", " + _types[i]->string();
+    res += "]";
+    return res;
+}
+std::string Constant::repr() const {
+    std::string res(_name);
+    res += "[";
+    if (_types.size() > 0) res += "(" + _types[0]->repr() + ")";
+    for (size_t i = 1; i < _types.size(); ++i) res += ",(" + _types[i]->repr() + ")";
+    res += "]";
+    return res;
+}
+std::string Constant::repr_new() const {
+    std::string res(_name);
+    res += "[";
+    if (_types.size() > 0) res += _types[0]->repr_new();
+    for (size_t i = 1; i < _types.size(); ++i) res += ", " + _types[i]->repr_new();
+    res += "]";
+    return res;
+}
+
+const std::string SYMBOL_EMPTY = (OnlyAscii ? "{}" : "∅");
+const std::string HEADER_CONTEXT = (OnlyAscii ? "Context" : "Γ");
+
+Context::Context() {}
+Context::Context(const std::vector<Typed<Variable>>& tvars) : std::vector<Typed<Variable>>(tvars) {}
+std::string Context::string() const {
+    std::string res("");
+    if (this->size() == 0) return SYMBOL_EMPTY;
+    res += HEADER_CONTEXT + "{";
+    if (this->size() > 0) res += (*this)[0].string();
+    for (size_t i = 1; i < this->size(); ++i) res += ", " + (*this)[i].string();
+    res += "}";
+    return res;
+}
+std::string Context::repr() const {
+    std::string res("");
+    res += std::to_string(this->size()) + "\n";
+    for (auto&& tv : *this) res += tv.value()->repr() + "\n" + tv.type()->repr() + "\n";
+    return res;
+}
+std::string Context::repr_new() const {
+    std::string res("");
+    res += std::to_string(this->size()) + "\n";
+    for (auto&& tv : *this) res += tv.value()->repr_new() + " : " + tv.type()->repr_new() + "\n";
+    return res;
+}
+std::string Context::repr_book() const {
+    std::stringstream ss;
+    if (this->size() > 0) ss << (*this)[0].value()->repr() << ":" << (*this)[0].type()->repr();
+    for (size_t i = 1; i < this->size(); ++i) ss << ", " << (*this)[i].value()->repr() << ":" << (*this)[i].type()->repr();
+    return ss.str();
+}
+
+Context& Context::operator+=(const Typed<Variable>& tv) {
+    this->emplace_back(tv);
+    return *this;
+}
+
+Context Context::operator+(const Typed<Variable>& tv) {
+    return Context(*this) += tv;
+}
+
+const std::string DEFINITION_SEPARATOR = (OnlyAscii ? "|>" : "▷");
+const std::string EMPTY_DEFINIENS = (OnlyAscii ? "#" : "⫫");
+
+Definition::Definition(const Context& context,
+                       const std::shared_ptr<Constant>& constant,
+                       const std::shared_ptr<Term>& prop)
+    : _context(context),
+      _definiendum(constant),
+      _definiens(nullptr),
+      _type(prop) {}
+
+Definition::Definition(const Context& context,
+                       const std::shared_ptr<Constant>& constant,
+                       const std::shared_ptr<Term>& proof,
+                       const std::shared_ptr<Term>& prop)
+    : _context(context),
+      _definiendum(constant),
+      _definiens(proof),
+      _type(prop) {}
+
+std::string Definition::string() const {
+    std::string res;
+    res = (_definiens ? "Def< " : "Def-prim< ");
+    res += _context.string();
+    res += " " + DEFINITION_SEPARATOR + " " + _definiendum->name();
+    res += " := " + (_definiens ? _definiens->string() : EMPTY_DEFINIENS);
+    res += " : " + _type->string();
+    res += " >";
+    return res;
+}
+std::string Definition::repr() const {
+    std::string res;
+    res = "def2\n";
+    res += _context.repr();
+    res += _definiendum->name() + "\n";
+    res += (_definiens ? _definiens->repr() : "#") + "\n";
+    res += _type->repr() + "\n";
+    res += "edef2\n";
+    return res;
+}
+
+std::string Definition::repr_new() const {
+    std::string res;
+    res = "def2\n";
+    res += _context.repr_new();
+    res += _definiendum->name() + " := " + (_definiens ? _definiens->repr_new() : "#") + " : " + _type->repr_new() + "\n";
+    res += "edef2\n";
+    return res;
+}
+
+bool Definition::is_prim() const { return !_definiens; }
+const Context& Definition::context() const { return _context; }
+const std::shared_ptr<Constant>& Definition::definiendum() const { return _definiendum; }
+const std::shared_ptr<Term>& Definition::definiens() const { return _definiens; }
+const std::shared_ptr<Term>& Definition::type() const { return _type; }
+
+Context& Definition::context() { return _context; }
+std::shared_ptr<Constant>& Definition::definiendum() { return _definiendum; }
+std::shared_ptr<Term>& Definition::definiens() { return _definiens; }
+std::shared_ptr<Term>& Definition::type() { return _type; }
+
+const std::string HEADER_ENV = (OnlyAscii ? "Env" : "Δ");
+
+Environment::Environment() {}
+Environment::Environment(const std::vector<Definition>& defs) : std::vector<Definition>(defs) {}
+std::string Environment::string(bool inSingleLine, size_t indentSize) const {
+    std::string res = "";
+    std::string indent_ex(indentSize, '\t'), indent_in(inSingleLine ? "" : "\t"), eol(inSingleLine ? " " : "\n");
+    if (this->size() == 0) return indent_ex + SYMBOL_EMPTY;
+    res += indent_ex + HEADER_ENV + "{{" + eol;
+    if (this->size() > 0) res += indent_ex + indent_in + (*this)[0].string();
+    for (size_t i = 1; i < this->size(); ++i) res += "," + eol + indent_ex + indent_in + (*this)[i].string();
+    res += eol + indent_ex + "}}";
+    return res;
+}
+
+std::string Environment::repr() const {
+    std::string res = "";
+    for (auto&& def : *this) res += def.repr() + "\n";
+    res += "END\n";
+    return res;
+}
+std::string Environment::repr_new() const {
+    std::string res = "";
+    for (auto&& def : *this) res += def.repr_new() + "\n";
+    res += "END\n";
+    return res;
+}
+std::string Environment::repr_book() const {
+    // to be implemented
+    return "";
+}
+
+const std::string TURNSTILE = (OnlyAscii ? "|-" : "⊢");
+
+Judgement::Judgement(const Environment& env,
+                     const Context& context,
+                     const std::shared_ptr<Term>& proof,
+                     const std::shared_ptr<Term>& prop)
+    : _env(env), _context(context), _term(proof), _type(prop) {}
+std::string Judgement::string(bool inSingleLine, size_t indentSize) const {
+    std::string res("");
+    std::string indent_ex_1(indentSize, '\t');
+    std::string indent_ex(inSingleLine ? 0 : indentSize, '\t'), indent_in(inSingleLine ? "" : "\t"), eol(inSingleLine ? " " : "\n");
+    res += indent_ex_1 + "Judge<<" + eol;
+    res += _env.string(inSingleLine, inSingleLine ? 0 : indentSize + 1);
+    res += " ;" + eol + indent_ex + indent_in + _context.string();
+    res += " " + TURNSTILE + " " + _term->string();
+    res += " : " + _type->string();
+    res += eol + indent_ex + ">>";
+    return res;
+}
+
+const Environment& Judgement::env() const { return _env; }
+const Context& Judgement::context() const { return _context; }
+const std::shared_ptr<Term>& Judgement::term() const { return _term; }
+const std::shared_ptr<Term>& Judgement::type() const { return _type; }
+
+Environment& Judgement::env() { return _env; }
+Context& Judgement::context() { return _context; }
+std::shared_ptr<Term>& Judgement::term() { return _term; }
+std::shared_ptr<Term>& Judgement::type() { return _type; }
+
+Book::Book() : std::vector<Judgement>{} {};
+Book::Book(const std::vector<Judgement>& list) : std::vector<Judgement>(list) {}
+
+// inference rules
+void Book::sort() {
+    this->emplace_back(
+        Environment(),
+        Context(),
+        star,
+        sq);
+}
+void Book::var(int m, char x) {
+    if (!is_var_applicable(*this, m, x)) {
+        std::cerr << "var not applicable ";
+        std::cerr << "(idx = " << m << ", var = " << x << ")" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    auto& judge = (*this)[m];
+    auto vx = variable(x);
+    auto A = judge.term();
+    this->emplace_back(
+        judge.env(),
+        judge.context() + Typed<Variable>(vx, A),
+        vx, A);
+}
+void Book::weak(int m, int n, char x) {
+    if (!is_weak_applicable(*this, m, n, x)) {
+        std::cerr << "weak not applicable ";
+        std::cerr << "(idx1 = " << m << ", idx2 = " << n << ", var = " << x << ")" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    auto& judge1 = (*this)[m];
+    auto& judge2 = (*this)[n];
+    auto vx = variable(x);
+    auto A = judge1.term();
+    auto B = judge1.type();
+    auto C = judge2.term();
+    this->emplace_back(
+        judge1.env(),
+        judge1.context() + Typed<Variable>(vx, C),
+        A, B);
+}
+void Book::form(int m, int n) {
+    if (!is_form_applicable(*this, m, n)) {
+        std::cerr << "form not applicable ";
+        std::cerr << "(idx1 = " << m << ", idx2 = " << n << ")" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    auto& judge1 = (*this)[m];
+    auto& judge2 = (*this)[n];
+    auto x = judge2.context().back().value();
+    auto A = judge1.term();
+    auto B = judge2.term();
+    auto s2 = judge2.type();
+    this->emplace_back(
+        judge1.env(),
+        judge1.context(),
+        pi(x, A, B), s2);
+}
+
+void Book::appl(){
+    if (!is_appl_applicable(*this, m, n)) {
+        std::cerr << "form not applicable ";
+        std::cerr << "(idx1 = " << m << ", idx2 = " << n << ")" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+}
+
+std::string Book::string() const {
+    std::string res("Book[[");
+    bool singleLine = true;
+    int indentSize = 1;
+    if (this->size() > 0) res += "\n" + (*this)[0].string(singleLine, indentSize);
+    for (size_t i = 1; i < this->size(); ++i) res += ",\n" + (*this)[i].string(singleLine, indentSize);
+    res += "\n]]";
+    return res;
+}
+std::string Book::repr() const {
+    std::stringstream ss;
+    for (size_t lno = 0; lno < this->size(); ++lno) {
+        auto& judge = (*this)[lno];
+        ss << lno << " : ";
+        // output environment (to be impl'ed)
+        ss << judge.env().repr_book() << " ; ";
+        // output context
+        ss << judge.context().repr_book() << " |- ";
+        ss << judge.term()->repr_book() << " : ";
+        ss << judge.type()->repr_book() << "\n";
+    }
+    return ss.str();
+}
+std::string Book::repr_new() const {
+    std::stringstream ss;
+    for (size_t lno = 0; lno < this->size(); ++lno) {
+        auto& judge = (*this)[lno];
+        ss << lno << " : ";
+        // output environment (to be impl'ed)
+        ss << judge.env().repr_book() << " ; ";
+        // output context
+        ss << judge.context().repr_book() << " |- ";
+        ss << judge.term()->repr_new() << " : ";
+        ss << judge.type()->repr_new() << "\n";
+    }
+    return ss.str();
 }
