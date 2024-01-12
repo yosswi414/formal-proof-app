@@ -301,6 +301,9 @@ class Environment : public std::vector<Definition> {
     std::string repr() const;
     std::string repr_new() const;
     std::string repr_book() const;
+
+    Environment& operator+=(const Definition& def);
+    Environment operator+(const Definition& def);
 };
 
 class Judgement {

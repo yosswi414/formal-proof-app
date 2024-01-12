@@ -217,6 +217,9 @@ std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::v
     }
     if (vars.size() == 0) return term;
     std::vector<std::shared_ptr<Term>> used;
+
+    std::cerr << "substitute() not implemented" << std::endl;
+    exit(EXIT_FAILURE);
 }
 
 std::shared_ptr<Variable> variable(const char& ch) { return std::make_shared<Variable>(ch); }
@@ -478,7 +481,9 @@ bool is_abst_applicable(const Book& book, size_t idx1, size_t idx2) {
 }
 
 std::shared_ptr<Term> beta_reduce(const std::shared_ptr<Term>& term) {
-
+    unused(term);
+    std::cerr << "beta_reduce() not implemented" << std::endl;
+    exit(EXIT_FAILURE);
 }
 
 bool is_beta_reachable(const std::shared_ptr<Term>& from, const std::shared_ptr<Term>& to) {
@@ -797,6 +802,14 @@ std::string Environment::repr_book() const {
     return "";
 }
 
+Environment& Environment::operator+=(const Definition& def) {
+    this->push_back(def);
+    return *this;
+}
+Environment Environment::operator+(const Definition& def) {
+    return Environment(*this) += def;
+}
+
 const std::string TURNSTILE = (OnlyAscii ? "|-" : "⊢");
 
 Judgement::Judgement(const Environment& env,
@@ -948,6 +961,17 @@ void Book::def(size_t m, size_t n, const std::string& a) {
     }
     auto& judge1 = (*this)[m];
     auto& judge2 = (*this)[n];
+    auto K = judge1.term();
+    auto L = judge1.type();
+    auto M = judge2.term();
+    auto N = judge2.type();
+    auto& xAs = judge2.context();
+    std::vector<std::shared_ptr<Term>> xs;
+    for (auto&& xA : xAs) xs.push_back(xA.value());
+    this->emplace_back(
+        judge1.env() + Definition(xAs, constant(a, xs), M, N),
+        judge1.context(),
+        K, L);
 }
 
 void Book::defpr(size_t m, size_t n, const std::string& a) {
@@ -958,6 +982,16 @@ void Book::defpr(size_t m, size_t n, const std::string& a) {
     }
     auto& judge1 = (*this)[m];
     auto& judge2 = (*this)[n];
+    auto K = judge1.term();
+    auto L = judge1.type();
+    auto N = judge2.term();
+    auto& xAs = judge2.context();
+    std::vector<std::shared_ptr<Term>> xs;
+    for (auto&& xA : xAs) xs.push_back(xA.value());
+    this->emplace_back(
+        judge1.env() + Definition(xAs, constant(a, xs), N),
+        judge1.context(),
+        K, L);
 }
 
 void Book::inst(size_t m, size_t n, const std::vector<size_t>& k, size_t p) {
@@ -968,6 +1002,10 @@ void Book::inst(size_t m, size_t n, const std::vector<size_t>& k, size_t p) {
     }
     auto& judge1 = (*this)[m];
     auto& judge2 = (*this)[n];
+    unused(judge1, judge2);
+    // requires delta reduction
+    std::cerr << "Book::inst() not implemented" << std::endl;
+    exit(EXIT_FAILURE);
 }
 
 void Book::cp(size_t m) {
