@@ -87,9 +87,9 @@ std::shared_ptr<Term> copy(const std::shared_ptr<Term>& term) {
         }
         case Kind::Constant: {
             auto t = constant(term);
-            std::vector<std::shared_ptr<Term>> types;
-            for (auto&& ptr : t->types()) types.emplace_back(copy(ptr));
-            return constant(t->name(), types);
+            std::vector<std::shared_ptr<Term>> args;
+            for (auto&& ptr : t->args()) args.emplace_back(copy(ptr));
+            return constant(t->name(), args);
         }
         default:
             std::cerr << "copy(): unknown kind: " << to_string(term->kind()) << std::endl;
@@ -127,7 +127,7 @@ std::set<char> free_var(const std::shared_ptr<Term>& term) {
         }
         case Kind::Constant: {
             auto t = constant(term);
-            for (auto& type : t->types()) set_union_inplace(FV, free_var(type));
+            for (auto& type : t->args()) set_union_inplace(FV, free_var(type));
             return FV;
         }
         default:
@@ -192,9 +192,9 @@ std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::s
         }
         case Kind::Constant: {
             auto t = constant(term);
-            std::vector<std::shared_ptr<Term>> types;
-            for (auto& type : t->types()) types.emplace_back(substitute(type, bind, expr));
-            return constant(t->name(), types);
+            std::vector<std::shared_ptr<Term>> args;
+            for (auto& type : t->args()) args.emplace_back(substitute(type, bind, expr));
+            return constant(t->name(), args);
         }
         default:
             std::cerr << "substitute(): unknown kind: " << to_string(term->kind()) << std::endl;
@@ -210,7 +210,7 @@ std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::s
     return substitute(term, variable(var_bind), expr);
 }
 
-std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::vector<std::shared_ptr<Variable>>& vars, const std::vector<std::shared_ptr<Term>>& exprs){
+std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::vector<std::shared_ptr<Variable>>& vars, const std::vector<std::shared_ptr<Term>>& exprs) {
     if (vars.size() != exprs.size()) {
         std::cerr << "substitute(): length of vars and exprs doesn't match" << std::endl;
         exit(EXIT_FAILURE);
@@ -247,9 +247,9 @@ std::shared_ptr<AbstPi> pi(const std::shared_ptr<Term>& t) {
     return std::dynamic_pointer_cast<AbstPi>(t);
 }
 std::shared_ptr<Constant> constant(const std::string& name, const std::vector<std::shared_ptr<Term>>& ts) {
-    std::vector<std::shared_ptr<Term>> types;
-    for (auto& type : ts) types.emplace_back(copy(type));
-    return std::make_shared<Constant>(name, types);
+    std::vector<std::shared_ptr<Term>> args;
+    for (auto& type : ts) args.emplace_back(copy(type));
+    return std::make_shared<Constant>(name, args);
 }
 std::shared_ptr<Constant> constant(const std::shared_ptr<Term>& t) {
     return std::dynamic_pointer_cast<Constant>(t);
@@ -287,9 +287,9 @@ bool alpha_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) 
             auto la = constant(a);
             auto lb = constant(b);
             if (la->name() != lb->name()) return false;
-            if (la->types().size() != lb->types().size()) return false;
-            for (size_t idx = 0; idx < la->types().size(); ++idx) {
-                if (!alpha_comp(la->types()[idx], lb->types()[idx])) return false;
+            if (la->args().size() != lb->args().size()) return false;
+            for (size_t idx = 0; idx < la->args().size(); ++idx) {
+                if (!alpha_comp(la->args()[idx], lb->args()[idx])) return false;
             }
             return true;
         }
@@ -329,9 +329,9 @@ bool exact_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) 
             auto la = constant(a);
             auto lb = constant(b);
             if (la->name() != lb->name()) return false;
-            if (la->types().size() != lb->types().size()) return false;
-            for (size_t idx = 0; idx < la->types().size(); ++idx) {
-                if (!exact_comp(la->types()[idx], lb->types()[idx])) return false;
+            if (la->args().size() != lb->args().size()) return false;
+            for (size_t idx = 0; idx < la->args().size(); ++idx) {
+                if (!exact_comp(la->args()[idx], lb->args()[idx])) return false;
             }
             return true;
         }
@@ -366,7 +366,7 @@ bool equiv_context(const std::shared_ptr<Context>& a, const std::shared_ptr<Cont
 
 bool equiv_def(const Definition& a, const Definition& b) {
     check_true(equiv_context(a.context(), b.context()));
-    check_true(alpha_comp(a.definiendum(), b.definiendum()));
+    check_true(a.definiendum() == b.definiendum());
     check_true(a.is_prim() != b.is_prim());
     check_true(a.is_prim() || alpha_comp(a.definiens(), b.definiens()));
     check_true(alpha_comp(a.type(), b.type()));
@@ -406,7 +406,7 @@ bool has_variable(const Context& g, char v) {
 
 bool has_constant(const Environment& env, const std::string& name) {
     for (auto&& def : env) {
-        if (def.definiendum()->name() == name) return true;
+        if (def.definiendum() == name) return true;
     }
     return false;
 }
@@ -509,7 +509,8 @@ bool is_def_applicable(const Book& book, size_t idx1, size_t idx2, const std::st
     auto& judge1 = book[idx1];
     auto& judge2 = book[idx2];
     check_true(equiv_env(judge1.env(), judge2.env()));
-    check_false(has_constant(judge1.env(), name));;
+    check_false(has_constant(judge1.env(), name));
+    ;
     return true;
 }
 
@@ -526,13 +527,14 @@ bool is_inst_applicable(const Book& book, size_t idx, size_t n, const std::vecto
     auto& judge = book[idx];
 
     check_true(k.size() == n);
-    for (size_t i = 0; i < n; ++ i) {
+    for (size_t i = 0; i < n; ++i) {
         check_true(equiv_env(judge.env(), book[k[i]].env()));
         check_true(equiv_context(judge.context(), book[k[i]].context()));
     }
 
+    check_true(judge.context().size() == n);
+
     auto& D = judge.env()[p];
-    check_true(D.definiendum()->types().size() == n);
 
     std::vector<std::shared_ptr<Term>> Us;
     std::vector<std::shared_ptr<Variable>> xs;
@@ -635,34 +637,34 @@ std::string AbstPi::repr_book() const {
     return "Pai " + _var.value()->repr_book() + ":(" + _var.type()->repr_book() + ").(" + _expr->repr_book() + ")";
 }
 
-Constant::Constant(const std::string& name, std::vector<std::shared_ptr<Term>> list) : Term(Kind::Constant), _name(name), _types(list) {}
+Constant::Constant(const std::string& name, std::vector<std::shared_ptr<Term>> list) : Term(Kind::Constant), _name(name), _args(list) {}
 
-const std::vector<std::shared_ptr<Term>>& Constant::types() const { return _types; }
-std::vector<std::shared_ptr<Term>>& Constant::types() { return _types; }
+const std::vector<std::shared_ptr<Term>>& Constant::args() const { return _args; }
+std::vector<std::shared_ptr<Term>>& Constant::args() { return _args; }
 const std::string& Constant::name() const { return _name; }
 std::string& Constant::name() { return _name; }
 
 std::string Constant::string() const {
     std::string res(_name);
     res += "[";
-    if (_types.size() > 0) res += _types[0]->string();
-    for (size_t i = 1; i < _types.size(); ++i) res += ", " + _types[i]->string();
+    if (_args.size() > 0) res += _args[0]->string();
+    for (size_t i = 1; i < _args.size(); ++i) res += ", " + _args[i]->string();
     res += "]";
     return res;
 }
 std::string Constant::repr() const {
     std::string res(_name);
     res += "[";
-    if (_types.size() > 0) res += "(" + _types[0]->repr() + ")";
-    for (size_t i = 1; i < _types.size(); ++i) res += ",(" + _types[i]->repr() + ")";
+    if (_args.size() > 0) res += "(" + _args[0]->repr() + ")";
+    for (size_t i = 1; i < _args.size(); ++i) res += ",(" + _args[i]->repr() + ")";
     res += "]";
     return res;
 }
 std::string Constant::repr_new() const {
     std::string res(_name);
     res += "[";
-    if (_types.size() > 0) res += _types[0]->repr_new();
-    for (size_t i = 1; i < _types.size(); ++i) res += ", " + _types[i]->repr_new();
+    if (_args.size() > 0) res += _args[0]->repr_new();
+    for (size_t i = 1; i < _args.size(); ++i) res += ", " + _args[i]->repr_new();
     res += "]";
     return res;
 }
@@ -713,10 +715,27 @@ const std::string DEFINITION_SEPARATOR = (OnlyAscii ? "|>" : "▷");
 const std::string EMPTY_DEFINIENS = (OnlyAscii ? "#" : "⫫");
 
 Definition::Definition(const Context& context,
+                       const std::string& cname,
+                       const std::shared_ptr<Term>& prop)
+    : _context(context),
+      _definiendum(cname),
+      _definiens(nullptr),
+      _type(prop) {}
+
+Definition::Definition(const Context& context,
+                       const std::string& cname,
+                       const std::shared_ptr<Term>& proof,
+                       const std::shared_ptr<Term>& prop)
+    : _context(context),
+      _definiendum(cname),
+      _definiens(proof),
+      _type(prop) {}
+
+Definition::Definition(const Context& context,
                        const std::shared_ptr<Constant>& constant,
                        const std::shared_ptr<Term>& prop)
     : _context(context),
-      _definiendum(constant),
+      _definiendum(constant->name()),
       _definiens(nullptr),
       _type(prop) {}
 
@@ -725,7 +744,7 @@ Definition::Definition(const Context& context,
                        const std::shared_ptr<Term>& proof,
                        const std::shared_ptr<Term>& prop)
     : _context(context),
-      _definiendum(constant),
+      _definiendum(constant->name()),
       _definiens(proof),
       _type(prop) {}
 
@@ -733,7 +752,7 @@ std::string Definition::string() const {
     std::string res;
     res = (_definiens ? "Def< " : "Def-prim< ");
     res += _context.string();
-    res += " " + DEFINITION_SEPARATOR + " " + _definiendum->name();
+    res += " " + DEFINITION_SEPARATOR + " " + _definiendum;
     res += " := " + (_definiens ? _definiens->string() : EMPTY_DEFINIENS);
     res += " : " + _type->string();
     res += " >";
@@ -743,7 +762,7 @@ std::string Definition::repr() const {
     std::string res;
     res = "def2\n";
     res += _context.repr();
-    res += _definiendum->name() + "\n";
+    res += _definiendum + "\n";
     res += (_definiens ? _definiens->repr() : "#") + "\n";
     res += _type->repr() + "\n";
     res += "edef2\n";
@@ -754,19 +773,19 @@ std::string Definition::repr_new() const {
     std::string res;
     res = "def2\n";
     res += _context.repr_new();
-    res += _definiendum->name() + " := " + (_definiens ? _definiens->repr_new() : "#") + " : " + _type->repr_new() + "\n";
+    res += _definiendum + " := " + (_definiens ? _definiens->repr_new() : "#") + " : " + _type->repr_new() + "\n";
     res += "edef2\n";
     return res;
 }
 
 bool Definition::is_prim() const { return !_definiens; }
 const Context& Definition::context() const { return _context; }
-const std::shared_ptr<Constant>& Definition::definiendum() const { return _definiendum; }
+const std::string& Definition::definiendum() const { return _definiendum; }
 const std::shared_ptr<Term>& Definition::definiens() const { return _definiens; }
 const std::shared_ptr<Term>& Definition::type() const { return _type; }
 
 Context& Definition::context() { return _context; }
-std::shared_ptr<Constant>& Definition::definiendum() { return _definiendum; }
+std::string& Definition::definiendum() { return _definiendum; }
 std::shared_ptr<Term>& Definition::definiens() { return _definiens; }
 std::shared_ptr<Term>& Definition::type() { return _type; }
 
@@ -900,7 +919,7 @@ void Book::form(size_t m, size_t n) {
         pi(x, A, B), s2);
 }
 
-void Book::appl(size_t m, size_t n){
+void Book::appl(size_t m, size_t n) {
     if (!is_appl_applicable(*this, m, n)) {
         std::cerr << "appl not applicable ";
         std::cerr << "(idx1 = " << m << ", idx2 = " << n << ")" << std::endl;
@@ -1012,7 +1031,7 @@ void Book::cp(size_t m) {
     this->emplace_back((*this)[m]);
 }
 
-void Book::sp(size_t m, size_t n){
+void Book::sp(size_t m, size_t n) {
     auto& judge = (*this)[m];
     auto& tv = judge.context()[n];
     this->emplace_back(

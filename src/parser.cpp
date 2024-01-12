@@ -270,15 +270,15 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
                 "expected an open square bracket, got an invalid token", tokens[idx],
                 "during parsing a constant", tokens[const_hdr], tokens[idx - 1]);
             incr_idx("an expr or a closing square bracket", "a constant", const_hdr);
-            std::vector<std::shared_ptr<Term>> types;
+            std::vector<std::shared_ptr<Term>> parameters;
             if (tokens[idx].type() != TokenType::SquareBracketRight) {
                 while (true) {
                     try {
-                        types.emplace_back(parse_lambda(tokens, idx)->term());
+                        parameters.emplace_back(parse_lambda(tokens, idx)->term());
                     } catch (ExprError& e) {
                         e.puterror();
                         throw ExprError(
-                            "above error raised during parsing #" + std::to_string(types.size() + 1) + " expr of constant", tokens[idx],
+                            "above error raised during parsing #" + std::to_string(parameters.size() + 1) + " expr of constant", tokens[idx],
                             "constant starts here", tokens[const_hdr]);
                     }
                     incr_idx("a comma or a closing square bracket", "a constant", const_hdr);
@@ -295,7 +295,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
                 tokens[idx],
                 constant(
                     tokens[const_hdr].string(),
-                    types));
+                    parameters));
         }
         default:
             throw ExprError("invalid token", tokens[idx]);
@@ -326,8 +326,7 @@ Environment parse_defs(const std::vector<Token>& tokens) {
     // read lambda expression
     bool read_lambda = false;
 
-    std::vector<Typed<Variable>> tvars;
-    std::vector<std::shared_ptr<Term>> types;
+    Context context;
     std::string cname;
     std::shared_ptr<Term> term, type;
 
@@ -355,6 +354,7 @@ Environment parse_defs(const std::vector<Token>& tokens) {
         auto& t = tokens[idx];
         if (read_lambda) {
             std::shared_ptr<ParseLambdaToken> expr;
+            ParseError invalid_err("expected expr, got an invalid token", t);
             switch (t.type()) {
                 case TokenType::NewLine:
                 case TokenType::Semicolon:
@@ -384,7 +384,7 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                             continue;
                         }
                     }
-                    [[fallthrough]];
+                    throw invalid_err;
                 case TokenType::Hash:
                     if (read_def_term) {
                         read_def_term = false;
@@ -393,7 +393,7 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                         term = nullptr;
                         continue;
                     }
-                    [[fallthrough]];
+                    throw invalid_err;
                 case TokenType::Colon:
                     if (read_def_context && !read_def_context_var) {
                         if (!read_def_context_col) {
@@ -407,10 +407,10 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                             continue;
                         }
                     }
-                    [[fallthrough]];
+                    throw invalid_err;
                 case TokenType::Backslash:
                     if (idx + 1 < tokens.size() && tokens[idx + 1].type() == TokenType::NewLine) continue;
-                    [[fallthrough]];
+                    throw invalid_err;
                 default:
                     throw ParseError("expected expr, got an invalid token", t);
             }
@@ -422,13 +422,12 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                         "expected a variable, got " + to_string(expr->term()->kind()),
                         expr->begin(),
                         expr->end());
-                    temp_var = std::dynamic_pointer_cast<Variable>(expr->term());
+                    temp_var = variable(expr->term());
                     read_def_context_var = false;
                     read_def_context_col = false;
                     read_lambda = true;
                 } else {
-                    tvars.emplace_back(temp_var, expr->term());
-                    types.emplace_back(expr->term());
+                    context.emplace_back(temp_var, expr->term());
                     read_def_context_col = false;
                     if (--def_num == 0) {
                         read_def_context = false;
@@ -468,8 +467,7 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                 read_def_num = false;
 
                 if (def_num > 0) {
-                    tvars.clear();
-                    types.clear();
+                    context.clear();
 
                     read_def_context = true;
                     read_def_context_var = true;
@@ -498,17 +496,20 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                 read_def_end = false;
                 if (term) {
                     env.emplace_back(
-                        tvars,
-                        std::make_shared<Constant>(cname, types),
+                        context,
+                        cname,
                         term, type);
                 } else {
                     env.emplace_back(
-                        tvars,
-                        std::make_shared<Constant>(cname, types),
+                        context,
+                        cname,
                         type);
                 }
-                tvars.clear();
-                types.clear();
+                context.clear();
+                if(context.size() != 0) {
+                    std::cerr << "parse: context.clear() doesn't clear the content" << std::endl;
+                    exit(EXIT_FAILURE);
+                }
                 in_def = -1;
                 break;
             }

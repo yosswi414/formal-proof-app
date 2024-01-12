@@ -181,10 +181,10 @@ class Constant : public Term {
   public:
     Constant(const std::string& name, std::vector<std::shared_ptr<Term>> list);
     template <class... Ts>
-    Constant(const std::string& name, Ts... ptrs) : Term(Kind::Constant), _name(name), _types{ptrs...} {}
+    Constant(const std::string& name, Ts... ptrs) : Term(Kind::Constant), _name(name), _args{ptrs...} {}
 
-    const std::vector<std::shared_ptr<Term>>& types() const;
-    std::vector<std::shared_ptr<Term>>& types();
+    const std::vector<std::shared_ptr<Term>>& args() const;
+    std::vector<std::shared_ptr<Term>>& args();
     const std::string& name() const;
     std::string& name();
 
@@ -194,7 +194,7 @@ class Constant : public Term {
 
   private:
     std::string _name;
-    std::vector<std::shared_ptr<Term>> _types;
+    std::vector<std::shared_ptr<Term>> _args;
 };
 
 std::shared_ptr<Term> copy(const std::shared_ptr<Term>& term);
@@ -264,6 +264,15 @@ class Context : public std::vector<Typed<Variable>> {
 class Definition {
   public:
     Definition(const Context& context,
+               const std::string& cname,
+               const std::shared_ptr<Term>& prop);
+
+    Definition(const Context& context,
+               const std::string& cname,
+               const std::shared_ptr<Term>& proof,
+               const std::shared_ptr<Term>& prop);
+
+    Definition(const Context& context,
                const std::shared_ptr<Constant>& constant,
                const std::shared_ptr<Term>& prop);
 
@@ -278,18 +287,18 @@ class Definition {
 
     bool is_prim() const;
     const Context& context() const;
-    const std::shared_ptr<Constant>& definiendum() const;
+    const std::string& definiendum() const;
     const std::shared_ptr<Term>& definiens() const;
     const std::shared_ptr<Term>& type() const;
 
     Context& context();
-    std::shared_ptr<Constant>& definiendum();
+    std::string& definiendum();
     std::shared_ptr<Term>& definiens();
     std::shared_ptr<Term>& type();
 
   private:
     Context _context;
-    std::shared_ptr<Constant> _definiendum;
+    std::string _definiendum;
     std::shared_ptr<Term> _definiens, _type;
 };
 
