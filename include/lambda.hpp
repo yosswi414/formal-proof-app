@@ -219,8 +219,11 @@ std::shared_ptr<Variable> get_fresh_var(const std::shared_ptr<Term>& term, Ts...
     exit(EXIT_FAILURE);
 }
 
+std::shared_ptr<Variable> get_fresh_var(const std::vector<std::shared_ptr<Term>>& terms);
+
 std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::shared_ptr<Variable>& var_bind, const std::shared_ptr<Term>& expr);
 std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::shared_ptr<Term>& var_bind, const std::shared_ptr<Term>& expr);
+std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::vector<std::shared_ptr<Variable>>& vars, const std::vector<std::shared_ptr<Term>>& exprs);
 
 // shared_ptr constructors
 std::shared_ptr<Variable> variable(const char& ch);
@@ -338,24 +341,21 @@ bool has_variable(const Context& g, const std::shared_ptr<Variable>& v);
 bool has_variable(const Context& g, const std::shared_ptr<Term>& v);
 bool has_variable(const Context& g, char v);
 bool has_constant(const Environment& env, const std::string& name);
-bool is_beta_reachable(const std::shared_ptr<Term>& from, const std::shared_ptr<Term>& to);
+bool has_definition(const Environment& env, const Definition& def);
 bool is_sort(const std::shared_ptr<Term>& t);
 bool is_var_applicable(const Book& book, size_t idx, char var);
-bool is_var_applicable(const std::shared_ptr<Book>& book, size_t idx, char var);
 bool is_weak_applicable(const Book& book, size_t idx1, size_t idx2, char var);
-bool is_weak_applicable(const std::shared_ptr<Book>& book, size_t idx1, size_t idx2, char var);
 bool is_form_applicable(const Book& book, size_t idx1, size_t idx2);
-bool is_form_applicable(const std::shared_ptr<Book>& book, size_t idx1, size_t idx2);
 bool is_appl_applicable(const Book& book, size_t idx1, size_t idx2);
-bool is_appl_applicable(const std::shared_ptr<Book>& book, size_t idx1, size_t idx2);
 bool is_abst_applicable(const Book& book, size_t idx1, size_t idx2);
-bool is_abst_applicable(const std::shared_ptr<Book>& book, size_t idx1, size_t idx2);
+
+std::shared_ptr<Term> beta_reduce(const std::shared_ptr<Term>& term);
+bool is_beta_reachable(const std::shared_ptr<Term>& from, const std::shared_ptr<Term>& to);
+
 bool is_conv_applicable(const Book& book, size_t idx1, size_t idx2);
-bool is_conv_applicable(const std::shared_ptr<Book>& book, size_t idx1, size_t idx2);
 bool is_def_applicable(const Book& book, size_t idx1, size_t idx2, const std::string& name);
-bool is_def_applicable(const std::shared_ptr<Book>& book, size_t idx1, size_t idx2, const std::string& name);
 bool is_def_prim_applicable(const Book& book, size_t idx1, size_t idx2, const std::string& name);
-bool is_def_prim_applicable(const std::shared_ptr<Book>& book, size_t idx1, size_t idx2, const std::string& name);
+bool is_inst_applicable(const Book& book, size_t idx, size_t n, const std::vector<size_t>& k, size_t p);
 
 class Book : public std::vector<Judgement> {
   public:
@@ -366,15 +366,18 @@ class Book : public std::vector<Judgement> {
 
     // inference rules
     void sort();
-    void var(int m, char x);
-    void weak(int m, int n, char x);
-    void form(int m, int n);
-    void appl(int m, int n);
-    void abst(int m, int n);
-    void conv(int m, int n);
-    void def(int m, int n, const std::string& a);
-    void defpr(int m, int n, const std::string& a);
-    void inst(int m, int n, const std::vector<int>& k, int p);
+    void var(size_t m, char x);
+    void weak(size_t m, size_t n, char x);
+    void form(size_t m, size_t n);
+    void appl(size_t m, size_t n);
+    void abst(size_t m, size_t n);
+    void conv(size_t m, size_t n);
+    void def(size_t m, size_t n, const std::string& a);
+    void defpr(size_t m, size_t n, const std::string& a);
+    void inst(size_t m, size_t n, const std::vector<size_t>& k, size_t p);
+    // sugar syntax
+    void cp(size_t m);
+    void sp(size_t m, size_t n);
 
     std::string string() const;
     std::string repr() const;

@@ -34,7 +34,9 @@
 test_read
 test_read_leak
 def_file_nocomm
-script
+script*
+!script_test
+!script_test_result
 verifier_out*
 def_conv_out*
 

@@ -151,6 +151,16 @@ std::shared_ptr<Variable> get_fresh_var(const std::shared_ptr<Term>& term) {
     exit(EXIT_FAILURE);
 }
 
+std::shared_ptr<Variable> get_fresh_var(const std::vector<std::shared_ptr<Term>>& terms) {
+    std::set<char> univ;
+    for (char ch = 'A'; ch <= 'Z'; ++ch) univ.insert(ch);
+    for (char ch = 'a'; ch <= 'z'; ++ch) univ.insert(ch);
+    for (auto&& t : terms) set_minus_inplace(univ, free_var(t));
+    if (!univ.empty()) return variable(*univ.begin());
+    std::cerr << "out of fresh variable" << std::endl;
+    exit(EXIT_FAILURE);
+}
+
 std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::shared_ptr<Variable>& bind, const std::shared_ptr<Term>& expr) {
     switch (term->kind()) {
         case Kind::Star:
@@ -198,6 +208,15 @@ std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::s
         exit(EXIT_FAILURE);
     }
     return substitute(term, variable(var_bind), expr);
+}
+
+std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::vector<std::shared_ptr<Variable>>& vars, const std::vector<std::shared_ptr<Term>>& exprs){
+    if (vars.size() != exprs.size()) {
+        std::cerr << "substitute(): length of vars and exprs doesn't match" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    if (vars.size() == 0) return term;
+    std::vector<std::shared_ptr<Term>> used;
 }
 
 std::shared_ptr<Variable> variable(const char& ch) { return std::make_shared<Variable>(ch); }
@@ -389,10 +408,11 @@ bool has_constant(const Environment& env, const std::string& name) {
     return false;
 }
 
-bool is_beta_reachable(const std::shared_ptr<Term>& from, const std::shared_ptr<Term>& to) {
-    unused(from, to);
-    std::cerr << "is_beta_reachable not implemented" << std::endl;
-    exit(EXIT_FAILURE);
+bool has_definition(const Environment& env, const Definition& def) {
+    for (auto&& d : env) {
+        if (equiv_def(d, def)) return true;
+    }
+    return false;
 }
 
 bool is_sort(const std::shared_ptr<Term>& t) {
@@ -406,10 +426,6 @@ bool is_var_applicable(const Book& book, size_t idx, char var) {
     return true;
 }
 
-bool is_var_applicable(const std::shared_ptr<Book>& book, size_t idx, char var) {
-    return is_var_applicable(*book, idx, var);
-}
-
 bool is_weak_applicable(const Book& book, size_t idx1, size_t idx2, char var) {
     auto& judge1 = book[idx1];
     auto& judge2 = book[idx2];
@@ -418,10 +434,6 @@ bool is_weak_applicable(const Book& book, size_t idx1, size_t idx2, char var) {
     check_true(is_sort(judge2.type()));
     check_false(has_variable(judge1.context(), var));
     return true;
-}
-
-bool is_weak_applicable(const std::shared_ptr<Book>& book, size_t idx1, size_t idx2, char var) {
-    return is_weak_applicable(*book, idx1, idx2, var);
 }
 
 bool is_form_applicable(const Book& book, size_t idx1, size_t idx2) {
@@ -436,10 +448,6 @@ bool is_form_applicable(const Book& book, size_t idx1, size_t idx2) {
     return true;
 }
 
-bool is_form_applicable(const std::shared_ptr<Book>& book, size_t idx1, size_t idx2) {
-    return is_form_applicable(*book, idx1, idx2);
-}
-
 bool is_appl_applicable(const Book& book, size_t idx1, size_t idx2) {
     auto& judge1 = book[idx1];
     auto& judge2 = book[idx2];
@@ -449,10 +457,6 @@ bool is_appl_applicable(const Book& book, size_t idx1, size_t idx2) {
     auto p = pi(judge1.type());
     check_true(alpha_comp(p->var().type(), judge2.type()));
     return true;
-}
-
-bool is_appl_applicable(const std::shared_ptr<Book>& book, size_t idx1, size_t idx2) {
-    return is_appl_applicable(*book, idx1, idx2);
 }
 
 bool is_abst_applicable(const Book& book, size_t idx1, size_t idx2) {
@@ -473,44 +477,73 @@ bool is_abst_applicable(const Book& book, size_t idx1, size_t idx2) {
     return true;
 }
 
-bool is_abst_applicable(const std::shared_ptr<Book>& book, size_t idx1, size_t idx2) {
-    return is_abst_applicable(*book, idx1, idx2);
+std::shared_ptr<Term> beta_reduce(const std::shared_ptr<Term>& term) {
+
+}
+
+bool is_beta_reachable(const std::shared_ptr<Term>& from, const std::shared_ptr<Term>& to) {
+    unused(from, to);
+    std::cerr << "is_beta_reachable not implemented" << std::endl;
+    exit(EXIT_FAILURE);
 }
 
 bool is_conv_applicable(const Book& book, size_t idx1, size_t idx2) {
     auto& judge1 = book[idx1];
     auto& judge2 = book[idx2];
-    unused(judge1, judge2);
-    std::cerr << "is_conv not implemented" << std::endl;
-    exit(EXIT_FAILURE);
-}
-
-bool is_conv_applicable(const std::shared_ptr<Book>& book, size_t idx1, size_t idx2) {
-    return is_conv_applicable(*book, idx1, idx2);
+    check_true(equiv_env(judge1.env(), judge2.env()));
+    check_true(equiv_context(judge1.context(), judge2.context()));
+    auto B1 = judge1.type();
+    auto B2 = judge2.term();
+    auto s = judge2.type();
+    check_true(is_beta_reachable(B1, B2));
+    check_true(is_sort(s));
+    return true;
 }
 
 bool is_def_applicable(const Book& book, size_t idx1, size_t idx2, const std::string& name) {
     auto& judge1 = book[idx1];
     auto& judge2 = book[idx2];
-    unused(judge1, judge2, name);
-    std::cerr << "is_def not implemented" << std::endl;
-    exit(EXIT_FAILURE);
-}
-
-bool is_def_applicable(const std::shared_ptr<Book>& book, size_t idx1, size_t idx2, const std::string& name) {
-    return is_def_applicable(*book, idx1, idx2, name);
+    check_true(equiv_env(judge1.env(), judge2.env()));
+    check_false(has_constant(judge1.env(), name));;
+    return true;
 }
 
 bool is_def_prim_applicable(const Book& book, size_t idx1, size_t idx2, const std::string& name) {
     auto& judge1 = book[idx1];
     auto& judge2 = book[idx2];
-    unused(judge1, judge2, name);
-    std::cerr << "is_def_prim not implemented" << std::endl;
-    exit(EXIT_FAILURE);
+    check_true(equiv_env(judge1.env(), judge2.env()));
+    check_false(has_constant(judge1.env(), name));
+    check_true(is_sort(judge2.type()));
+    return true;
 }
 
-bool is_def_prim_applicable(const std::shared_ptr<Book>& book, size_t idx1, size_t idx2, const std::string& name) {
-    return is_def_prim_applicable(*book, idx1, idx2, name);
+bool is_inst_applicable(const Book& book, size_t idx, size_t n, const std::vector<size_t>& k, size_t p) {
+    auto& judge = book[idx];
+
+    check_true(k.size() == n);
+    for (size_t i = 0; i < n; ++ i) {
+        check_true(equiv_env(judge.env(), book[k[i]].env()));
+        check_true(equiv_context(judge.context(), book[k[i]].context()));
+    }
+
+    auto& D = judge.env()[p];
+    check_true(D.definiendum()->types().size() == n);
+
+    std::vector<std::shared_ptr<Term>> Us;
+    std::vector<std::shared_ptr<Variable>> xs;
+    for (size_t i = 0; i < n; ++i) {
+        auto A = D.context()[i].type();
+        auto V = book[k[i]].type();
+        // check V == A[xs := Us]
+        check_true(alpha_comp(V, substitute(A, xs, Us)));
+        xs.push_back(D.context()[i].value());
+        Us.push_back(book[k[i]].term());
+    }
+
+    check_true(judge.term()->kind() == Kind::Star);
+    check_true(judge.type()->kind() == Kind::Square);
+
+    return true;
 }
 
 std::string Term::repr() const { return string(); }
@@ -805,7 +838,7 @@ void Book::sort() {
         star,
         sq);
 }
-void Book::var(int m, char x) {
+void Book::var(size_t m, char x) {
     if (!is_var_applicable(*this, m, x)) {
         std::cerr << "var not applicable ";
         std::cerr << "(idx = " << m << ", var = " << x << ")" << std::endl;
@@ -819,7 +852,7 @@ void Book::var(int m, char x) {
         judge.context() + Typed<Variable>(vx, A),
         vx, A);
 }
-void Book::weak(int m, int n, char x) {
+void Book::weak(size_t m, size_t n, char x) {
     if (!is_weak_applicable(*this, m, n, x)) {
         std::cerr << "weak not applicable ";
         std::cerr << "(idx1 = " << m << ", idx2 = " << n << ", var = " << x << ")" << std::endl;
@@ -836,7 +869,7 @@ void Book::weak(int m, int n, char x) {
         judge1.context() + Typed<Variable>(vx, C),
         A, B);
 }
-void Book::form(int m, int n) {
+void Book::form(size_t m, size_t n) {
     if (!is_form_applicable(*this, m, n)) {
         std::cerr << "form not applicable ";
         std::cerr << "(idx1 = " << m << ", idx2 = " << n << ")" << std::endl;
@@ -854,12 +887,101 @@ void Book::form(int m, int n) {
         pi(x, A, B), s2);
 }
 
-void Book::appl(){
+void Book::appl(size_t m, size_t n){
     if (!is_appl_applicable(*this, m, n)) {
-        std::cerr << "form not applicable ";
+        std::cerr << "appl not applicable ";
         std::cerr << "(idx1 = " << m << ", idx2 = " << n << ")" << std::endl;
         exit(EXIT_FAILURE);
     }
+    auto& judge1 = (*this)[m];
+    auto& judge2 = (*this)[n];
+    auto M = judge1.term();
+    auto N = judge2.term();
+    auto B = pi(judge1.type())->expr();
+    auto x = pi(judge1.type())->var().value();
+    this->emplace_back(
+        judge1.env(),
+        judge1.context(),
+        ::appl(M, N),
+        substitute(B, x, N));
+}
+
+void Book::abst(size_t m, size_t n) {
+    if (!is_abst_applicable(*this, m, n)) {
+        std::cerr << "abst not applicable ";
+        std::cerr << "(idx1 = " << m << ", idx2 = " << n << ")" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    auto& judge1 = (*this)[m];
+    auto M = judge1.term();
+    auto x = judge1.context().back().value();
+    auto A = judge1.context().back().type();
+    auto B = judge1.type();
+    this->emplace_back(
+        judge1.env(),
+        judge1.context(),
+        lambda(x, A, M),
+        pi(x, A, B));
+}
+
+void Book::conv(size_t m, size_t n) {
+    if (!is_conv_applicable(*this, m, n)) {
+        std::cerr << "conv not applicable ";
+        std::cerr << "(idx1 = " << m << ", idx2 = " << n << ")" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    auto& judge1 = (*this)[m];
+    auto& judge2 = (*this)[n];
+    auto A = judge1.term();
+    auto B2 = judge2.term();
+    this->emplace_back(
+        judge1.env(),
+        judge1.context(),
+        A, B2);
+}
+
+void Book::def(size_t m, size_t n, const std::string& a) {
+    if (!is_def_applicable(*this, m, n, a)) {
+        std::cerr << "def not applicable ";
+        std::cerr << "(idx1 = " << m << ", idx2 = " << n << ", name = " << a << ")" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    auto& judge1 = (*this)[m];
+    auto& judge2 = (*this)[n];
+}
+
+void Book::defpr(size_t m, size_t n, const std::string& a) {
+    if (!is_def_applicable(*this, m, n, a)) {
+        std::cerr << "defpr not applicable ";
+        std::cerr << "(idx1 = " << m << ", idx2 = " << n << ", name = " << a << ")" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    auto& judge1 = (*this)[m];
+    auto& judge2 = (*this)[n];
+}
+
+void Book::inst(size_t m, size_t n, const std::vector<size_t>& k, size_t p) {
+    if (!is_inst_applicable(*this, m, n, k, p)) {
+        std::cerr << "def not applicable ";
+        std::cerr << "(idx1 = " << m << ", idx2 = " << n << ", p = " << p << ")" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    auto& judge1 = (*this)[m];
+    auto& judge2 = (*this)[n];
+}
+
+void Book::cp(size_t m) {
+    this->emplace_back((*this)[m]);
+}
+
+void Book::sp(size_t m, size_t n){
+    auto& judge = (*this)[m];
+    auto& tv = judge.context()[n];
+    this->emplace_back(
+        judge.env(),
+        judge.context(),
+        tv.value(),
+        tv.type());
 }
 
 std::string Book::string() const {
