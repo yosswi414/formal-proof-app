@@ -121,108 +121,127 @@ int main(int argc, char* argv[]) {
         }
     });
     th1.detach();
-
+    size_t max_diff = 0;
+#define chmax(a, b) ((a) < (b) ? ((a) = (b)) : (a))
     for (size_t i = 0; i < limit; ++i) {
         ss << data[i];
         int lno;
         std::string op;
-        ss >> lno >> op;
+        ss >> lno;
         if (lno == -1) break;
+        ss >> op;
         if (!is_quiet && is_verbose) std::cout << "line #" << lno << ": " << op << std::endl;
         if (op == "sort") {
             book.sort();
         } else if (op == "var") {
-            size_t m;
+            size_t idx;
             char x;
             check_true_or_exit(
-                ss >> m >> x,
+                ss >> idx >> x,
                 op
                     << ": too few arguments are given, or type of argument is wrong"
                     << " (line " << i + 1 << ")",
                 __FILE__, __LINE__, __func__);
-            book.var(m, x);
+            chmax(max_diff, lno - idx);
+            book.var(idx, x);
         } else if (op == "weak") {
-            size_t m, n;
+            size_t idx1, idx2;
             char x;
             check_true_or_exit(
-                ss >> m >> n >> x,
+                ss >> idx1 >> idx2 >> x,
                 op
                     << ": too few arguments are given, or type of argument is wrong"
                     << " (line " << i + 1 << ")",
                 __FILE__, __LINE__, __func__);
-            book.weak(m, n, x);
+            chmax(max_diff, lno - idx1);
+            chmax(max_diff, lno - idx2);
+            book.weak(idx1, idx2, x);
         } else if (op == "form") {
-            size_t m, n;
+            size_t idx1, idx2;
             check_true_or_exit(
-                ss >> m >> n,
+                ss >> idx1 >> idx2,
                 op
                     << ": too few arguments are given, or type of argument is wrong"
                     << " (line " << i + 1 << ")",
                 __FILE__, __LINE__, __func__);
-            book.form(m, n);
+            chmax(max_diff, lno - idx1);
+            chmax(max_diff, lno - idx2);
+            book.form(idx1, idx2);
         } else if (op == "appl") {
-            size_t m, n;
+            size_t idx1, idx2;
             check_true_or_exit(
-                ss >> m >> n,
+                ss >> idx1 >> idx2,
                 op
                     << ": too few arguments are given, or type of argument is wrong"
                     << " (line " << i + 1 << ")",
                 __FILE__, __LINE__, __func__);
-            book.appl(m, n);
+            chmax(max_diff, lno - idx1);
+            chmax(max_diff, lno - idx2);
+            book.appl(idx1, idx2);
         } else if (op == "abst") {
-            size_t m, n;
+            size_t idx1, idx2;
             check_true_or_exit(
-                ss >> m >> n,
+                ss >> idx1 >> idx2,
                 op
                     << ": too few arguments are given, or type of argument is wrong"
                     << " (line " << i + 1 << ")",
                 __FILE__, __LINE__, __func__);
-            book.abst(m, n);
+            chmax(max_diff, lno - idx1);
+            chmax(max_diff, lno - idx2);
+            book.abst(idx1, idx2);
         } else if (op == "conv") {
-            size_t m, n;
+            size_t idx1, idx2;
             check_true_or_exit(
-                ss >> m >> n,
+                ss >> idx1 >> idx2,
                 op
                     << ": too few arguments are given, or type of argument is wrong"
                     << " (line " << i + 1 << ")",
                 __FILE__, __LINE__, __func__);
-            book.conv(m, n);
+            chmax(max_diff, lno - idx1);
+            chmax(max_diff, lno - idx2);
+            book.conv(idx1, idx2);
         } else if (op == "def") {
-            size_t m, n;
+            size_t idx1, idx2;
             std::string a;
             check_true_or_exit(
-                ss >> m >> n >> a,
+                ss >> idx1 >> idx2 >> a,
                 op
                     << ": too few arguments are given, or type of argument is wrong"
                     << " (line " << i + 1 << ")",
                 __FILE__, __LINE__, __func__);
-            book.def(m, n, a);
+            chmax(max_diff, lno - idx1);
+            chmax(max_diff, lno - idx2);
+            book.def(idx1, idx2, a);
         } else if (op == "defpr") {
-            size_t m, n;
+            size_t idx1, idx2;
             std::string a;
             check_true_or_exit(
-                ss >> m >> n >> a,
+                ss >> idx1 >> idx2 >> a,
                 op
                     << ": too few arguments are given, or type of argument is wrong"
                     << " (line " << i + 1 << ")",
                 __FILE__, __LINE__, __func__);
-            book.defpr(m, n, a);
+            chmax(max_diff, lno - idx1);
+            chmax(max_diff, lno - idx2);
+            book.defpr(idx1, idx2, a);
         } else if (op == "inst") {
-            size_t m, n, p;
+            size_t idx0, n, p;
             check_true_or_exit(
-                ss >> m >> n,
+                ss >> idx0 >> n,
                 op
                     << ": too few arguments are given, or type of argument is wrong"
                     << " (line " << i + 1 << ")",
                 __FILE__, __LINE__, __func__);
-            std::vector<size_t> k(n);
-            for (auto&& ki : k) {
+            chmax(max_diff, lno - idx0);
+            std::vector<size_t> idxs(n);
+            for (auto&& ki : idxs) {
                 check_true_or_exit(
                     ss >> ki,
                     op
                         << ": too few arguments are given, or type of argument is wrong"
                         << " (line " << i + 1 << ")",
                     __FILE__, __LINE__, __func__);
+                chmax(max_diff, lno - ki);
             }
             check_true_or_exit(
                 ss >> p,
@@ -230,25 +249,27 @@ int main(int argc, char* argv[]) {
                     << ": too few arguments are given, or type of argument is wrong"
                     << " (line " << i + 1 << ")",
                 __FILE__, __LINE__, __func__);
-            book.inst(m, n, k, p);
+            book.inst(idx0, n, idxs, p);
         } else if (op == "cp") {
-            size_t m;
+            size_t idx;
             check_true_or_exit(
-                ss >> m,
+                ss >> idx,
                 op
                     << ": too few arguments are given, or type of argument is wrong"
                     << " (line " << i + 1 << ")",
                 __FILE__, __LINE__, __func__);
-            book.cp(m);
+            chmax(max_diff, lno - idx);
+            book.cp(idx);
         } else if (op == "sp") {
-            size_t m, n;
+            size_t idx, n;
             check_true_or_exit(
-                ss >> m >> n,
+                ss >> idx >> n,
                 op
                     << ": too few arguments are given, or type of argument is wrong"
                     << " (line " << i + 1 << ")",
                 __FILE__, __LINE__, __func__);
-            book.sp(m, n);
+            chmax(max_diff, lno - idx);
+            book.sp(idx, n);
         } else {
             check_true_or_exit(
                 false,
@@ -264,6 +285,7 @@ int main(int argc, char* argv[]) {
 
     alive1.store(false);
     std::cerr << "verification finished." << std::endl;
+    std::cerr << "max_diff = " << max_diff << std::endl;
 
     auto strbytes = [](size_t siz) {
         std::stringstream ss;
