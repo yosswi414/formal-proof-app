@@ -14,6 +14,26 @@
 #define sep() \
     do { std::cerr << "####################" << std::endl; } while (false)
 
+size_t test_success = 0;
+size_t test_fail = 0;
+
+#define test(expr)                                                         \
+    do {                                                                   \
+        bool v = (expr);                                                   \
+        std::cerr << #expr " --> " << (v ? "true" : "false") << std::endl; \
+        ++(v ? test_success : test_fail);                                  \
+    } while (false)
+
+#define test_result()                                                                                \
+    do {                                                                                             \
+        sep();                                                                                       \
+        std::cerr << "[test result]" << std::endl                                                    \
+                  << "success: " << test_success << " / " << (test_success + test_fail) << std::endl \
+                  << "   fail: " << test_fail << " / " << (test_success + test_fail) << std::endl;   \
+        test_success = test_fail = 0;                                                                \
+        sep();                                                                                       \
+    } while (false)
+
 void test_alpha_subst() {
     std::shared_ptr<Term> e1, e2, e3;
     auto x = variable('x');
@@ -38,12 +58,12 @@ void test_alpha_subst() {
     show(l5);
     show(l6);
 
-    bout(alpha_comp(l1, l1));
-    bout(alpha_comp(l1, l2));
-    bout(alpha_comp(l1, l3));
-    bout(!alpha_comp(l1, l4));
-    bout(!alpha_comp(l1, l5));
-    bout(!alpha_comp(l1, l6));
+    test(alpha_comp(l1, l1));
+    test(alpha_comp(l1, l2));
+    test(alpha_comp(l1, l3));
+    test(!alpha_comp(l1, l4));
+    test(!alpha_comp(l1, l5));
+    test(!alpha_comp(l1, l6));
 
     sep();
 
@@ -59,10 +79,10 @@ void test_alpha_subst() {
     show(la4);
     show(la5);
 
-    bout(alpha_comp(la1, la2));
-    bout(alpha_comp(la1, la3));
-    bout(!alpha_comp(la1, la4));
-    bout(!alpha_comp(la1, la5));
+    test(alpha_comp(la1, la2));
+    test(alpha_comp(la1, la3));
+    test(!alpha_comp(la1, la4));
+    test(!alpha_comp(la1, la5));
 
     sep();
 
@@ -73,7 +93,7 @@ void test_alpha_subst() {
     show(lhs1);
     subst_show(lhs1, x, appl(x, y));
     show(rhs1);
-    bout(alpha_comp(substitute(lhs1, x, appl(x, y)), rhs1));
+    test(alpha_comp(substitute(lhs1, x, appl(x, y)), rhs1));
 
     sep();
 
@@ -83,8 +103,8 @@ void test_alpha_subst() {
     show(lhs2);
     subst_show(lhs2, x, appl(x, y));
     show(rhs2);
-    bout(alpha_comp(substitute(lhs2, x, appl(x, y)), rhs2));
-    bout(alpha_comp(substitute(lhs2, x, appl(x, y)), lhs2));
+    test(alpha_comp(substitute(lhs2, x, appl(x, y)), rhs2));
+    test(alpha_comp(substitute(lhs2, x, appl(x, y)), lhs2));
 
     sep();
 
@@ -98,11 +118,11 @@ void test_alpha_subst() {
     show(rhs3_1);
     show(rhs3_2);
     show(rhs3_3);
-    bout(alpha_comp(substitute(lhs3, z, y), rhs3_1));
-    bout(alpha_comp(substitute(lhs3, z, y), rhs3_2));
-    bout(!alpha_comp(substitute(lhs3, z, y), rhs3_3));
+    test(alpha_comp(substitute(lhs3, z, y), rhs3_1));
+    test(alpha_comp(substitute(lhs3, z, y), rhs3_2));
+    test(!alpha_comp(substitute(lhs3, z, y), rhs3_3));
 
-    sep();
+    test_result();
 }
 
 void test_subst() {
@@ -130,9 +150,9 @@ void test_subst() {
 
     auto ans = pi(f, pi(b, A, A), pi(a, pi(a, pi(c, A, pi(b, star, b)), A), A));
     show(ans);
-    bout(alpha_comp(sub, ans));
+    test(alpha_comp(sub, ans));
 
-    sep();
+    test_result();
 }
 
 void test_reduction1(const Environment& delta) {
@@ -161,13 +181,13 @@ void test_reduction1(const Environment& delta) {
     // Πc:S.Πb:Πb:%P c.Πa:*.a.Πa:*.a
     show(ansnB);
     show(delta_reduce(constant(exprB), delta));
-    bout(is_convertible(exprB, ansnB, delta));
+    test(is_convertible(exprB, ansnB, delta));
     
     exprB = constant("element", {S, x, constant("emptyset", {S})});
     ansnB = constant("contra", {});
     show(exprB);
     show(ansnB);
-    bout(is_convertible(exprB, ansnB, delta));
+    test(is_convertible(exprB, ansnB, delta));
 
     std::shared_ptr<Term> Bbd = beta_nf(delta_nf(exprB, delta));
     show(Bbd);
@@ -176,32 +196,32 @@ void test_reduction1(const Environment& delta) {
     ansnB = constant("element", {S, y, lambda(a, S, appl(P, a))});
     show(exprB);
     show(ansnB);
-    bout(is_convertible(exprB, ansnB, delta));
+    test(is_convertible(exprB, ansnB, delta));
 
     exprB = parse_lambda("?a:?a:A.or[B, A].?b:?b:B.or[B, A].or[B, A]");
     ansnB = parse_lambda("?d:?c:A.?a:*.?d:?b:B.a.?e:?b:A.a.a.?e:?c:B.?a:*.?e:?b:B.a.?f:?b:A.a.a.?a:*.?c:?b:B.a.?f:?b:A.a.a");
     show(exprB);
     show(ansnB);
-    bout(is_convertible(exprB, ansnB, delta));
+    test(is_convertible(exprB, ansnB, delta));
 
     exprB = parse_lambda("?d:S.?c:%P a.?g:%P d.?h:?e:S.*.?i:*.?e:?e:?e:%h a.%h d.?j:?j:%h d.%h a.i.i");
     ansnB = parse_lambda("?g:S.?d:%P a.?f:%P g.?h:?c:S.*.?c:*.?e:?e:?e:%h a.%h g.?i:?i:%h g.%h a.c.c");
     show(exprB);
     show(ansnB);
-    bout(is_convertible(exprB, ansnB, delta));
+    test(is_convertible(exprB, ansnB, delta));
 
-    sep();
+    test_result();
 }
 
 void test_reduction2(const Environment& delta) {
     std::cerr << "[delta reduction test]" << std::endl;
     auto exprB = parse_lambda("?a:A.A");
     auto ansnB = parse_lambda("implies[A, A]");
-    bout(is_convertible(exprB, ansnB, delta));
+    test(is_convertible(exprB, ansnB, delta));
     // bout(is_convertible(ansnB, exprB, delta));
-    bout(!is_delta_reducible(exprB, delta));
-    bout(is_delta_reducible(ansnB, delta));
-    bout(alpha_comp(parse_lambda("A"), parse_lambda("A")));
+    test(!is_delta_reducible(exprB, delta));
+    test(is_delta_reducible(ansnB, delta));
+    test(alpha_comp(parse_lambda("A"), parse_lambda("A")));
 }
 
 int main() {
