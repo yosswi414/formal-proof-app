@@ -310,7 +310,7 @@ int main(int argc, char* argv[]) {
     } catch (InferenceError& e) {
         alive1.store(false);
         if (efname.size() > 0) {
-            std::cerr << "caught an error. generating error log... ";
+            std::cerr << "caught an error. dumping the book... ";
             std::stringstream err;
             err << e.str() << std::endl;
             err << "########## final state of the book ##########" << std::endl;
