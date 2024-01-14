@@ -312,10 +312,10 @@ class Definition {
     std::shared_ptr<Term> _definiens, _type;
 };
 
-class Environment : public std::vector<Definition> {
+class Environment : public std::vector<std::shared_ptr<Definition>> {
   public:
     Environment();
-    Environment(const std::vector<Definition>& defs);
+    Environment(const std::vector<std::shared_ptr<Definition>>& defs);
     Environment(const std::string& fname);
     std::string string(bool inSingleLine = true, size_t indentSize = 0) const;
     std::string string_brief(bool inSingleLine, size_t indentSize) const;
@@ -325,11 +325,11 @@ class Environment : public std::vector<Definition> {
     int lookup_index(const std::string& cname) const;
     int lookup_index(const std::shared_ptr<Constant>& c) const;
 
-    const Definition& lookup_def(const std::string& cname) const;
-    const Definition& lookup_def(const std::shared_ptr<Constant>& c) const;
+    const std::shared_ptr<Definition>& lookup_def(const std::string& cname) const;
+    const std::shared_ptr<Definition>& lookup_def(const std::shared_ptr<Constant>& c) const;
 
-    Environment& operator+=(const Definition& def);
-    Environment operator+(const Definition& def);
+    Environment& operator+=(const std::shared_ptr<Definition>& def);
+    Environment operator+(const std::shared_ptr<Definition>& def);
 
   private:
     mutable std::map<std::string, size_t> _def_index;
@@ -428,7 +428,7 @@ class Book : public std::vector<Judgement> {
 
     void read_def_file(const std::string& fname);
     const Environment& env() const;
-    int def_num(const Definition& def) const;
+    int def_num(const std::shared_ptr<Definition>& def) const;
 
   private:
     Environment _env;

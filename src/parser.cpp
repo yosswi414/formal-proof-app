@@ -500,15 +500,15 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                 // add definition to env
                 read_def_end = false;
                 if (term) {
-                    env.emplace_back(
+                    env.push_back(std::make_shared<Definition>(
                         context,
                         cname,
-                        term, type);
+                        term, type));
                 } else {
-                    env.emplace_back(
+                    env.push_back(std::make_shared<Definition>(
                         context,
                         cname,
-                        type);
+                        type));
                 }
                 context.clear();
                 if(context.size() != 0) {

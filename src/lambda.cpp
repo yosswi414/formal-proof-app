@@ -501,7 +501,7 @@ bool equiv_env(const Environment& a, const Environment& b) {
         //         << "def 2: " << b[i],
         //     __FILE__, __LINE__, __func__);
         check_true_or_ret_false(
-            a[i].definiendum() == b[i].definiendum(),
+            a[i]->definiendum() == b[i]->definiendum(),
             "equiv_env(): "
                 << "the " << i << "-th definition of environment doesn't match" << std::endl
                 << "def 1: " << a[i] << std::endl
@@ -532,12 +532,12 @@ bool has_variable(const Context& g, char v) {
 
 bool has_constant(const Environment& env, const std::string& name) {
     for (auto&& def : env) {
-        if (def.definiendum() == name) return true;
+        if (def->definiendum() == name) return true;
     }
     return false;
 }
 
-bool has_definition(const Environment& env, const Definition& def) {
+bool has_definition(const Environment& env, const std::shared_ptr<Definition>& def) {
     for (auto&& d : env) {
         if (equiv_def(d, def)) return true;
     }
@@ -743,14 +743,14 @@ std::shared_ptr<Term> beta_reduce(const std::shared_ptr<Application>& term) {
     return substitute(M->expr(), M->var().value(), N);
 }
 std::shared_ptr<Term> delta_reduce(const std::shared_ptr<Constant>& term, const Environment& delta) {
-    auto D = delta.lookup_def(term);
+    const std::shared_ptr<Definition> D = delta.lookup_def(term);
 
-    if (D.is_prim()) return term;
+    if (D->is_prim()) return term;
 
-    auto M = D.definiens();
+    auto M = D->definiens();
     std::vector<std::shared_ptr<Variable>> xs;
-    for (size_t i = 0; i < D.context().size(); ++i) {
-        xs.push_back(D.context()[i].value());
+    for (size_t i = 0; i < D->context().size(); ++i) {
+        xs.push_back(D->context()[i].value());
     }
 
     return substitute(M, xs, term->args());
@@ -845,9 +845,9 @@ bool is_beta_reducible(const std::shared_ptr<Term>& term) {
 
 bool is_delta_reducible(const std::shared_ptr<Term>& term, const Environment& delta) {
     check_true_or_ret_false_nomsg(term->kind() == Kind::Constant);
-    auto t = constant(term);
+    std::shared_ptr<Constant> t = constant(term);
     check_true_or_ret_false_nomsg(delta.lookup_index(t) >= 0);
-    check_true_or_ret_false_nomsg(!delta.lookup_def(t).is_prim());
+    check_true_or_ret_false_nomsg(!delta.lookup_def(t)->is_prim());
     return true;
 }
 
@@ -872,7 +872,7 @@ bool is_normal_form(const std::shared_ptr<Term>& term, const Environment& delta)
         }
         case Kind::Constant:{
             auto t = constant(term);
-            if (delta.lookup_index(t) < 0 || delta.lookup_def(t).is_prim()) {
+            if (delta.lookup_index(t) < 0 || delta.lookup_def(t)->is_prim()) {
                 for(auto&& arg : t->args()){
                     if (!is_normal_form(arg, delta)) return false;
                 }
@@ -903,8 +903,8 @@ std::shared_ptr<Term> reduce_application(const std::shared_ptr<Application>& ter
             return nullptr;
         }
         case Kind::Constant:{
-            auto cM = constant(M);
-            if (delta.lookup_index(cM) < 0 || delta.lookup_def(cM).is_prim()) return nullptr;
+            std::shared_ptr<Constant> cM = constant(M);
+            if (delta.lookup_index(cM) < 0 || delta.lookup_def(cM)->is_prim()) return nullptr;
             return reduce_application(appl(delta_reduce(cM, delta), N), delta);
         }
     }
@@ -1185,12 +1185,12 @@ bool is_inst_applicable(const Book& book, size_t idx, size_t n, const std::vecto
 
     // check_true_or_ret_false(judge.context().size() == n,
 
-    auto& D = judge.env()[p];
+    const std::shared_ptr<Definition>& D = judge.env()[p];
 
     std::vector<std::shared_ptr<Term>> Us;
     std::vector<std::shared_ptr<Variable>> xs;
     for (size_t i = 0; i < n; ++i) {
-        auto A = D.context()[i].type();
+        auto A = D->context()[i].type();
         auto V = book[k[i]].type();
         // check V == A[xs := Us]
         auto AxU = substitute(A, xs, Us);
@@ -1207,7 +1207,7 @@ bool is_inst_applicable(const Book& book, size_t idx, size_t n, const std::vecto
                 << "                    Us: " << to_string(Us) << std::endl
                 << "  the def failed inst: " << D << std::endl,
             __FILE__, __LINE__, __func__);
-        xs.push_back(D.context()[i].value());
+        xs.push_back(D->context()[i].value());
         Us.push_back(book[k[i]].term());
     }
 
@@ -1519,9 +1519,9 @@ std::shared_ptr<Term>& Definition::type() { return _type; }
 const std::string HEADER_ENV = (OnlyAscii ? "Env" : "Δ");
 
 Environment::Environment() {}
-Environment::Environment(const std::vector<Definition>& defs) : std::vector<Definition>(defs) {
+Environment::Environment(const std::vector<std::shared_ptr<Definition>>& defs) : std::vector<std::shared_ptr<Definition>>(defs) {
     for (size_t idx = 0; idx < this->size(); ++idx) {
-        _def_index[(*this)[idx].definiendum()] = idx;
+        _def_index[(*this)[idx]->definiendum()] = idx;
     }
 }
 
@@ -1534,8 +1534,8 @@ std::string Environment::string(bool inSingleLine, size_t indentSize) const {
     std::string indent_ex(indentSize, '\t'), indent_in(inSingleLine ? "" : "\t"), eol(inSingleLine ? " " : "\n");
     if (this->size() == 0) return indent_ex + SYMBOL_EMPTY;
     res += indent_ex + HEADER_ENV + "{{" + eol;
-    if (this->size() > 0) res += indent_ex + indent_in + (*this)[0].string();
-    for (size_t i = 1; i < this->size(); ++i) res += "," + eol + indent_ex + indent_in + (*this)[i].string();
+    if (this->size() > 0) res += indent_ex + indent_in + (*this)[0]->string();
+    for (size_t i = 1; i < this->size(); ++i) res += "," + eol + indent_ex + indent_in + (*this)[i]->string();
     res += eol + indent_ex + "}}";
     return res;
 }
@@ -1545,21 +1545,21 @@ std::string Environment::string_brief(bool inSingleLine, size_t indentSize) cons
     std::string indent_ex(indentSize, '\t'), indent_in(inSingleLine ? "" : "\t"), eol(inSingleLine ? " " : "\n");
     if (this->size() == 0) return indent_ex + SYMBOL_EMPTY;
     res += indent_ex + HEADER_ENV + "{{" + eol;
-    if (this->size() > 0) res += indent_ex + indent_in + (*this)[0].definiendum();
-    for (size_t i = 1; i < this->size(); ++i) res += "," + eol + indent_ex + indent_in + (*this)[i].definiendum();
+    if (this->size() > 0) res += indent_ex + indent_in + (*this)[0]->definiendum();
+    for (size_t i = 1; i < this->size(); ++i) res += "," + eol + indent_ex + indent_in + (*this)[i]->definiendum();
     res += eol + indent_ex + "}}";
     return res;
 }
 
 std::string Environment::repr() const {
     std::string res = "";
-    for (auto&& def : *this) res += def.repr() + "\n";
+    for (auto&& def : *this) res += def->repr() + "\n";
     res += "END\n";
     return res;
 }
 std::string Environment::repr_new() const {
     std::string res = "";
-    for (auto&& def : *this) res += def.repr_new() + "\n";
+    for (auto&& def : *this) res += def->repr_new() + "\n";
     res += "END\n";
     return res;
 }
@@ -1567,7 +1567,7 @@ std::string Environment::repr_new() const {
 int Environment::lookup_index(const std::string& cname) const {
     if (_def_index.find(cname) != _def_index.end()) return _def_index.at(cname);
     for (size_t idx = 0; idx < this->size(); ++idx) {
-        if ((*this)[idx].definiendum() == cname) {
+        if ((*this)[idx]->definiendum() == cname) {
             return _def_index[cname] = idx;
         }
     }
@@ -1577,19 +1577,19 @@ int Environment::lookup_index(const std::shared_ptr<Constant>& c) const {
     return lookup_index(c->name());
 }
 
-const Definition& Environment::lookup_def(const std::string& cname) const {
+const std::shared_ptr<Definition>& Environment::lookup_def(const std::string& cname) const {
     return (*this)[lookup_index(cname)];
 }
-const Definition& Environment::lookup_def(const std::shared_ptr<Constant>& c) const {
+const std::shared_ptr<Definition>& Environment::lookup_def(const std::shared_ptr<Constant>& c) const {
     return lookup_def(c->name());
 }
 
-Environment& Environment::operator+=(const Definition& def) {
+Environment& Environment::operator+=(const std::shared_ptr<Definition>& def) {
     this->push_back(def);
-    _def_index[def.definiendum()] = this->size() - 1;
+    _def_index[def->definiendum()] = this->size() - 1;
     return *this;
 }
-Environment Environment::operator+(const Definition& def) {
+Environment Environment::operator+(const std::shared_ptr<Definition>& def) {
     return Environment(*this) += def;
 }
 
@@ -1793,7 +1793,7 @@ void Book::def(size_t m, size_t n, const std::string& a) {
     std::vector<std::shared_ptr<Term>> xs;
     for (auto&& xA : xAs) xs.push_back(xA.value());
     this->emplace_back(
-        judge1.env() + Definition(xAs, constant(a, xs), M, N),
+        judge1.env() + std::make_shared<Definition>(xAs, constant(a, xs), M, N),
         judge1.context(),
         K, L);
 }
@@ -1816,7 +1816,7 @@ void Book::defpr(size_t m, size_t n, const std::string& a) {
     std::vector<std::shared_ptr<Term>> xs;
     for (auto&& xA : xAs) xs.push_back(xA.value());
     this->emplace_back(
-        judge1.env() + Definition(xAs, constant(a, xs), N),
+        judge1.env() + std::make_shared<Definition>(xAs, constant(a, xs), N),
         judge1.context(),
         K, L);
 }
@@ -1833,19 +1833,19 @@ void Book::inst(size_t m, size_t n, const std::vector<size_t>& k, size_t p) {
     auto& judge = (*this)[m];
     auto& D = judge.env()[p];
 
-    auto N = D.type();
+    auto N = D->type();
 
     std::vector<std::shared_ptr<Variable>> xs;
     std::vector<std::shared_ptr<Term>> Us;
     for (size_t i = 0; i < n; ++i) {
-        xs.push_back(D.context()[i].value());
+        xs.push_back(D->context()[i].value());
         Us.push_back((*this)[k[i]].term());
     }
 
     this->emplace_back(
         judge.env(),
         judge.context(),
-        constant(D.definiendum(), Us),
+        constant(D->definiendum(), Us),
         substitute(N, xs, Us));
 }
 
@@ -1876,7 +1876,7 @@ std::string Book::repr() const {
     std::stringstream ss;
     // defs enum
     for (size_t dno = 0; dno < this->env().size(); ++dno) {
-        ss << "D" << dno << " : " << this->env()[dno].repr_book() << std::endl;
+        ss << "D" << dno << " : " << this->env()[dno]->repr_book() << std::endl;
     }
     if (this->env().size() > 0) ss << "--------------" << std::endl;
     for (size_t lno = 0; lno < this->size(); ++lno) {
@@ -1902,7 +1902,7 @@ std::string Book::repr_new() const {
     std::stringstream ss;
     // defs enum
     for (size_t dno = 0; dno < this->env().size(); ++dno) {
-        ss << "D" << dno << " : " << this->env()[dno].repr_book() << std::endl;
+        ss << "D" << dno << " : " << this->env()[dno]->repr_book() << std::endl;
     }
     if (this->env().size() > 0) ss << "--------------" << std::endl;
     for (size_t lno = 0; lno < this->size(); ++lno) {
@@ -1928,9 +1928,9 @@ std::string Book::repr_new() const {
 void Book::read_def_file(const std::string& fname) {
     this->_env = Environment(fname);
     for (size_t dno = 0; dno < this->env().size(); ++dno) {
-        this->_def_dict[this->env()[dno].definiendum()] = dno;
+        this->_def_dict[this->env()[dno]->definiendum()] = dno;
     }
 }
 
 const Environment& Book::env() const { return _env; }
-int Book::def_num(const Definition& def) const { return _def_dict.at(def.definiendum()); }
+int Book::def_num(const std::shared_ptr<Definition>& def) const { return _def_dict.at(def->definiendum()); }
