@@ -4,14 +4,6 @@
 
 #include "lambda.hpp"
 
-int main(){
-    std::shared_ptr<Term> e1, e2, e3;
-    auto x = variable('x');
-    auto y = variable('y');
-    auto z = variable('z');
-    auto u = variable('u');
-    auto v = variable('v');
-
 #define bout(expr) \
     do { std::cerr << #expr " --> " << (expr ? "true" : "false") << std::endl; } while (false)
 #define show(expr) \
@@ -21,8 +13,15 @@ int main(){
 #define sep() \
     do { std::cerr << "####################" << std::endl; } while (false)
 
+void test_alpha_subst() {
+    std::shared_ptr<Term> e1, e2, e3;
+    auto x = variable('x');
+    auto y = variable('y');
+    auto z = variable('z');
+    auto u = variable('u');
+    auto v = variable('v');
 
-    // p.11 Example 1.5.3
+    std::cerr << "[textbook p.11 Example 1.5.3]" << std::endl;
 
     auto l1 = appl(lambda(x, star, appl(x, lambda(z, star, appl(x, y)))), z);
     auto l2 = appl(lambda(u, star, appl(u, lambda(z, star, appl(u, y)))), z);
@@ -66,7 +65,7 @@ int main(){
 
     sep();
 
-    // p.12 Example 1.6.4
+    std::cerr << "[textbook p.12 Example 1.6.4]" << std::endl;
 
     auto lhs1 = lambda(y, star, appl(y, x));
     auto rhs1 = lambda(z, star, appl(z, appl(x, y)));
@@ -102,5 +101,60 @@ int main(){
     bout(alpha_comp(substitute(lhs3, z, y), rhs3_2));
     bout(!alpha_comp(substitute(lhs3, z, y), rhs3_3));
 
-    return 0;
+    sep();
+}
+
+void test_subst() {
+    std::cerr << "[substitution test]" << std::endl;
+    auto A = variable('A');
+    auto a = variable('a');
+    auto b = variable('b');
+    auto c = variable('c');
+    auto d = variable('d');
+    auto e = variable('e');
+    auto f = variable('f');
+
+    show(A);
+    show(a);
+    show(b);
+    show(c);
+    show(d);
+
+    auto pre = pi(b, pi(a, A, c), pi(e, pi(d, pi(a, A, pi(d, star, d)), c), c));
+    show(pre);
+    auto N = A;
+
+    auto sub = substitute(pre, c, N);
+    show(sub);
+
+    auto ans = pi(f, pi(b, A, A), pi(a, pi(a, pi(c, A, pi(b, star, b)), A), A));
+    show(ans);
+    bout(alpha_comp(sub, ans));
+
+    sep();
+}
+
+void test_reduction() {
+    std::cerr << "[beta / delta reduction test]" << std::endl;
+    Environment delta("src/def_file");
+    auto S = variable('S');
+    auto P = variable('P');
+    auto v = variable('v');
+    auto a = variable('a');
+    auto b = variable('b');
+    auto c = variable('c');
+
+    auto B = constant("forall", {S, lambda(a, S, constant("not", {constant("not", {appl(P, a)})}))});
+    show(B);
+    show(delta_reduce(B, delta));
+    // Πc:S.Πb:Πb:%P c.Πa:*.a.Πa:*.a
+    auto ans = pi(c, S, pi(b, pi(b, appl(P, c), pi(a, star, a)), pi(a, star, a)));
+    show(ans);
+    bout(is_convertible(B, ans, delta));
+}
+
+int main(){
+    test_alpha_subst();
+    test_subst();
+    test_reduction();
 }
