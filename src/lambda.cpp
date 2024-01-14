@@ -54,8 +54,10 @@ std::string to_string(const Kind& k) {
         case Kind::Constant:
             return "Kind::Constant";
         default:
-            std::cerr << "to_string(): not implemented (type:" << (int)k << ")" << std::endl;
-            exit(EXIT_FAILURE);
+            check_true_or_exit(
+                false,
+                "unknown Kind value (value:" << (int)k << ")",
+                __FILE__, __LINE__, __func__);
     }
 }
 
@@ -92,8 +94,10 @@ std::shared_ptr<Term> copy(const std::shared_ptr<Term>& term) {
             return constant(t->name(), args);
         }
         default:
-            std::cerr << "copy(): unknown kind: " << to_string(term->kind()) << std::endl;
-            exit(EXIT_FAILURE);
+            check_true_or_exit(
+                false,
+                "unknown kind: " << to_string(term->kind()),
+                __FILE__, __LINE__, __func__);
     }
 }
 
@@ -127,12 +131,14 @@ std::set<char> free_var(const std::shared_ptr<Term>& term) {
         }
         case Kind::Constant: {
             auto t = constant(term);
-            for (auto& type : t->args()) set_union_inplace(FV, free_var(type));
+            for (auto& arg : t->args()) set_union_inplace(FV, free_var(arg));
             return FV;
         }
         default:
-            std::cerr << "free_var(): unknown kind: " << to_string(term->kind()) << std::endl;
-            exit(EXIT_FAILURE);
+            check_true_or_exit(
+                false,
+                "unknown kind: " << to_string(term->kind()),
+                __FILE__, __LINE__, __func__);
     }
 }
 
@@ -147,8 +153,8 @@ std::shared_ptr<Variable> get_fresh_var(const std::shared_ptr<Term>& term) {
     for (char ch = 'a'; ch <= 'z'; ++ch) univ.insert(ch);
     set_minus_inplace(univ, free_var(term));
     if (!univ.empty()) return variable(*univ.begin());
-    std::cerr << "out of fresh variable" << std::endl;
-    exit(EXIT_FAILURE);
+    check_true_or_exit(false, "out of fresh variable",
+                       __FILE__, __LINE__, __func__);
 }
 
 std::shared_ptr<Variable> get_fresh_var(const std::vector<std::shared_ptr<Term>>& terms) {
@@ -157,8 +163,8 @@ std::shared_ptr<Variable> get_fresh_var(const std::vector<std::shared_ptr<Term>>
     for (char ch = 'a'; ch <= 'z'; ++ch) univ.insert(ch);
     for (auto&& t : terms) set_minus_inplace(univ, free_var(t));
     if (!univ.empty()) return variable(*univ.begin());
-    std::cerr << "out of fresh variable" << std::endl;
-    exit(EXIT_FAILURE);
+    check_true_or_exit(false, "out of fresh variable",
+                       __FILE__, __LINE__, __func__);
 }
 
 std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::shared_ptr<Variable>& bind, const std::shared_ptr<Term>& expr) {
@@ -176,19 +182,39 @@ std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::s
         }
         case Kind::AbstLambda: {
             auto t = lambda(term);
-            auto z = get_fresh_var(t, expr);
+            auto new_type = substitute(t->var().type(), bind, expr);
+            auto old_var = t->var().value();
+            if (alpha_comp(t->var().value(), bind)) return lambda(
+                old_var,
+                new_type,
+                t->expr());
+            if (!is_free_var(expr, t->var().value())) return lambda(
+                old_var,
+                new_type,
+                substitute(t->expr(), bind, expr));
+            auto new_var = get_fresh_var(t, expr);
             return lambda(
-                z,
-                substitute(t->var().type(), bind, expr),
-                substitute(substitute(t->expr(), t->var().value(), z), bind, expr));
+                new_var,
+                new_type,
+                substitute(substitute(t->expr(), old_var, new_var), bind, expr));
         }
         case Kind::AbstPi: {
             auto t = pi(term);
-            auto z = get_fresh_var(t, expr);
+            auto new_type = substitute(t->var().type(), bind, expr);
+            auto old_var = t->var().value();
+            if (alpha_comp(t->var().value(), bind)) return pi(
+                old_var,
+                new_type,
+                t->expr());
+            if (!is_free_var(expr, t->var().value())) return pi(
+                old_var,
+                new_type,
+                substitute(t->expr(), bind, expr));
+            auto new_var = get_fresh_var(t, expr);
             return pi(
-                z,
-                substitute(t->var().type(), bind, expr),
-                substitute(substitute(t->expr(), t->var().value(), z), bind, expr));
+                new_var,
+                new_type,
+                substitute(substitute(t->expr(), old_var, new_var), bind, expr));
         }
         case Kind::Constant: {
             auto t = constant(term);
@@ -197,29 +223,56 @@ std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::s
             return constant(t->name(), args);
         }
         default:
-            std::cerr << "substitute(): unknown kind: " << to_string(term->kind()) << std::endl;
-            exit(EXIT_FAILURE);
+            check_true_or_exit(
+                false,
+                "unknown kind: " << to_string(term->kind()),
+                __FILE__, __LINE__, __func__);
     }
 }
 
 std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::shared_ptr<Term>& var_bind, const std::shared_ptr<Term>& expr) {
-    if (var_bind->kind() != Kind::Variable) {
-        std::cerr << "substitute(): var_bind kind error (expected Kind::Variable, got " << to_string(var_bind->kind()) << ")" << std::endl;
-        exit(EXIT_FAILURE);
-    }
+    check_true_or_exit(
+        var_bind->kind() == Kind::Variable,
+        "var_bind kind error (expected Kind::Variable, got " << to_string(var_bind->kind()) << ")",
+        __FILE__, __LINE__, __func__);
     return substitute(term, variable(var_bind), expr);
 }
 
 std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::vector<std::shared_ptr<Variable>>& vars, const std::vector<std::shared_ptr<Term>>& exprs) {
-    if (vars.size() != exprs.size()) {
-        std::cerr << "substitute(): length of vars and exprs doesn't match" << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    if (vars.size() == 0) return term;
-    std::vector<std::shared_ptr<Term>> used;
+    check_true_or_exit(
+        vars.size() == exprs.size(),
+        "length of vars and exprs doesn't match",
+        __FILE__, __LINE__, __func__);
+    size_t n = vars.size();
+    if (n == 0) return term;
 
-    std::cerr << "substitute() not implemented" << std::endl;
-    exit(EXIT_FAILURE);
+    /* [idea] if the below holds we may be able to save variable namespace
+     * x1:A1, ..., xn:An
+     * M[x1:=U1,...,xn:=Un]
+     * = M[x1:=z1]...[xn:=zn][z1:=U1]...[zn:=Un]
+     * z1: a variable absent in {x2,...,xn}
+     * zi: a variable absent in {U1,...,U{i-1},z1,...,z{i-1},x{i+1},...,xn}
+     */
+    std::set<char> freshV;
+    for (char ch = 'A'; ch <= 'Z'; ++ch) freshV.insert(ch);
+    for (char ch = 'a'; ch <= 'z'; ++ch) freshV.insert(ch);
+    for (auto&& v : vars) set_minus_inplace(freshV, free_var(v));
+    for (auto&& e : exprs) set_minus_inplace(freshV, free_var(e));
+    check_true_or_exit(
+        freshV.size() >= n,
+        "out of fresh variable",
+        __FILE__, __LINE__, __func__);
+    std::vector<std::shared_ptr<Variable>> zs;
+    for (size_t i = 0; i < n; ++i) {
+        zs.push_back(variable(*freshV.begin()));
+        freshV.erase(freshV.begin());
+    }
+
+    auto t = term;
+    for (size_t i = 0; i < n; ++i) t = substitute(t, vars[i], zs[i]);
+    for (size_t i = 0; i < n; ++i) t = substitute(t, zs[i], exprs[i]);
+
+    return t;
 }
 
 std::shared_ptr<Variable> variable(const char& ch) { return std::make_shared<Variable>(ch); }
@@ -294,8 +347,10 @@ bool alpha_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) 
             return true;
         }
         default:
-            std::cerr << "alpha_comp(): unknown kind: " << to_string(a->kind()) << std::endl;
-            exit(EXIT_FAILURE);
+            check_true_or_exit(
+                false,
+                "alpha_comp(): unknown kind: " << to_string(a->kind()),
+                __FILE__, __LINE__, __func__);
     }
 }
 
@@ -336,17 +391,37 @@ bool exact_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) 
             return true;
         }
         default:
-            std::cerr << "exact_comp(): unknown kind: " << to_string(a->kind()) << std::endl;
-            exit(EXIT_FAILURE);
+            check_true_or_exit(
+                false,
+                "exact_comp(): unknown kind: " << to_string(a->kind()),
+                __FILE__, __LINE__, __func__);
     }
 }
 
 bool equiv_context_n(const Context& a, const Context& b, size_t n) {
-    check_true(n <= a.size());
-    check_true(n <= b.size());
+    check_true_or_ret_false(
+        n <= a.size(),
+        "equiv_context_n(): 1st context doesn't have n statements",
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false(
+        n <= b.size(),
+        "equiv_context_n(): 2nd context doesn't have n statements",
+        __FILE__, __LINE__, __func__);
     for (size_t i = 0; i < n; ++i) {
-        check_true(alpha_comp(a[i].value(), b[i].value()));
-        check_true(alpha_comp(a[i].type(), b[i].type()));
+        check_true_or_ret_false(
+            alpha_comp(a[i].value(), b[i].value()),
+            "equiv_context_n(): "
+                << "the variable of " << i << "-th statement doesn't match" << std::endl
+                << "var 1: " << a[i].value() << std::endl
+                << "var 2: " << b[i].value(),
+            __FILE__, __LINE__, __func__);
+        check_true_or_ret_false(
+            alpha_comp(a[i].type(), b[i].type()),
+            "equiv_context_n(): "
+                << "the type of " << i << "-th statement doesn't match" << std::endl
+                << "type 1: " << a[i].type() << std::endl
+                << "type 2: " << b[i].type(),
+            __FILE__, __LINE__, __func__);
     }
     return true;
 }
@@ -356,7 +431,10 @@ bool equiv_context_n(const std::shared_ptr<Context>& a, const std::shared_ptr<Co
 }
 
 bool equiv_context(const Context& a, const Context& b) {
-    check_true(a.size() == b.size());
+    check_true_or_ret_false(
+        a.size() == b.size(),
+        "equiv_context(): size of two context doesn't match",
+        __FILE__, __LINE__, __func__);
     return equiv_context_n(a, b, a.size());
 }
 
@@ -365,11 +443,26 @@ bool equiv_context(const std::shared_ptr<Context>& a, const std::shared_ptr<Cont
 }
 
 bool equiv_def(const Definition& a, const Definition& b) {
-    check_true(equiv_context(a.context(), b.context()));
-    check_true(a.definiendum() == b.definiendum());
-    check_true(a.is_prim() != b.is_prim());
-    check_true(a.is_prim() || alpha_comp(a.definiens(), b.definiens()));
-    check_true(alpha_comp(a.type(), b.type()));
+    check_true_or_ret_false(
+        equiv_context(a.context(), b.context()),
+        "equiv_def(): context doesn't match",
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false(
+        a.definiendum() == b.definiendum(),
+        "equiv_def(): definiendum doesn't match",
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false(
+        a.is_prim() == b.is_prim(),
+        "equiv_def(): one is primitive definition and another is not",
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false(
+        a.is_prim() || alpha_comp(a.definiens(), b.definiens()),
+        "equiv_def(): definiens doesn't match",
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false(
+        alpha_comp(a.type(), b.type()),
+        "equiv_def(): type doesn't match",
+        __FILE__, __LINE__, __func__);
     return true;
 }
 
@@ -378,9 +471,18 @@ bool equiv_def(const std::shared_ptr<Definition>& a, const std::shared_ptr<Defin
 }
 
 bool equiv_env(const Environment& a, const Environment& b) {
-    check_true(a.size() == b.size());
+    check_true_or_ret_false(
+        a.size() == b.size(),
+        "equiv_env(): # of definitions doesn't match",
+        __FILE__, __LINE__, __func__);
     for (size_t i = 0; i < a.size(); ++i) {
-        check_true(equiv_def(a[i], b[i]));
+        check_true_or_ret_false(
+            equiv_def(a[i], b[i]),
+            "equiv_env(): "
+                << "the " << i << "-th definition of environment doesn't match" << std::endl
+                << "def 1: " << a[i] << std::endl
+                << "def 2: " << b[i],
+            __FILE__, __LINE__, __func__);
     }
     return true;
 }
@@ -424,92 +526,480 @@ bool is_sort(const std::shared_ptr<Term>& t) {
 
 bool is_var_applicable(const Book& book, size_t idx, char var) {
     auto& judge = book[idx];
-    check_true(is_sort(judge.type()));
-    check_false(has_variable(judge.context(), var));
+    check_true_or_ret_false(
+        is_sort(judge.type()),
+        "type of judgement is neither * nor @"
+            << std::endl
+            << "type: " << judge.type(),
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false(
+        !has_variable(judge.context(), var),
+        "context already has a variable " << var,
+        __FILE__, __LINE__, __func__);
     return true;
 }
 
 bool is_weak_applicable(const Book& book, size_t idx1, size_t idx2, char var) {
     auto& judge1 = book[idx1];
     auto& judge2 = book[idx2];
-    check_true(equiv_env(judge1.env(), judge2.env()));
-    check_true(equiv_context(judge1.context(), judge2.context()));
-    check_true(is_sort(judge2.type()));
-    check_false(has_variable(judge1.context(), var));
+    check_true_or_ret_false(
+        equiv_env(judge1.env(), judge2.env()),
+        "environment doesn't match"
+            << std::endl
+            << "env 1: " << judge1.env() << std::endl
+            << "env 2: " << judge2.env(),
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false(
+        equiv_context(judge1.context(), judge2.context()),
+        "context doesn't match"
+            << std::endl
+            << "context 1: " << judge1.context() << std::endl
+            << "context 2: " << judge2.context(),
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false(
+        is_sort(judge2.type()),
+        "type of 2nd judgement is neither * nor @"
+            << std::endl
+            << "type: " << judge2.type(),
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false(
+        !has_variable(judge1.context(), var),
+        "context already has a variable " << var,
+        __FILE__, __LINE__, __func__);
     return true;
 }
 
 bool is_form_applicable(const Book& book, size_t idx1, size_t idx2) {
     auto& judge1 = book[idx1];
     auto& judge2 = book[idx2];
-    check_true(equiv_env(judge1.env(), judge2.env()));
-    check_true(equiv_context_n(judge1.context(), judge2.context(), judge1.context().size()));
-    check_true(judge1.context().size() + 1 == judge2.context().size());
-    check_true(alpha_comp(judge1.term(), judge2.context().back().type()));
-    check_true(is_sort(judge1.type()));
-    check_true(is_sort(judge2.type()));
+    check_true_or_ret_false(
+        equiv_env(judge1.env(), judge2.env()),
+        "environment doesn't match"
+            << std::endl
+            << "env 1: " << judge1.env() << std::endl
+            << "env 2: " << judge2.env(),
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false(
+        equiv_context_n(judge1.context(), judge2.context(), judge1.context().size()),
+        "first " << judge1.context().size() << " statements of context doesn't match" << std::endl
+                 << "context 1: " << judge1.context() << std::endl
+                 << "context 2: " << judge2.context(),
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false(
+        judge1.context().size() + 1 == judge2.context().size(),
+        "size of context is not appropriate"
+            << std::endl
+            << "size 1: " << judge1.context().size() << std::endl
+            << "size 2: " << judge2.context().size() << " (should have 1 more)",
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false(
+        alpha_comp(judge1.term(), judge2.context().back().type()),
+        "term of 1st judge and type of last statement of context doesn't match"
+            << std::endl
+            << "term: " << judge1.term() << std::endl
+            << "type: " << judge2.context().back().type(),
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false(
+        is_sort(judge1.type()),
+        "type of 1st judgement is neither * nor @"
+            << std::endl
+            << "type: " << judge1.type(),
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false(
+        is_sort(judge2.type()),
+        "type of 2nd judgement is neither * nor @"
+            << std::endl
+            << "type: " << judge2.type(),
+        __FILE__, __LINE__, __func__);
     return true;
 }
 
 bool is_appl_applicable(const Book& book, size_t idx1, size_t idx2) {
     auto& judge1 = book[idx1];
     auto& judge2 = book[idx2];
-    check_true(equiv_env(judge1.env(), judge2.env()));
-    check_true(equiv_context(judge1.context(), judge2.context()));
-    check_true(judge1.type()->kind() == Kind::AbstPi);
+    check_true_or_ret_false(
+        equiv_env(judge1.env(), judge2.env()),
+        "environment doesn't match"
+            << std::endl
+            << "env 1: " << judge1.env() << std::endl
+            << "env 2: " << judge2.env(),
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false(
+        equiv_context(judge1.context(), judge2.context()),
+        "context doesn't match"
+            << std::endl
+            << "context 1: " << judge1.context() << std::endl
+            << "context 2: " << judge2.context(),
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false(
+        judge1.type()->kind() == Kind::AbstPi,
+        "type of 1st judgement is not a pi abstraction"
+            << std::endl
+            << "type: " << judge1.type(),
+        __FILE__, __LINE__, __func__);
     auto p = pi(judge1.type());
-    check_true(alpha_comp(p->var().type(), judge2.type()));
+    check_true_or_ret_false(
+        alpha_comp(p->var().type(), judge2.type()),
+        "type of bound variable is not alpha-equivalent to the type of 2nd judgement"
+            << std::endl
+            << "type pi: " << p->var().type() << std::endl
+            << "type  2: " << judge2.type(),
+        __FILE__, __LINE__, __func__);
     return true;
 }
 
 bool is_abst_applicable(const Book& book, size_t idx1, size_t idx2) {
     auto& judge1 = book[idx1];
     auto& judge2 = book[idx2];
-    check_true(equiv_env(judge1.env(), judge2.env()));
-    check_true(equiv_context_n(judge1.context(), judge2.context(), judge2.context().size()));
-    check_true(judge1.context().size() == judge2.context().size() + 1);
-    check_true(judge2.term()->kind() == Kind::AbstPi);
+    check_true_or_ret_false(
+        equiv_env(judge1.env(), judge2.env()),
+        "abst: "
+            << "environment doesn't match" << std::endl
+            << "env 1: " << judge1.env() << std::endl
+            << "env 2: " << judge2.env(),
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false(
+        equiv_context_n(judge1.context(), judge2.context(), judge2.context().size()),
+        "abst: "
+            << "first " << judge2.context().size() << " statements of context doesn't match" << std::endl
+            << "context 1: " << judge1.context() << std::endl
+            << "context 2: " << judge2.context(),
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false(
+        judge1.context().size() == judge2.context().size() + 1,
+        "abst: "
+            << "size of context is not appropriate" << std::endl
+            << "size 1: " << judge1.context().size() << std::endl
+            << "size 2: " << judge2.context().size() << " (should have 1 less)",
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false(
+        judge2.term()->kind() == Kind::AbstPi,
+        "abst: "
+            << "term of 2nd judgement is not a pi abstraction" << std::endl
+            << "term: " << judge2.term(),
+        __FILE__, __LINE__, __func__);
     auto p = pi(judge2.term());
     auto x = judge1.context().back().value();
     auto A = judge1.context().back().type();
     auto B = judge1.type();
-    check_true(alpha_comp(p->var().value(), x));
-    check_true(alpha_comp(p->var().type(), A));
-    check_true(alpha_comp(p->expr(), B));
-    check_true(is_sort(judge2.type()));
+    check_true_or_ret_false(
+        alpha_comp(p->var().value(), x),
+        "abst: "
+            << "bound variable is not alpha-equivalent to the last variable in context" << std::endl
+            << "bound: " << p->var().value() << std::endl
+            << "    x: " << x,
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false(
+        alpha_comp(p->var().type(), A),
+        "abst: "
+            << "type of bound variable is not alpha-equivalent to the last type in context" << std::endl
+            << "bound type: " << p->var().type() << std::endl
+            << " last type: " << A,
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false(
+        alpha_comp(p->expr(), B),
+        "abst: "
+            << "expr of pi abstraction is not alpha-equivalent to the type of 1st judgement" << std::endl
+            << "expr pi: " << p->expr() << std::endl
+            << " type 1: " << B,
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false(
+        is_sort(judge2.type()),
+        "abst: "
+            << "type of 2nd judgement is not a sort" << std::endl
+            << "type: " << judge2.type() << std::endl,
+        __FILE__, __LINE__, __func__);
     return true;
 }
 
-std::shared_ptr<Term> beta_reduce(const std::shared_ptr<Term>& term) {
-    unused(term);
-    std::cerr << "beta_reduce() not implemented" << std::endl;
-    exit(EXIT_FAILURE);
+std::shared_ptr<Term> beta_reduce(const std::shared_ptr<Application>& term) {
+    if (term->M()->kind() != Kind::AbstLambda) return term;
+    auto M = lambda(term->M());
+    auto N = term->N();
+    return substitute(M->expr(), M->var().value(), N);
+}
+std::shared_ptr<Term> delta_reduce(const std::shared_ptr<Constant>& term, const Environment& delta) {
+    auto D = delta.lookup_def(term);
+
+    if (D.is_prim()) return term;
+
+    auto M = D.definiens();
+    std::vector<std::shared_ptr<Variable>> xs;
+    for (size_t i = 0; i < D.context().size(); ++i) {
+        xs.push_back(D.context()[i].value());
+    }
+
+    return substitute(M, xs, term->args());
 }
 
-bool is_beta_reachable(const std::shared_ptr<Term>& from, const std::shared_ptr<Term>& to) {
-    unused(from, to);
-    std::cerr << "is_beta_reachable not implemented" << std::endl;
-    exit(EXIT_FAILURE);
+std::shared_ptr<Term> delta_nf(const std::shared_ptr<Term>& term, const Environment& delta) {
+    switch(term->kind()){
+        case Kind::Star:
+        case Kind::Square:
+        case Kind::Variable:
+            return term;
+        case Kind::Application:{
+            auto t = appl(term);
+            return appl(
+                delta_nf(t->M(), delta),
+                delta_nf(t->N(), delta));
+        }
+        case Kind::AbstLambda: {
+            auto t = lambda(term);
+            return lambda(
+                t->var().value(),
+                delta_nf(t->var().type(), delta),
+                delta_nf(t->expr(), delta));
+        }
+        case Kind::AbstPi: {
+            auto t = pi(term);
+            return pi(
+                t->var().value(),
+                delta_nf(t->var().type(), delta),
+                delta_nf(t->expr(), delta));
+        }
+        case Kind::Constant:{
+            auto t = constant(term);
+            return delta_nf(delta_reduce(t, delta), delta);
+        }
+    }
+    check_true_or_exit(
+        false,
+        "reached end of function, supposed to be unreachable",
+        __FILE__, __LINE__, __func__);
+}
+
+std::shared_ptr<Term> beta_nf(const std::shared_ptr<Term>& term) {
+    switch (term->kind()) {
+        case Kind::Star:
+        case Kind::Square:
+        case Kind::Variable:
+            return term;
+        case Kind::Application: {
+            auto t = appl(term);
+            if (is_beta_reducible(t)) return beta_nf(beta_reduce(t));
+            auto s = appl(beta_nf(t->M()), beta_nf(t->N()));
+            if (is_beta_reducible(s)) return beta_nf(beta_reduce(s));
+            else return s;
+        }
+        case Kind::AbstLambda: {
+            auto t = lambda(term);
+            return lambda(
+                t->var().value(),
+                beta_nf(t->var().type()),
+                beta_nf(t->expr()));
+        }
+        case Kind::AbstPi: {
+            auto t = pi(term);
+            return pi(
+                t->var().value(),
+                beta_nf(t->var().type()),
+                beta_nf(t->expr()));
+        }
+        case Kind::Constant: {
+            auto t = constant(copy(term));
+            for (auto&& arg : t->args()) arg = beta_nf(arg);
+            return t;
+        }
+    }
+    check_true_or_exit(
+        false,
+        "reached end of function, supposed to be unreachable",
+        __FILE__, __LINE__, __func__);
+}
+
+bool is_beta_reducible(const std::shared_ptr<Term>& term) {
+    check_true_or_ret_false_nomsg(term->kind() == Kind::Application);
+    auto t = appl(term);
+    check_true_or_ret_false_nomsg(t->M()->kind() == Kind::AbstLambda);
+    return true;
+}
+
+bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b, const Environment& delta) {
+    // naive
+    // return alpha_comp(
+    //     beta_nf(delta_nf(a, delta)),
+    //     beta_nf(delta_nf(b, delta)));
+    if (a->kind() == b->kind()) {
+        switch (a->kind()) {
+            case Kind::Star:
+            case Kind::Square:
+            case Kind::Variable:
+                return alpha_comp(a, b);
+            case Kind::Application: {
+                auto aa = appl(a);
+                auto ab = appl(b);
+                auto M = aa->M();
+                auto N = aa->N();
+                auto K = ab->M();
+                auto L = ab->N();
+                if (alpha_comp(M, K)) return is_convertible(N, L, delta);
+                if (alpha_comp(N, L)) return is_convertible(M, K, delta);
+                if (is_convertible(M, K, delta) &&
+                    is_convertible(N, L, delta)) return true;
+                if (is_beta_reducible(aa)) return is_convertible(beta_reduce(aa), ab, delta);
+                if (is_beta_reducible(ab)) return is_convertible(aa, beta_reduce(ab), delta);
+                return false;
+            }
+            case Kind::AbstLambda: {
+                auto la = lambda(a);
+                auto lb = lambda(b);
+                auto x = la->var().value();
+                auto M = la->var().type();
+                auto N = la->expr();
+                auto y = lb->var().value();
+                auto K = lb->var().type();
+                auto L = substitute(lb->expr(), y, x);
+                if (alpha_comp(M, K)) return is_convertible(N, L, delta);
+                if (alpha_comp(N, L)) return is_convertible(M, K, delta);
+                if (is_convertible(M, K, delta) &&
+                    is_convertible(N, L, delta)) return true;
+                return false;
+            }
+            case Kind::AbstPi: {
+                auto pa = pi(a);
+                auto pb = pi(b);
+                auto x = pa->var().value();
+                auto M = pa->var().type();
+                auto N = pa->expr();
+                auto y = pb->var().value();
+                auto K = pb->var().type();
+                auto L = substitute(pb->expr(), y, x);
+                if (alpha_comp(M, K)) return is_convertible(N, L, delta);
+                if (alpha_comp(N, L)) return is_convertible(M, K, delta);
+                if (is_convertible(M, K, delta) &&
+                    is_convertible(N, L, delta)) return true;
+                return false;
+            }
+            case Kind::Constant: {
+                auto ca = constant(a);
+                auto cb = constant(b);
+                if (ca->name() == cb->name()) {
+                    check_true_or_ret_false_nomsg(ca->args().size() == cb->args().size());
+                    for (size_t i = 0; i < ca->args().size(); ++i) {
+                        if(!is_convertible(ca->args()[i], cb->args()[i], delta)) {
+                            return is_convertible(delta_reduce(ca, delta), delta_reduce(cb, delta), delta);
+                        }
+                    }
+                    return true;
+                }
+                int ai = delta.lookup_index(ca);
+                int bi = delta.lookup_index(cb);
+                if (ai < bi) return is_convertible(
+                    ca,
+                    delta_reduce(cb, delta),
+                    delta);
+                else return is_convertible(
+                    delta_reduce(ca, delta),
+                    cb,
+                    delta);
+            }
+            default:
+                check_true_or_exit(
+                    false,
+                    "unknown kind (value = " << (int)(a->kind()) << ")",
+                    __FILE__, __LINE__, __func__);
+        }
+    }
+    // kind doesn't match
+    if (b->kind() == Kind::Constant) return is_convertible(a, delta_reduce(constant(b), delta), delta);
+    switch (a->kind()) {
+        case Kind::Star:
+        case Kind::Square:
+        case Kind::Variable:
+        case Kind::AbstLambda:
+        case Kind::AbstPi: {
+            switch (b->kind()) {
+                case Kind::Star:
+                case Kind::Square:
+                case Kind::Variable:
+                case Kind::AbstLambda:
+                case Kind::AbstPi:
+                    return false;
+                case Kind::Application:
+                    if (is_beta_reducible(b)) return is_convertible(a, beta_reduce(appl(b)), delta);
+                    return false;
+                case Kind::Constant:
+                    check_true_or_exit(
+                        false,
+                        "contradiction; this line is logically unreachable. this must be a bug",
+                        __FILE__, __LINE__, __func__);
+                default:
+                    check_true_or_exit(
+                        false,
+                        "unknown kind (value = " << (int)(b->kind()) << ")",
+                        __FILE__, __LINE__, __func__);
+            }
+        }
+        case Kind::Application:
+            if (is_beta_reducible(a)) return is_convertible(beta_reduce(appl(a)), b, delta);
+            return false;
+        case Kind::Constant:
+            return is_convertible(delta_reduce(constant(a), delta), b, delta);
+        default:
+            check_true_or_exit(
+                false,
+                "unknown kind (value = " << (int)(a->kind()) << ")",
+                __FILE__, __LINE__, __func__);
+    }
+    check_true_or_exit(
+        false,
+        "reached end of function, supposed to be unreachable",
+        __FILE__, __LINE__, __func__);
 }
 
 bool is_conv_applicable(const Book& book, size_t idx1, size_t idx2) {
     auto& judge1 = book[idx1];
     auto& judge2 = book[idx2];
-    check_true(equiv_env(judge1.env(), judge2.env()));
-    check_true(equiv_context(judge1.context(), judge2.context()));
+    check_true_or_ret_false(
+        equiv_env(judge1.env(), judge2.env()),
+        "environment doesn't match"
+            << std::endl
+            << "env 1: " << judge1.env() << std::endl
+            << "env 2: " << judge2.env(),
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false(
+        equiv_context(judge1.context(), judge2.context()),
+        "context doesn't match"
+            << std::endl
+            << "context 1: " << judge1.context() << std::endl
+            << "context 2: " << judge2.context(),
+        __FILE__, __LINE__, __func__);
     auto B1 = judge1.type();
     auto B2 = judge2.term();
     auto s = judge2.type();
-    check_true(is_beta_reachable(B1, B2));
-    check_true(is_sort(s));
+    check_true_or_ret_false(
+        is_convertible(B1, B2, judge1.env()),
+        "type of 1st judgement and term of 2nd judgement are not beta-delta-equivalent"
+            << std::endl
+            << "type 1: " << B1 << std::endl
+            << "term 2: " << B2,
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false(
+        is_sort(s),
+        "type of 2nd judgement is neither * nor @"
+            << std::endl
+            << "type: " << s,
+        __FILE__, __LINE__, __func__);
     return true;
 }
 
 bool is_def_applicable(const Book& book, size_t idx1, size_t idx2, const std::string& name) {
     auto& judge1 = book[idx1];
     auto& judge2 = book[idx2];
-    check_true(equiv_env(judge1.env(), judge2.env()));
-    check_false(has_constant(judge1.env(), name));
+    check_true_or_ret_false(
+        equiv_env(judge1.env(), judge2.env()),
+        "environment doesn't match"
+            << std::endl
+            << "env 1: " << judge1.env() << std::endl
+            << "env 2: " << judge2.env(),
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false(
+        !has_constant(judge1.env(), name),
+        "environment of 1st judgement already has the definition of \""
+            << name << "\"" << std::endl
+            << "env: " << judge1.env(),
+        __FILE__, __LINE__, __func__);
     ;
     return true;
 }
@@ -517,22 +1007,55 @@ bool is_def_applicable(const Book& book, size_t idx1, size_t idx2, const std::st
 bool is_def_prim_applicable(const Book& book, size_t idx1, size_t idx2, const std::string& name) {
     auto& judge1 = book[idx1];
     auto& judge2 = book[idx2];
-    check_true(equiv_env(judge1.env(), judge2.env()));
-    check_false(has_constant(judge1.env(), name));
-    check_true(is_sort(judge2.type()));
+    check_true_or_ret_false(
+        equiv_env(judge1.env(), judge2.env()),
+        "environment doesn't match"
+            << std::endl
+            << "env 1: " << judge1.env() << std::endl
+            << "env 2: " << judge2.env(),
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false(
+        !has_constant(judge1.env(), name),
+        "environment of 1st judgement already has the definition of \""
+            << name << "\"" << std::endl
+            << "env: " << judge1.env(),
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false(
+        is_sort(judge2.type()),
+        "type of 2nd judgement is neither * nor @"
+            << std::endl
+            << "type: " << judge2.type(),
+        __FILE__, __LINE__, __func__);
     return true;
 }
 
 bool is_inst_applicable(const Book& book, size_t idx, size_t n, const std::vector<size_t>& k, size_t p) {
     auto& judge = book[idx];
 
-    check_true(k.size() == n);
+    check_true_or_ret_false(
+        k.size() == n,
+        "length of k and n doesn't match (this seems to be a bug. please report with your input)"
+            << std::endl
+            << "length of k: " << k.size() << " (should be n = " << n << ")",
+        __FILE__, __LINE__, __func__);
     for (size_t i = 0; i < n; ++i) {
-        check_true(equiv_env(judge.env(), book[k[i]].env()));
-        check_true(equiv_context(judge.context(), book[k[i]].context()));
+        check_true_or_ret_false(
+            equiv_env(judge.env(), book[k[i]].env()),
+            "environment doesn't match"
+                << std::endl
+                << "env [" << idx << "]: " << judge.env() << std::endl
+                << "env [" << k[i] << "]: " << book[k[i]].env(),
+            __FILE__, __LINE__, __func__);
+        check_true_or_ret_false(
+            equiv_context(judge.context(), book[k[i]].context()),
+            "context doesn't match"
+                << std::endl
+                << "context [" << idx << "]: " << judge.context() << std::endl
+                << "context [" << k[i] << "]: " << book[k[i]].context(),
+            __FILE__, __LINE__, __func__);
     }
 
-    check_true(judge.context().size() == n);
+    // check_true_or_ret_false(judge.context().size() == n,
 
     auto& D = judge.env()[p];
 
@@ -542,13 +1065,36 @@ bool is_inst_applicable(const Book& book, size_t idx, size_t n, const std::vecto
         auto A = D.context()[i].type();
         auto V = book[k[i]].type();
         // check V == A[xs := Us]
-        check_true(alpha_comp(V, substitute(A, xs, Us)));
+        auto AxU = substitute(A, xs, Us);
+        check_true_or_ret_false(
+            alpha_comp(V, AxU),
+            "type equivalence (U_i : A_i[x_1:=U_1,..] for all i) doesn't hold"
+                << std::endl
+                << "k_i: " << k[i] << std::endl
+                << "A[x:=U] (V should be): " << AxU << std::endl
+                << "      V (actual type): " << V << std::endl
+                << "                    A: " << A << std::endl
+                << "                    i: " << i << std::endl
+                << "                    xs: " << to_string(xs) << std::endl
+                << "                    Us: " << to_string(Us) << std::endl
+                << "  the def failed inst: " << D << std::endl,
+            __FILE__, __LINE__, __func__);
         xs.push_back(D.context()[i].value());
         Us.push_back(book[k[i]].term());
     }
 
-    check_true(judge.term()->kind() == Kind::Star);
-    check_true(judge.type()->kind() == Kind::Square);
+    check_true_or_ret_false(
+        judge.term()->kind() == Kind::Star,
+        "term of 1st judgement is not *"
+            << std::endl
+            << "term: " << judge.term(),
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false(
+        judge.type()->kind() == Kind::Square,
+        "type of 1st judgement is not @"
+            << std::endl
+            << "type: " << judge.type(),
+        __FILE__, __LINE__, __func__);
 
     return true;
 }
@@ -585,6 +1131,9 @@ std::string Application::repr() const {
 }
 std::string Application::repr_new() const {
     return std::string("%") + _M->repr_new() + " " + _N->repr_new();
+}
+std::string Application::repr_book() const {
+    return "(" + _M->repr_book() + ")|(" + _N->repr_book() + ")";
 }
 
 const std::string SYMBOL_LAMBDA = (OnlyAscii ? "$" : "λ");
@@ -668,6 +1217,14 @@ std::string Constant::repr_new() const {
     res += "]";
     return res;
 }
+std::string Constant::repr_book() const {
+    std::string res(_name);
+    res += "[";
+    if (_args.size() > 0) res += "(" + _args[0]->repr_book() + ")";
+    for (size_t i = 1; i < _args.size(); ++i) res += ",(" + _args[i]->repr_book() + ")";
+    res += "]";
+    return res;
+}
 
 const std::string SYMBOL_EMPTY = (OnlyAscii ? "{}" : "∅");
 const std::string HEADER_CONTEXT = (OnlyAscii ? "Context" : "Γ");
@@ -697,8 +1254,8 @@ std::string Context::repr_new() const {
 }
 std::string Context::repr_book() const {
     std::stringstream ss;
-    if (this->size() > 0) ss << (*this)[0].value()->repr() << ":" << (*this)[0].type()->repr();
-    for (size_t i = 1; i < this->size(); ++i) ss << ", " << (*this)[i].value()->repr() << ":" << (*this)[i].type()->repr();
+    if (this->size() > 0) ss << (*this)[0].value()->repr_book() << ":" << (*this)[0].type()->repr_book();
+    for (size_t i = 1; i < this->size(); ++i) ss << ", " << (*this)[i].value()->repr_book() << ":" << (*this)[i].type()->repr_book();
     return ss.str();
 }
 
@@ -778,6 +1335,15 @@ std::string Definition::repr_new() const {
     return res;
 }
 
+std::string Definition::repr_book() const {
+    std::stringstream ss;
+    ss << _context.repr_book() << " |> ";
+    ss << _definiendum << " := ";
+    ss << (_definiens ? _definiens->repr_book() : "#") << " : ";
+    ss << _type->repr_book();
+    return ss.str();
+}
+
 bool Definition::is_prim() const { return !_definiens; }
 const Context& Definition::context() const { return _context; }
 const std::string& Definition::definiendum() const { return _definiendum; }
@@ -792,7 +1358,16 @@ std::shared_ptr<Term>& Definition::type() { return _type; }
 const std::string HEADER_ENV = (OnlyAscii ? "Env" : "Δ");
 
 Environment::Environment() {}
-Environment::Environment(const std::vector<Definition>& defs) : std::vector<Definition>(defs) {}
+Environment::Environment(const std::vector<Definition>& defs) : std::vector<Definition>(defs) {
+    for (size_t idx = 0; idx < this->size(); ++idx) {
+        _def_index[(*this)[idx].definiendum()] = idx;
+    }
+}
+
+Environment::Environment(const std::string& fname) {
+    *this = parse_defs(tokenize(FileData(fname)));
+}
+
 std::string Environment::string(bool inSingleLine, size_t indentSize) const {
     std::string res = "";
     std::string indent_ex(indentSize, '\t'), indent_in(inSingleLine ? "" : "\t"), eol(inSingleLine ? " " : "\n");
@@ -800,6 +1375,17 @@ std::string Environment::string(bool inSingleLine, size_t indentSize) const {
     res += indent_ex + HEADER_ENV + "{{" + eol;
     if (this->size() > 0) res += indent_ex + indent_in + (*this)[0].string();
     for (size_t i = 1; i < this->size(); ++i) res += "," + eol + indent_ex + indent_in + (*this)[i].string();
+    res += eol + indent_ex + "}}";
+    return res;
+}
+
+std::string Environment::string_brief(bool inSingleLine, size_t indentSize) const {
+    std::string res = "";
+    std::string indent_ex(indentSize, '\t'), indent_in(inSingleLine ? "" : "\t"), eol(inSingleLine ? " " : "\n");
+    if (this->size() == 0) return indent_ex + SYMBOL_EMPTY;
+    res += indent_ex + HEADER_ENV + "{{" + eol;
+    if (this->size() > 0) res += indent_ex + indent_in + (*this)[0].definiendum();
+    for (size_t i = 1; i < this->size(); ++i) res += "," + eol + indent_ex + indent_in + (*this)[i].definiendum();
     res += eol + indent_ex + "}}";
     return res;
 }
@@ -816,13 +1402,33 @@ std::string Environment::repr_new() const {
     res += "END\n";
     return res;
 }
-std::string Environment::repr_book() const {
-    // to be implemented
-    return "";
+
+int Environment::lookup_index(const std::string& cname) const {
+    if (_def_index.find(cname) != _def_index.end()) return _def_index.at(cname);
+    for (size_t idx = 0; idx < this->size(); ++idx) {
+        if ((*this)[idx].definiendum() == cname) {
+            return _def_index[cname] = idx;
+        }
+    }
+    check_true_or_exit(
+        false,
+        "constant \"" << cname << "\" not found in env",
+        __FILE__, __LINE__, __func__);
+}
+int Environment::lookup_index(const std::shared_ptr<Constant>& c) const {
+    return lookup_index(c->name());
+}
+
+const Definition& Environment::lookup_def(const std::string& cname) const {
+    return (*this)[lookup_index(cname)];
+}
+const Definition& Environment::lookup_def(const std::shared_ptr<Constant>& c) const {
+    return lookup_def(c->name());
 }
 
 Environment& Environment::operator+=(const Definition& def) {
     this->push_back(def);
+    _def_index[def.definiendum()] = this->size() - 1;
     return *this;
 }
 Environment Environment::operator+(const Definition& def) {
@@ -842,6 +1448,19 @@ std::string Judgement::string(bool inSingleLine, size_t indentSize) const {
     std::string indent_ex(inSingleLine ? 0 : indentSize, '\t'), indent_in(inSingleLine ? "" : "\t"), eol(inSingleLine ? " " : "\n");
     res += indent_ex_1 + "Judge<<" + eol;
     res += _env.string(inSingleLine, inSingleLine ? 0 : indentSize + 1);
+    res += " ;" + eol + indent_ex + indent_in + _context.string();
+    res += " " + TURNSTILE + " " + _term->string();
+    res += " : " + _type->string();
+    res += eol + indent_ex + ">>";
+    return res;
+}
+
+std::string Judgement::string_brief(bool inSingleLine, size_t indentSize) const {
+    std::string res("");
+    std::string indent_ex_1(indentSize, '\t');
+    std::string indent_ex(inSingleLine ? 0 : indentSize, '\t'), indent_in(inSingleLine ? "" : "\t"), eol(inSingleLine ? " " : "\n");
+    res += indent_ex_1 + "Judge<<" + eol;
+    res += _env.string_brief(inSingleLine, inSingleLine ? 0 : indentSize + 1);
     res += " ;" + eol + indent_ex + indent_in + _context.string();
     res += " " + TURNSTILE + " " + _term->string();
     res += " : " + _type->string();
@@ -871,11 +1490,15 @@ void Book::sort() {
         sq);
 }
 void Book::var(size_t m, char x) {
-    if (!is_var_applicable(*this, m, x)) {
-        std::cerr << "var not applicable ";
-        std::cerr << "(idx = " << m << ", var = " << x << ")" << std::endl;
-        exit(EXIT_FAILURE);
-    }
+    check_true_or_exit(
+        is_var_applicable(*this, m, x),
+        "var at line "
+            << this->size() << " not applicable "
+            << "(idx = " << m << ", var = " << x << ")" << std::endl
+            << "final state of book:" << std::endl
+            << *this,
+        __FILE__, __LINE__, __func__);
+
     auto& judge = (*this)[m];
     auto vx = variable(x);
     auto A = judge.term();
@@ -885,11 +1508,14 @@ void Book::var(size_t m, char x) {
         vx, A);
 }
 void Book::weak(size_t m, size_t n, char x) {
-    if (!is_weak_applicable(*this, m, n, x)) {
-        std::cerr << "weak not applicable ";
-        std::cerr << "(idx1 = " << m << ", idx2 = " << n << ", var = " << x << ")" << std::endl;
-        exit(EXIT_FAILURE);
-    }
+    check_true_or_exit(
+        is_weak_applicable(*this, m, n, x),
+        "weak at line "
+            << this->size() << " not applicable "
+            << "(idx1 = " << m << ", idx2 = " << n << ", var = " << x << ")" << std::endl
+            << "final state of book:" << std::endl
+            << *this,
+        __FILE__, __LINE__, __func__);
     auto& judge1 = (*this)[m];
     auto& judge2 = (*this)[n];
     auto vx = variable(x);
@@ -902,11 +1528,14 @@ void Book::weak(size_t m, size_t n, char x) {
         A, B);
 }
 void Book::form(size_t m, size_t n) {
-    if (!is_form_applicable(*this, m, n)) {
-        std::cerr << "form not applicable ";
-        std::cerr << "(idx1 = " << m << ", idx2 = " << n << ")" << std::endl;
-        exit(EXIT_FAILURE);
-    }
+    check_true_or_exit(
+        is_form_applicable(*this, m, n),
+        "form at line "
+            << this->size() << " not applicable "
+            << "(idx1 = " << m << ", idx2 = " << n << ")" << std::endl
+            << "final state of book:" << std::endl
+            << *this,
+        __FILE__, __LINE__, __func__);
     auto& judge1 = (*this)[m];
     auto& judge2 = (*this)[n];
     auto x = judge2.context().back().value();
@@ -920,11 +1549,14 @@ void Book::form(size_t m, size_t n) {
 }
 
 void Book::appl(size_t m, size_t n) {
-    if (!is_appl_applicable(*this, m, n)) {
-        std::cerr << "appl not applicable ";
-        std::cerr << "(idx1 = " << m << ", idx2 = " << n << ")" << std::endl;
-        exit(EXIT_FAILURE);
-    }
+    check_true_or_exit(
+        is_appl_applicable(*this, m, n),
+        "appl at line "
+            << this->size() << " not applicable "
+            << "(idx1 = " << m << ", idx2 = " << n << ")" << std::endl
+            << "final state of book:" << std::endl
+            << *this,
+        __FILE__, __LINE__, __func__);
     auto& judge1 = (*this)[m];
     auto& judge2 = (*this)[n];
     auto M = judge1.term();
@@ -939,29 +1571,36 @@ void Book::appl(size_t m, size_t n) {
 }
 
 void Book::abst(size_t m, size_t n) {
-    if (!is_abst_applicable(*this, m, n)) {
-        std::cerr << "abst not applicable ";
-        std::cerr << "(idx1 = " << m << ", idx2 = " << n << ")" << std::endl;
-        exit(EXIT_FAILURE);
-    }
+    check_true_or_exit(
+        is_abst_applicable(*this, m, n),
+        "abst at line "
+            << this->size() << " not applicable "
+            << "(idx1 = " << m << ", idx2 = " << n << ")" << std::endl
+            << "final state of book:" << std::endl
+            << *this,
+        __FILE__, __LINE__, __func__);
     auto& judge1 = (*this)[m];
+    auto& judge2 = (*this)[n];
     auto M = judge1.term();
     auto x = judge1.context().back().value();
     auto A = judge1.context().back().type();
     auto B = judge1.type();
     this->emplace_back(
-        judge1.env(),
-        judge1.context(),
+        judge2.env(),
+        judge2.context(),
         lambda(x, A, M),
         pi(x, A, B));
 }
 
 void Book::conv(size_t m, size_t n) {
-    if (!is_conv_applicable(*this, m, n)) {
-        std::cerr << "conv not applicable ";
-        std::cerr << "(idx1 = " << m << ", idx2 = " << n << ")" << std::endl;
-        exit(EXIT_FAILURE);
-    }
+    check_true_or_exit(
+        is_conv_applicable(*this, m, n),
+        "conv at line "
+            << this->size() << " not applicable "
+            << "(idx1 = " << m << ", idx2 = " << n << ")" << std::endl
+            << "final state of book:" << std::endl
+            << *this,
+        __FILE__, __LINE__, __func__);
     auto& judge1 = (*this)[m];
     auto& judge2 = (*this)[n];
     auto A = judge1.term();
@@ -973,11 +1612,14 @@ void Book::conv(size_t m, size_t n) {
 }
 
 void Book::def(size_t m, size_t n, const std::string& a) {
-    if (!is_def_applicable(*this, m, n, a)) {
-        std::cerr << "def not applicable ";
-        std::cerr << "(idx1 = " << m << ", idx2 = " << n << ", name = " << a << ")" << std::endl;
-        exit(EXIT_FAILURE);
-    }
+    check_true_or_exit(
+        is_def_applicable(*this, m, n, a),
+        "def at line "
+            << this->size() << " not applicable "
+            << "(idx1 = " << m << ", idx2 = " << n << ", name = " << a << ")" << std::endl
+            << "final state of book:" << std::endl
+            << *this,
+        __FILE__, __LINE__, __func__);
     auto& judge1 = (*this)[m];
     auto& judge2 = (*this)[n];
     auto K = judge1.term();
@@ -994,11 +1636,14 @@ void Book::def(size_t m, size_t n, const std::string& a) {
 }
 
 void Book::defpr(size_t m, size_t n, const std::string& a) {
-    if (!is_def_applicable(*this, m, n, a)) {
-        std::cerr << "defpr not applicable ";
-        std::cerr << "(idx1 = " << m << ", idx2 = " << n << ", name = " << a << ")" << std::endl;
-        exit(EXIT_FAILURE);
-    }
+    check_true_or_exit(
+        is_def_applicable(*this, m, n, a),
+        "defpr at line "
+            << this->size() << " not applicable "
+            << "(idx1 = " << m << ", idx2 = " << n << ", name = " << a << ")" << std::endl
+            << "final state of book:" << std::endl
+            << *this,
+        __FILE__, __LINE__, __func__);
     auto& judge1 = (*this)[m];
     auto& judge2 = (*this)[n];
     auto K = judge1.term();
@@ -1014,17 +1659,31 @@ void Book::defpr(size_t m, size_t n, const std::string& a) {
 }
 
 void Book::inst(size_t m, size_t n, const std::vector<size_t>& k, size_t p) {
-    if (!is_inst_applicable(*this, m, n, k, p)) {
-        std::cerr << "def not applicable ";
-        std::cerr << "(idx1 = " << m << ", idx2 = " << n << ", p = " << p << ")" << std::endl;
-        exit(EXIT_FAILURE);
+    check_true_or_exit(
+        is_inst_applicable(*this, m, n, k, p),
+        "inst at line "
+            << this->size() << " not applicable "
+            << "(idx1 = " << m << ", n = " << n << ", k = " << to_string(k) << ", p = " << p << ")" << std::endl
+            << "final state of book:" << std::endl
+            << *this,
+        __FILE__, __LINE__, __func__);
+    auto& judge = (*this)[m];
+    auto& D = judge.env()[p];
+
+    auto N = D.type();
+
+    std::vector<std::shared_ptr<Variable>> xs;
+    std::vector<std::shared_ptr<Term>> Us;
+    for (size_t i = 0; i < n; ++i) {
+        xs.push_back(D.context()[i].value());
+        Us.push_back((*this)[k[i]].term());
     }
-    auto& judge1 = (*this)[m];
-    auto& judge2 = (*this)[n];
-    unused(judge1, judge2);
-    // requires delta reduction
-    std::cerr << "Book::inst() not implemented" << std::endl;
-    exit(EXIT_FAILURE);
+
+    this->emplace_back(
+        judge.env(),
+        judge.context(),
+        constant(D.definiendum(), Us),
+        substitute(N, xs, Us));
 }
 
 void Book::cp(size_t m) {
@@ -1045,18 +1704,30 @@ std::string Book::string() const {
     std::string res("Book[[");
     bool singleLine = true;
     int indentSize = 1;
-    if (this->size() > 0) res += "\n" + (*this)[0].string(singleLine, indentSize);
-    for (size_t i = 1; i < this->size(); ++i) res += ",\n" + (*this)[i].string(singleLine, indentSize);
+    if (this->size() > 0) res += "\n[0]" + (*this)[0].string_brief(singleLine, indentSize);
+    for (size_t i = 1; i < this->size(); ++i) res += ",\n[" + std::to_string(i) + "]" + (*this)[i].string_brief(singleLine, indentSize);
     res += "\n]]";
     return res;
 }
 std::string Book::repr() const {
     std::stringstream ss;
+    // defs enum
+    for (size_t dno = 0; dno < this->env().size(); ++dno) {
+        ss << "D" << dno << " : " << this->env()[dno].repr_book() << std::endl;
+    }
+    if (this->env().size() > 0) ss << "--------------" << std::endl;
     for (size_t lno = 0; lno < this->size(); ++lno) {
         auto& judge = (*this)[lno];
         ss << lno << " : ";
-        // output environment (to be impl'ed)
-        ss << judge.env().repr_book() << " ; ";
+        if (this->env().size() > 0) {
+            if (judge.env().size() > 0) ss << "D" << def_num(judge.env()[0]);
+            for (size_t dno = 1; dno < judge.env().size(); ++dno) {
+                ss << ",D" << def_num(judge.env()[dno]);
+            }
+        } else if (judge.env().size() > 0) {
+            ss << "env(#defs = " << judge.env().size() << ")";
+        }
+        ss << " ; ";
         // output context
         ss << judge.context().repr_book() << " |- ";
         ss << judge.term()->repr_book() << " : ";
@@ -1066,11 +1737,23 @@ std::string Book::repr() const {
 }
 std::string Book::repr_new() const {
     std::stringstream ss;
+    // defs enum
+    for (size_t dno = 0; dno < this->env().size(); ++dno) {
+        ss << "D" << dno << " : " << this->env()[dno].repr_book() << std::endl;
+    }
+    if (this->env().size() > 0) ss << "--------------" << std::endl;
     for (size_t lno = 0; lno < this->size(); ++lno) {
         auto& judge = (*this)[lno];
         ss << lno << " : ";
-        // output environment (to be impl'ed)
-        ss << judge.env().repr_book() << " ; ";
+        if (this->env().size() > 0) {
+            if (judge.env().size() > 0) ss << "D" << def_num(judge.env()[0]);
+            for (size_t dno = 1; dno < judge.env().size(); ++dno) {
+                ss << ",D" << def_num(judge.env()[dno]);
+            }
+        } else if (judge.env().size() > 0) {
+            ss << "env(#defs = " << judge.env().size() << ")";
+        }
+        ss << " ; ";
         // output context
         ss << judge.context().repr_book() << " |- ";
         ss << judge.term()->repr_new() << " : ";
@@ -1078,3 +1761,13 @@ std::string Book::repr_new() const {
     }
     return ss.str();
 }
+
+void Book::read_def_file(const std::string& fname) {
+    this->_env = Environment(fname);
+    for (size_t dno = 0; dno < this->env().size(); ++dno) {
+        this->_def_dict[this->env()[dno].definiendum()] = dno;
+    }
+}
+
+const Environment& Book::env() const { return _env; }
+int Book::def_num(const Definition& def) const { return _def_dict.at(def.definiendum()); }

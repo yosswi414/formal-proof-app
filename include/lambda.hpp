@@ -8,6 +8,7 @@
 #include <typeinfo>
 #include <utility>
 #include <vector>
+#include <map>
 
 #include "common.hpp"
 
@@ -110,6 +111,7 @@ class Application : public Term {
     std::string string() const override;
     std::string repr() const override;
     std::string repr_new() const override;
+    std::string repr_book() const override;
 
   private:
     std::shared_ptr<Term> _M, _N;
@@ -191,6 +193,7 @@ class Constant : public Term {
     std::string string() const override;
     std::string repr() const override;
     std::string repr_new() const override;
+    std::string repr_book() const override;
 
   private:
     std::string _name;
@@ -284,6 +287,7 @@ class Definition {
     std::string string() const;
     std::string repr() const;
     std::string repr_new() const;
+    std::string repr_book() const;
 
     bool is_prim() const;
     const Context& context() const;
@@ -306,13 +310,23 @@ class Environment : public std::vector<Definition> {
   public:
     Environment();
     Environment(const std::vector<Definition>& defs);
+    Environment(const std::string& fname);
     std::string string(bool inSingleLine = true, size_t indentSize = 0) const;
+    std::string string_brief(bool inSingleLine, size_t indentSize) const;
     std::string repr() const;
     std::string repr_new() const;
-    std::string repr_book() const;
+
+    int lookup_index(const std::string& cname) const;
+    int lookup_index(const std::shared_ptr<Constant>& c) const;
+
+    const Definition& lookup_def(const std::string& cname) const;
+    const Definition& lookup_def(const std::shared_ptr<Constant>& c) const;
 
     Environment& operator+=(const Definition& def);
     Environment operator+(const Definition& def);
+
+  private:
+    mutable std::map<std::string, size_t> _def_index;
 };
 
 class Judgement {
@@ -322,6 +336,7 @@ class Judgement {
               const std::shared_ptr<Term>& proof,
               const std::shared_ptr<Term>& prop);
     std::string string(bool inSingleLine = true, size_t indentSize = 0) const;
+    std::string string_brief(bool inSingleLine, size_t indentSize) const;
 
     const Environment& env() const;
     const Context& context() const;
@@ -361,8 +376,15 @@ bool is_form_applicable(const Book& book, size_t idx1, size_t idx2);
 bool is_appl_applicable(const Book& book, size_t idx1, size_t idx2);
 bool is_abst_applicable(const Book& book, size_t idx1, size_t idx2);
 
-std::shared_ptr<Term> beta_reduce(const std::shared_ptr<Term>& term);
-bool is_beta_reachable(const std::shared_ptr<Term>& from, const std::shared_ptr<Term>& to);
+std::shared_ptr<Term> beta_reduce(const std::shared_ptr<Application>& term);
+std::shared_ptr<Term> delta_reduce(const std::shared_ptr<Constant>& term, const Environment& delta);
+
+std::shared_ptr<Term> delta_nf(const std::shared_ptr<Term>& term, const Environment& delta);
+std::shared_ptr<Term> beta_nf(const std::shared_ptr<Term>& term);
+
+bool is_beta_reducible(const std::shared_ptr<Term>& term);
+
+bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b, const Environment& delta);
 
 bool is_conv_applicable(const Book& book, size_t idx1, size_t idx2);
 bool is_def_applicable(const Book& book, size_t idx1, size_t idx2, const std::string& name);
@@ -394,4 +416,12 @@ class Book : public std::vector<Judgement> {
     std::string string() const;
     std::string repr() const;
     std::string repr_new() const;
+
+    void read_def_file(const std::string& fname);
+    const Environment& env() const;
+    int def_num(const Definition& def) const;
+
+  private:
+    Environment _env;
+    std::map<std::string, int> _def_dict;
 };

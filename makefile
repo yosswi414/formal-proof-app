@@ -7,7 +7,7 @@ bin/%.obj: src/%.cpp include/*
 bin/%_leak.obj: src/%.cpp include/*
 	g++ ${CPPFLAGS} ${DEBUGFLAGS} ${INCDIR} -c -o $@ $<
 
-bin/verifier.out: bin/verifier.obj bin/common.obj bin/lambda.obj
+bin/verifier.out: bin/verifier.obj bin/common.obj bin/lambda.obj bin/parser.obj
 	g++ ${CPPFLAGS} $^ -o $@
 
 bin/verifier_leak.out: bin/verifier_leak.obj bin/common_leak.obj bin/lambda_leak.obj
@@ -19,7 +19,7 @@ bin/def_conv.out: bin/def_conv.obj bin/common.obj bin/lambda.obj bin/parser.obj
 bin/def_conv_leak.out: bin/def_conv_leak.obj bin/common_leak.obj bin/lambda_leak.obj bin/parser_leak.obj
 	g++ ${CPPFLAGS} ${DEBUGFLAGS} $^ -o $@
 
-bin/test.out: bin/test.obj bin/common.obj bin/lambda.obj
+bin/test.out: bin/test.obj bin/common.obj bin/lambda.obj bin/parser.obj
 	g++ ${CPPFLAGS} $^ -o $@
 
 src/def_file_nocomm: src/def_file bin/def_conv.out

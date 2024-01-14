@@ -39,6 +39,7 @@ script*
 !script_test_result
 verifier_out*
 def_conv_out*
+log*
 
 # test_automake3
 # test_book3
