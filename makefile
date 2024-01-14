@@ -34,7 +34,7 @@ nocomm: bin/def_conv.out src/def_file
 def_file_bez%_cp: def_file_bez%
 	cat $< | sed 's/)\.(/-@-/g' | sed 's/\./-/g' | sed 's/-@-/)\.(/g' > $@
 
-noperiod: def_file_bez_213k_cp
+noperiod: def_file_bez_438259_cp
 
 test_read: bin/def_conv.out src/def_file
 	$^ -r

@@ -40,6 +40,8 @@ script*
 verifier_out*
 def_conv_out*
 log*
+def_file_bez*_cp
+def_file_bez*_new
 
 # test_automake3
 # test_book3
