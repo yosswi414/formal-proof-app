@@ -331,7 +331,7 @@ Environment parse_defs(const std::vector<Token>& tokens) {
     // read lambda expression
     bool read_lambda = false;
 
-    Context context;
+    std::shared_ptr<Context> context = std::make_shared<Context>();
     std::string cname;
     std::shared_ptr<Term> term, type;
 
@@ -432,7 +432,7 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                     read_def_context_col = false;
                     read_lambda = true;
                 } else {
-                    context.emplace_back(temp_var, expr->term());
+                    context->emplace_back(temp_var, expr->term());
                     read_def_context_col = false;
                     if (--def_num == 0) {
                         read_def_context = false;
@@ -472,7 +472,7 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                 read_def_num = false;
 
                 if (def_num > 0) {
-                    context.clear();
+                    context->clear();
 
                     read_def_context = true;
                     read_def_context_var = true;
@@ -510,8 +510,8 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                         cname,
                         type));
                 }
-                context.clear();
-                if(context.size() != 0) {
+                context->clear();
+                if(context->size() != 0) {
                     std::cerr << "parse: context.clear() doesn't clear the content" << std::endl;
                     exit(EXIT_FAILURE);
                 }

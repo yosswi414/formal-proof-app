@@ -515,18 +515,18 @@ bool equiv_env(const std::shared_ptr<Environment>& a, const std::shared_ptr<Envi
     return equiv_env(*a, *b);
 }
 
-bool has_variable(const Context& g, const std::shared_ptr<Variable>& v) {
-    for (auto&& tv : g) {
+bool has_variable(const std::shared_ptr<Context>& g, const std::shared_ptr<Variable>& v) {
+    for (auto&& tv : *g) {
         if (alpha_comp(tv.value(), v)) return true;
     }
     return false;
 }
 
-bool has_variable(const Context& g, const std::shared_ptr<Term>& v) {
+bool has_variable(const std::shared_ptr<Context>& g, const std::shared_ptr<Term>& v) {
     return has_variable(g, variable(v));
 }
 
-bool has_variable(const Context& g, char v) {
+bool has_variable(const std::shared_ptr<Context>& g, char v) {
     return has_variable(g, std::make_shared<Variable>(v));
 }
 
@@ -549,7 +549,7 @@ bool is_sort(const std::shared_ptr<Term>& t) {
 }
 
 bool is_var_applicable(const Book& book, size_t idx, char var) {
-    auto& judge = book[idx];
+    const auto& judge = book[idx];
     check_true_or_ret_false(
         is_sort(judge.type()),
         "type of judgement is neither * nor @"
@@ -564,8 +564,8 @@ bool is_var_applicable(const Book& book, size_t idx, char var) {
 }
 
 bool is_weak_applicable(const Book& book, size_t idx1, size_t idx2, char var) {
-    auto& judge1 = book[idx1];
-    auto& judge2 = book[idx2];
+    const auto& judge1 = book[idx1];
+    const auto& judge2 = book[idx2];
     check_true_or_ret_false(
         equiv_env(judge1.env(), judge2.env()),
         "environment doesn't match"
@@ -594,8 +594,8 @@ bool is_weak_applicable(const Book& book, size_t idx1, size_t idx2, char var) {
 }
 
 bool is_form_applicable(const Book& book, size_t idx1, size_t idx2) {
-    auto& judge1 = book[idx1];
-    auto& judge2 = book[idx2];
+    const auto& judge1 = book[idx1];
+    const auto& judge2 = book[idx2];
     check_true_or_ret_false(
         equiv_env(judge1.env(), judge2.env()),
         "environment doesn't match"
@@ -604,24 +604,24 @@ bool is_form_applicable(const Book& book, size_t idx1, size_t idx2) {
             << "env 2: " << judge2.env(),
         __FILE__, __LINE__, __func__);
     check_true_or_ret_false(
-        equiv_context_n(judge1.context(), judge2.context(), judge1.context().size()),
-        "first " << judge1.context().size() << " statements of context doesn't match" << std::endl
+        equiv_context_n(judge1.context(), judge2.context(), judge1.context()->size()),
+        "first " << judge1.context()->size() << " statements of context doesn't match" << std::endl
                  << "context 1: " << judge1.context() << std::endl
                  << "context 2: " << judge2.context(),
         __FILE__, __LINE__, __func__);
     check_true_or_ret_false(
-        judge1.context().size() + 1 == judge2.context().size(),
+        judge1.context()->size() + 1 == judge2.context()->size(),
         "size of context is not appropriate"
             << std::endl
-            << "size 1: " << judge1.context().size() << std::endl
-            << "size 2: " << judge2.context().size() << " (should have 1 more)",
+            << "size 1: " << judge1.context()->size() << std::endl
+            << "size 2: " << judge2.context()->size() << " (should have 1 more)",
         __FILE__, __LINE__, __func__);
     check_true_or_ret_false(
-        alpha_comp(judge1.term(), judge2.context().back().type()),
+        alpha_comp(judge1.term(), judge2.context()->back().type()),
         "term of 1st judge and type of last statement of context doesn't match"
             << std::endl
             << "term: " << judge1.term() << std::endl
-            << "type: " << judge2.context().back().type(),
+            << "type: " << judge2.context()->back().type(),
         __FILE__, __LINE__, __func__);
     check_true_or_ret_false(
         is_sort(judge1.type()),
@@ -639,8 +639,8 @@ bool is_form_applicable(const Book& book, size_t idx1, size_t idx2) {
 }
 
 bool is_appl_applicable(const Book& book, size_t idx1, size_t idx2) {
-    auto& judge1 = book[idx1];
-    auto& judge2 = book[idx2];
+    const auto& judge1 = book[idx1];
+    const auto& judge2 = book[idx2];
     check_true_or_ret_false(
         equiv_env(judge1.env(), judge2.env()),
         "environment doesn't match"
@@ -673,8 +673,8 @@ bool is_appl_applicable(const Book& book, size_t idx1, size_t idx2) {
 }
 
 bool is_abst_applicable(const Book& book, size_t idx1, size_t idx2) {
-    auto& judge1 = book[idx1];
-    auto& judge2 = book[idx2];
+    const auto& judge1 = book[idx1];
+    const auto& judge2 = book[idx2];
     check_true_or_ret_false(
         equiv_env(judge1.env(), judge2.env()),
         "abst: "
@@ -683,18 +683,18 @@ bool is_abst_applicable(const Book& book, size_t idx1, size_t idx2) {
             << "env 2: " << judge2.env(),
         __FILE__, __LINE__, __func__);
     check_true_or_ret_false(
-        equiv_context_n(judge1.context(), judge2.context(), judge2.context().size()),
+        equiv_context_n(judge1.context(), judge2.context(), judge2.context()->size()),
         "abst: "
-            << "first " << judge2.context().size() << " statements of context doesn't match" << std::endl
+            << "first " << judge2.context()->size() << " statements of context doesn't match" << std::endl
             << "context 1: " << judge1.context() << std::endl
             << "context 2: " << judge2.context(),
         __FILE__, __LINE__, __func__);
     check_true_or_ret_false(
-        judge1.context().size() == judge2.context().size() + 1,
+        judge1.context()->size() == judge2.context()->size() + 1,
         "abst: "
             << "size of context is not appropriate" << std::endl
-            << "size 1: " << judge1.context().size() << std::endl
-            << "size 2: " << judge2.context().size() << " (should have 1 less)",
+            << "size 1: " << judge1.context()->size() << std::endl
+            << "size 2: " << judge2.context()->size() << " (should have 1 less)",
         __FILE__, __LINE__, __func__);
     check_true_or_ret_false(
         judge2.term()->kind() == Kind::AbstPi,
@@ -703,8 +703,8 @@ bool is_abst_applicable(const Book& book, size_t idx1, size_t idx2) {
             << "term: " << judge2.term(),
         __FILE__, __LINE__, __func__);
     auto p = pi(judge2.term());
-    auto x = judge1.context().back().value();
-    auto A = judge1.context().back().type();
+    auto x = judge1.context()->back().value();
+    auto A = judge1.context()->back().type();
     auto B = judge1.type();
     check_true_or_ret_false(
         alpha_comp(p->var().value(), x),
@@ -749,20 +749,20 @@ std::shared_ptr<Term> delta_reduce(const std::shared_ptr<Constant>& term, const 
 
     auto M = D->definiens();
     std::vector<std::shared_ptr<Variable>> xs;
-    for (size_t i = 0; i < D->context().size(); ++i) {
-        xs.push_back(D->context()[i].value());
+    for (size_t i = 0; i < D->context()->size(); ++i) {
+        xs.push_back((*D->context())[i].value());
     }
 
     return substitute(M, xs, term->args());
 }
 
 std::shared_ptr<Term> delta_nf(const std::shared_ptr<Term>& term, const Environment& delta) {
-    switch(term->kind()){
+    switch (term->kind()) {
         case Kind::Star:
         case Kind::Square:
         case Kind::Variable:
             return term;
-        case Kind::Application:{
+        case Kind::Application: {
             auto t = appl(term);
             return appl(
                 delta_nf(t->M(), delta),
@@ -782,7 +782,7 @@ std::shared_ptr<Term> delta_nf(const std::shared_ptr<Term>& term, const Environm
                 delta_nf(t->var().type(), delta),
                 delta_nf(t->expr(), delta));
         }
-        case Kind::Constant:{
+        case Kind::Constant: {
             auto t = constant(term);
             return delta_nf(delta_reduce(t, delta), delta);
         }
@@ -852,12 +852,12 @@ bool is_delta_reducible(const std::shared_ptr<Term>& term, const Environment& de
 }
 
 bool is_normal_form(const std::shared_ptr<Term>& term, const Environment& delta) {
-    switch(term->kind()){
+    switch (term->kind()) {
         case Kind::Star:
         case Kind::Square:
         case Kind::Variable:
             return true;
-        case Kind::Application:{
+        case Kind::Application: {
             auto t = appl(term);
             if (t->M()->kind() == Kind::AbstLambda) return false;
             return is_normal_form(t->M(), delta) && is_normal_form(t->N(), delta);
@@ -870,10 +870,10 @@ bool is_normal_form(const std::shared_ptr<Term>& term, const Environment& delta)
             auto t = pi(term);
             return is_normal_form(t->var().type(), delta) && is_normal_form(t->expr(), delta);
         }
-        case Kind::Constant:{
+        case Kind::Constant: {
             auto t = constant(term);
             if (delta.lookup_index(t) < 0 || delta.lookup_def(t)->is_prim()) {
-                for(auto&& arg : t->args()){
+                for (auto&& arg : t->args()) {
                     if (!is_normal_form(arg, delta)) return false;
                 }
                 return true;
@@ -897,12 +897,12 @@ std::shared_ptr<Term> reduce_application(const std::shared_ptr<Application>& ter
             return nullptr;
         case Kind::AbstLambda:
             return beta_reduce(term);
-        case Kind::Application:{
+        case Kind::Application: {
             std::shared_ptr<Term> rM = nullptr;
             if (rM = reduce_application(appl(M), delta)) return reduce_application(appl(rM, N), delta);
             return nullptr;
         }
-        case Kind::Constant:{
+        case Kind::Constant: {
             std::shared_ptr<Constant> cM = constant(M);
             if (delta.lookup_index(cM) < 0 || delta.lookup_def(cM)->is_prim()) return nullptr;
             return reduce_application(appl(delta_reduce(cM, delta), N), delta);
@@ -985,8 +985,8 @@ bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>&
                 if (ca->name() == cb->name()) {
                     if (ca->args().size() != cb->args().size()) return is_convertible(delta_reduce(ca, delta), delta_reduce(cb, delta), delta);
                     for (size_t i = 0; i < ca->args().size(); ++i) {
-                        if(!is_convertible(ca->args()[i], cb->args()[i], delta)) {
-                            if (is_delta_reducible(ca, delta) && is_delta_reducible(cb, delta)){
+                        if (!is_convertible(ca->args()[i], cb->args()[i], delta)) {
+                            if (is_delta_reducible(ca, delta) && is_delta_reducible(cb, delta)) {
                                 return is_convertible(delta_reduce(ca, delta), delta_reduce(cb, delta), delta);
                             }
                             return false;
@@ -1034,7 +1034,7 @@ bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>&
                 case Kind::AbstLambda:
                 case Kind::AbstPi:
                     return false;
-                case Kind::Application:{
+                case Kind::Application: {
                     std::shared_ptr<Term> rb = nullptr;
                     if (rb = reduce_application(appl(b), delta)) return is_convertible(a, rb, delta);
                     return false;
@@ -1051,14 +1051,14 @@ bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>&
                         __FILE__, __LINE__, __func__);
             }
         }
-        case Kind::Application:{
+        case Kind::Application: {
             std::shared_ptr<Term> ra = nullptr;
             if (ra = reduce_application(appl(a), delta)) return is_convertible(ra, b, delta);
             return false;
         }
-        case Kind::Constant:{
+        case Kind::Constant: {
             std::shared_ptr<Constant> ca = constant(a);
-            if (is_delta_reducible(a, delta)) return is_convertible(delta_reduce(constant(a), delta), b, delta);            
+            if (is_delta_reducible(a, delta)) return is_convertible(delta_reduce(constant(a), delta), b, delta);
             if (b->kind() != Kind::Application) return false;
             std::shared_ptr<Term> rb = nullptr;
             if (rb = reduce_application(appl(b), delta)) return is_convertible(a, rb, delta);
@@ -1077,8 +1077,8 @@ bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>&
 }
 
 bool is_conv_applicable(const Book& book, size_t idx1, size_t idx2) {
-    auto& judge1 = book[idx1];
-    auto& judge2 = book[idx2];
+    const auto& judge1 = book[idx1];
+    const auto& judge2 = book[idx2];
     check_true_or_ret_false(
         equiv_env(judge1.env(), judge2.env()),
         "environment doesn't match"
@@ -1113,8 +1113,8 @@ bool is_conv_applicable(const Book& book, size_t idx1, size_t idx2) {
 }
 
 bool is_def_applicable(const Book& book, size_t idx1, size_t idx2, const std::string& name) {
-    auto& judge1 = book[idx1];
-    auto& judge2 = book[idx2];
+    const auto& judge1 = book[idx1];
+    const auto& judge2 = book[idx2];
     check_true_or_ret_false(
         equiv_env(judge1.env(), judge2.env()),
         "environment doesn't match"
@@ -1133,8 +1133,8 @@ bool is_def_applicable(const Book& book, size_t idx1, size_t idx2, const std::st
 }
 
 bool is_def_prim_applicable(const Book& book, size_t idx1, size_t idx2, const std::string& name) {
-    auto& judge1 = book[idx1];
-    auto& judge2 = book[idx2];
+    const auto& judge1 = book[idx1];
+    const auto& judge2 = book[idx2];
     check_true_or_ret_false(
         equiv_env(judge1.env(), judge2.env()),
         "environment doesn't match"
@@ -1158,7 +1158,7 @@ bool is_def_prim_applicable(const Book& book, size_t idx1, size_t idx2, const st
 }
 
 bool is_inst_applicable(const Book& book, size_t idx, size_t n, const std::vector<size_t>& k, size_t p) {
-    auto& judge = book[idx];
+    const auto& judge = book[idx];
 
     check_true_or_ret_false(
         k.size() == n,
@@ -1183,14 +1183,14 @@ bool is_inst_applicable(const Book& book, size_t idx, size_t n, const std::vecto
             __FILE__, __LINE__, __func__);
     }
 
-    // check_true_or_ret_false(judge.context().size() == n,
+    // check_true_or_ret_false(judge.context()->size() == n,
 
     const std::shared_ptr<Definition>& D = judge.env()[p];
 
     std::vector<std::shared_ptr<Term>> Us;
     std::vector<std::shared_ptr<Variable>> xs;
     for (size_t i = 0; i < n; ++i) {
-        auto A = D->context()[i].type();
+        auto A = (*D->context())[i].type();
         auto V = book[k[i]].type();
         // check V == A[xs := Us]
         auto AxU = substitute(A, xs, Us);
@@ -1207,7 +1207,7 @@ bool is_inst_applicable(const Book& book, size_t idx, size_t n, const std::vecto
                 << "                    Us: " << to_string(Us) << std::endl
                 << "  the def failed inst: " << D << std::endl,
             __FILE__, __LINE__, __func__);
-        xs.push_back(D->context()[i].value());
+        xs.push_back((*D->context())[i].value());
         Us.push_back(book[k[i]].term());
     }
 
@@ -1425,14 +1425,14 @@ Context& Context::operator+=(const Typed<Variable>& tv) {
     return *this;
 }
 
-Context Context::operator+(const Typed<Variable>& tv) {
+Context Context::operator+(const Typed<Variable>& tv) const {
     return Context(*this) += tv;
 }
 
 const std::string DEFINITION_SEPARATOR = (OnlyAscii ? "|>" : "▷");
 const std::string EMPTY_DEFINIENS = (OnlyAscii ? "#" : "⫫");
 
-Definition::Definition(const Context& context,
+Definition::Definition(const std::shared_ptr<Context>& context,
                        const std::string& cname,
                        const std::shared_ptr<Term>& prop)
     : _context(context),
@@ -1440,7 +1440,7 @@ Definition::Definition(const Context& context,
       _definiens(nullptr),
       _type(prop) {}
 
-Definition::Definition(const Context& context,
+Definition::Definition(const std::shared_ptr<Context>& context,
                        const std::string& cname,
                        const std::shared_ptr<Term>& proof,
                        const std::shared_ptr<Term>& prop)
@@ -1449,7 +1449,7 @@ Definition::Definition(const Context& context,
       _definiens(proof),
       _type(prop) {}
 
-Definition::Definition(const Context& context,
+Definition::Definition(const std::shared_ptr<Context>& context,
                        const std::shared_ptr<Constant>& constant,
                        const std::shared_ptr<Term>& prop)
     : _context(context),
@@ -1457,7 +1457,7 @@ Definition::Definition(const Context& context,
       _definiens(nullptr),
       _type(prop) {}
 
-Definition::Definition(const Context& context,
+Definition::Definition(const std::shared_ptr<Context>& context,
                        const std::shared_ptr<Constant>& constant,
                        const std::shared_ptr<Term>& proof,
                        const std::shared_ptr<Term>& prop)
@@ -1469,7 +1469,7 @@ Definition::Definition(const Context& context,
 std::string Definition::string() const {
     std::string res;
     res = (_definiens ? "Def< " : "Def-prim< ");
-    res += _context.string();
+    res += _context->string();
     res += " " + DEFINITION_SEPARATOR + " " + _definiendum;
     res += " := " + (_definiens ? _definiens->string() : EMPTY_DEFINIENS);
     res += " : " + _type->string();
@@ -1479,7 +1479,7 @@ std::string Definition::string() const {
 std::string Definition::repr() const {
     std::string res;
     res = "def2\n";
-    res += _context.repr();
+    res += _context->repr();
     res += _definiendum + "\n";
     res += (_definiens ? _definiens->repr() : "#") + "\n";
     res += _type->repr() + "\n";
@@ -1490,7 +1490,7 @@ std::string Definition::repr() const {
 std::string Definition::repr_new() const {
     std::string res;
     res = "def2\n";
-    res += _context.repr_new();
+    res += _context->repr_new();
     res += _definiendum + " := " + (_definiens ? _definiens->repr_new() : "#") + " : " + _type->repr_new() + "\n";
     res += "edef2\n";
     return res;
@@ -1498,7 +1498,7 @@ std::string Definition::repr_new() const {
 
 std::string Definition::repr_book() const {
     std::stringstream ss;
-    ss << _context.repr_book() << " |> ";
+    ss << _context->repr_book() << " |> ";
     ss << _definiendum << " := ";
     ss << (_definiens ? _definiens->repr_book() : "#") << " : ";
     ss << _type->repr_book();
@@ -1506,12 +1506,12 @@ std::string Definition::repr_book() const {
 }
 
 bool Definition::is_prim() const { return !_definiens; }
-const Context& Definition::context() const { return _context; }
+const std::shared_ptr<Context>& Definition::context() const { return _context; }
 const std::string& Definition::definiendum() const { return _definiendum; }
 const std::shared_ptr<Term>& Definition::definiens() const { return _definiens; }
 const std::shared_ptr<Term>& Definition::type() const { return _type; }
 
-Context& Definition::context() { return _context; }
+std::shared_ptr<Context>& Definition::context() { return _context; }
 std::string& Definition::definiendum() { return _definiendum; }
 std::shared_ptr<Term>& Definition::definiens() { return _definiens; }
 std::shared_ptr<Term>& Definition::type() { return _type; }
@@ -1589,14 +1589,14 @@ Environment& Environment::operator+=(const std::shared_ptr<Definition>& def) {
     _def_index[def->definiendum()] = this->size() - 1;
     return *this;
 }
-Environment Environment::operator+(const std::shared_ptr<Definition>& def) {
+Environment Environment::operator+(const std::shared_ptr<Definition>& def) const {
     return Environment(*this) += def;
 }
 
 const std::string TURNSTILE = (OnlyAscii ? "|-" : "⊢");
 
 Judgement::Judgement(const Environment& env,
-                     const Context& context,
+                     const std::shared_ptr<Context>& context,
                      const std::shared_ptr<Term>& proof,
                      const std::shared_ptr<Term>& prop)
     : _env(env), _context(context), _term(proof), _type(prop) {}
@@ -1606,7 +1606,7 @@ std::string Judgement::string(bool inSingleLine, size_t indentSize) const {
     std::string indent_ex(inSingleLine ? 0 : indentSize, '\t'), indent_in(inSingleLine ? "" : "\t"), eol(inSingleLine ? " " : "\n");
     res += indent_ex_1 + "Judge<<" + eol;
     res += _env.string(inSingleLine, inSingleLine ? 0 : indentSize + 1);
-    res += " ;" + eol + indent_ex + indent_in + _context.string();
+    res += " ;" + eol + indent_ex + indent_in + _context->string();
     res += " " + TURNSTILE + " " + _term->string();
     res += " : " + _type->string();
     res += eol + indent_ex + ">>";
@@ -1619,7 +1619,7 @@ std::string Judgement::string_brief(bool inSingleLine, size_t indentSize) const 
     std::string indent_ex(inSingleLine ? 0 : indentSize, '\t'), indent_in(inSingleLine ? "" : "\t"), eol(inSingleLine ? " " : "\n");
     res += indent_ex_1 + "Judge<<" + eol;
     res += _env.string_brief(inSingleLine, inSingleLine ? 0 : indentSize + 1);
-    res += " ;" + eol + indent_ex + indent_in + _context.string();
+    res += " ;" + eol + indent_ex + indent_in + _context->string();
     res += " " + TURNSTILE + " " + _term->string();
     res += " : " + _type->string();
     res += eol + indent_ex + ">>";
@@ -1627,12 +1627,12 @@ std::string Judgement::string_brief(bool inSingleLine, size_t indentSize) const 
 }
 
 const Environment& Judgement::env() const { return _env; }
-const Context& Judgement::context() const { return _context; }
+const std::shared_ptr<Context>& Judgement::context() const { return _context; }
 const std::shared_ptr<Term>& Judgement::term() const { return _term; }
 const std::shared_ptr<Term>& Judgement::type() const { return _type; }
 
 Environment& Judgement::env() { return _env; }
-Context& Judgement::context() { return _context; }
+std::shared_ptr<Context>& Judgement::context() { return _context; }
 std::shared_ptr<Term>& Judgement::term() { return _term; }
 std::shared_ptr<Term>& Judgement::type() { return _type; }
 
@@ -1643,7 +1643,7 @@ Book::Book(const std::vector<Judgement>& list) : std::vector<Judgement>(list) {}
 void Book::sort() {
     this->emplace_back(
         Environment(),
-        Context(),
+        std::make_shared<Context>(),
         star,
         sq);
 }
@@ -1657,12 +1657,12 @@ void Book::var(size_t m, char x) {
             << *this,
         __FILE__, __LINE__, __func__);
 
-    auto& judge = (*this)[m];
+    const auto& judge = (*this)[m];
     auto vx = variable(x);
     auto A = judge.term();
     this->emplace_back(
         judge.env(),
-        judge.context() + Typed<Variable>(vx, A),
+        std::make_shared<Context>(*judge.context() + Typed<Variable>(vx, A)),
         vx, A);
 }
 void Book::weak(size_t m, size_t n, char x) {
@@ -1674,15 +1674,15 @@ void Book::weak(size_t m, size_t n, char x) {
             << "final state of book:" << std::endl
             << *this,
         __FILE__, __LINE__, __func__);
-    auto& judge1 = (*this)[m];
-    auto& judge2 = (*this)[n];
+    const auto& judge1 = (*this)[m];
+    const auto& judge2 = (*this)[n];
     auto vx = variable(x);
     auto A = judge1.term();
     auto B = judge1.type();
     auto C = judge2.term();
     this->emplace_back(
         judge1.env(),
-        judge1.context() + Typed<Variable>(vx, C),
+        std::make_shared<Context>(*judge1.context() + Typed<Variable>(vx, C)),
         A, B);
 }
 void Book::form(size_t m, size_t n) {
@@ -1694,9 +1694,9 @@ void Book::form(size_t m, size_t n) {
             << "final state of book:" << std::endl
             << *this,
         __FILE__, __LINE__, __func__);
-    auto& judge1 = (*this)[m];
-    auto& judge2 = (*this)[n];
-    auto x = judge2.context().back().value();
+    const auto& judge1 = (*this)[m];
+    const auto& judge2 = (*this)[n];
+    auto x = judge2.context()->back().value();
     auto A = judge1.term();
     auto B = judge2.term();
     auto s2 = judge2.type();
@@ -1715,8 +1715,8 @@ void Book::appl(size_t m, size_t n) {
             << "final state of book:" << std::endl
             << *this,
         __FILE__, __LINE__, __func__);
-    auto& judge1 = (*this)[m];
-    auto& judge2 = (*this)[n];
+    const auto& judge1 = (*this)[m];
+    const auto& judge2 = (*this)[n];
     auto M = judge1.term();
     auto N = judge2.term();
     auto B = pi(judge1.type())->expr();
@@ -1737,11 +1737,11 @@ void Book::abst(size_t m, size_t n) {
             << "final state of book:" << std::endl
             << *this,
         __FILE__, __LINE__, __func__);
-    auto& judge1 = (*this)[m];
-    auto& judge2 = (*this)[n];
+    const auto& judge1 = (*this)[m];
+    const auto& judge2 = (*this)[n];
     auto M = judge1.term();
-    auto x = judge1.context().back().value();
-    auto A = judge1.context().back().type();
+    auto x = judge1.context()->back().value();
+    auto A = judge1.context()->back().type();
     auto B = judge1.type();
     this->emplace_back(
         judge2.env(),
@@ -1764,8 +1764,8 @@ void Book::conv(size_t m, size_t n) {
             << std::endl
             << (*this).back().env().repr(),
         __FILE__, __LINE__, __func__);
-    auto& judge1 = (*this)[m];
-    auto& judge2 = (*this)[n];
+    const auto& judge1 = (*this)[m];
+    const auto& judge2 = (*this)[n];
     auto A = judge1.term();
     auto B2 = judge2.term();
     this->emplace_back(
@@ -1783,15 +1783,15 @@ void Book::def(size_t m, size_t n, const std::string& a) {
             << "final state of book:" << std::endl
             << *this,
         __FILE__, __LINE__, __func__);
-    auto& judge1 = (*this)[m];
-    auto& judge2 = (*this)[n];
+    const auto& judge1 = (*this)[m];
+    const auto& judge2 = (*this)[n];
     auto K = judge1.term();
     auto L = judge1.type();
     auto M = judge2.term();
     auto N = judge2.type();
-    auto& xAs = judge2.context();
+    const auto& xAs = judge2.context();
     std::vector<std::shared_ptr<Term>> xs;
-    for (auto&& xA : xAs) xs.push_back(xA.value());
+    for (auto&& xA : *xAs) xs.push_back(xA.value());
     this->emplace_back(
         judge1.env() + std::make_shared<Definition>(xAs, constant(a, xs), M, N),
         judge1.context(),
@@ -1807,14 +1807,14 @@ void Book::defpr(size_t m, size_t n, const std::string& a) {
             << "final state of book:" << std::endl
             << *this,
         __FILE__, __LINE__, __func__);
-    auto& judge1 = (*this)[m];
-    auto& judge2 = (*this)[n];
+    const auto& judge1 = (*this)[m];
+    const auto& judge2 = (*this)[n];
     auto K = judge1.term();
     auto L = judge1.type();
     auto N = judge2.term();
     auto& xAs = judge2.context();
     std::vector<std::shared_ptr<Term>> xs;
-    for (auto&& xA : xAs) xs.push_back(xA.value());
+    for (auto&& xA : *xAs) xs.push_back(xA.value());
     this->emplace_back(
         judge1.env() + std::make_shared<Definition>(xAs, constant(a, xs), N),
         judge1.context(),
@@ -1830,7 +1830,7 @@ void Book::inst(size_t m, size_t n, const std::vector<size_t>& k, size_t p) {
             << "final state of book:" << std::endl
             << *this,
         __FILE__, __LINE__, __func__);
-    auto& judge = (*this)[m];
+    const auto& judge = (*this)[m];
     auto& D = judge.env()[p];
 
     auto N = D->type();
@@ -1838,7 +1838,7 @@ void Book::inst(size_t m, size_t n, const std::vector<size_t>& k, size_t p) {
     std::vector<std::shared_ptr<Variable>> xs;
     std::vector<std::shared_ptr<Term>> Us;
     for (size_t i = 0; i < n; ++i) {
-        xs.push_back(D->context()[i].value());
+        xs.push_back((*D->context())[i].value());
         Us.push_back((*this)[k[i]].term());
     }
 
@@ -1854,8 +1854,8 @@ void Book::cp(size_t m) {
 }
 
 void Book::sp(size_t m, size_t n) {
-    auto& judge = (*this)[m];
-    auto& tv = judge.context()[n];
+    const auto& judge = (*this)[m];
+    auto& tv = (*judge.context())[n];
     this->emplace_back(
         judge.env(),
         judge.context(),
@@ -1880,7 +1880,7 @@ std::string Book::repr() const {
     }
     if (this->env().size() > 0) ss << "--------------" << std::endl;
     for (size_t lno = 0; lno < this->size(); ++lno) {
-        auto& judge = (*this)[lno];
+        const auto& judge = (*this)[lno];
         ss << lno << " : ";
         if (this->env().size() > 0) {
             if (judge.env().size() > 0) ss << "D" << def_num(judge.env()[0]);
@@ -1892,7 +1892,7 @@ std::string Book::repr() const {
         }
         ss << " ; ";
         // output context
-        ss << judge.context().repr_book() << " |- ";
+        ss << judge.context()->repr_book() << " |- ";
         ss << judge.term()->repr_book() << " : ";
         ss << judge.type()->repr_book() << "\n";
     }
@@ -1906,7 +1906,7 @@ std::string Book::repr_new() const {
     }
     if (this->env().size() > 0) ss << "--------------" << std::endl;
     for (size_t lno = 0; lno < this->size(); ++lno) {
-        auto& judge = (*this)[lno];
+        const auto& judge = (*this)[lno];
         ss << lno << " : ";
         if (this->env().size() > 0) {
             if (judge.env().size() > 0) ss << "D" << def_num(judge.env()[0]);
@@ -1918,7 +1918,7 @@ std::string Book::repr_new() const {
         }
         ss << " ; ";
         // output context
-        ss << judge.context().repr_book() << " |- ";
+        ss << judge.context()->repr_book() << " |- ";
         ss << judge.term()->repr_new() << " : ";
         ss << judge.type()->repr_new() << "\n";
     }

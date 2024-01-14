@@ -31,8 +31,10 @@ src/def_file_nocomm: src/def_file bin/def_conv.out
 nocomm: bin/def_conv.out src/def_file
 	$< -c -f src/def_file > src/def_file_nocomm
 
-noperiod: def_file_bez_200k
-	cat $< | sed 's/)\.(/-@-/g' | sed 's/\./-/g' | sed 's/-@-/)\.(/g' > def_file_bez_cp
+def_file_bez%_cp: def_file_bez%
+	cat $< | sed 's/)\.(/-@-/g' | sed 's/\./-/g' | sed 's/-@-/)\.(/g' > $@
+
+noperiod: def_file_bez_213k_cp
 
 test_read: bin/def_conv.out src/def_file
 	$^ -r
@@ -71,6 +73,9 @@ clean:
 	rm -f ./bin/*.out
 	rm -f ./bin/*.obj
 	rm -f ./src/def_file_nocomm
+	rm -f ./verifier_out*
 	rm -f ./src/verifier_out*
 	rm -f ./src/def_conv_out*
+	rm -f ./def_file_bez*_cp
+	rm -f ./log*
 

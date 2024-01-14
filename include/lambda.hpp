@@ -267,25 +267,25 @@ class Context : public std::vector<Typed<Variable>> {
     std::string repr_book() const;
 
     Context& operator+=(const Typed<Variable>& tv);
-    Context operator+(const Typed<Variable>& tv);
+    Context operator+(const Typed<Variable>& tv) const;
 };
 
 class Definition {
   public:
-    Definition(const Context& context,
+    Definition(const std::shared_ptr<Context>& context,
                const std::string& cname,
                const std::shared_ptr<Term>& prop);
 
-    Definition(const Context& context,
+    Definition(const std::shared_ptr<Context>& context,
                const std::string& cname,
                const std::shared_ptr<Term>& proof,
                const std::shared_ptr<Term>& prop);
 
-    Definition(const Context& context,
+    Definition(const std::shared_ptr<Context>& context,
                const std::shared_ptr<Constant>& constant,
                const std::shared_ptr<Term>& prop);
 
-    Definition(const Context& context,
+    Definition(const std::shared_ptr<Context>& context,
                const std::shared_ptr<Constant>& constant,
                const std::shared_ptr<Term>& proof,
                const std::shared_ptr<Term>& prop);
@@ -296,18 +296,18 @@ class Definition {
     std::string repr_book() const;
 
     bool is_prim() const;
-    const Context& context() const;
+    const std::shared_ptr<Context>& context() const;
     const std::string& definiendum() const;
     const std::shared_ptr<Term>& definiens() const;
     const std::shared_ptr<Term>& type() const;
 
-    Context& context();
+    std::shared_ptr<Context>& context();
     std::string& definiendum();
     std::shared_ptr<Term>& definiens();
     std::shared_ptr<Term>& type();
 
   private:
-    Context _context;
+    std::shared_ptr<Context> _context;
     std::string _definiendum;
     std::shared_ptr<Term> _definiens, _type;
 };
@@ -329,7 +329,7 @@ class Environment : public std::vector<std::shared_ptr<Definition>> {
     const std::shared_ptr<Definition>& lookup_def(const std::shared_ptr<Constant>& c) const;
 
     Environment& operator+=(const std::shared_ptr<Definition>& def);
-    Environment operator+(const std::shared_ptr<Definition>& def);
+    Environment operator+(const std::shared_ptr<Definition>& def) const;
 
   private:
     mutable std::map<std::string, size_t> _def_index;
@@ -338,25 +338,25 @@ class Environment : public std::vector<std::shared_ptr<Definition>> {
 class Judgement {
   public:
     Judgement(const Environment& env,
-              const Context& context,
+              const std::shared_ptr<Context>& context,
               const std::shared_ptr<Term>& proof,
               const std::shared_ptr<Term>& prop);
     std::string string(bool inSingleLine = true, size_t indentSize = 0) const;
     std::string string_brief(bool inSingleLine, size_t indentSize) const;
 
     const Environment& env() const;
-    const Context& context() const;
+    const std::shared_ptr<Context>& context() const;
     const std::shared_ptr<Term>& term() const;
     const std::shared_ptr<Term>& type() const;
 
     Environment& env();
-    Context& context();
+    std::shared_ptr<Context>& context();
     std::shared_ptr<Term>& term();
     std::shared_ptr<Term>& type();
 
   private:
     Environment _env;
-    Context _context;
+    std::shared_ptr<Context> _context;
     std::shared_ptr<Term> _term, _type;
 };
 
@@ -370,9 +370,9 @@ bool equiv_def(const Definition& a, const Definition& b);
 bool equiv_def(const std::shared_ptr<Definition>& a, const std::shared_ptr<Definition>& b);
 bool equiv_env(const Environment& a, const Environment& b);
 bool equiv_env(const std::shared_ptr<Environment>& a, const std::shared_ptr<Environment>& b);
-bool has_variable(const Context& g, const std::shared_ptr<Variable>& v);
-bool has_variable(const Context& g, const std::shared_ptr<Term>& v);
-bool has_variable(const Context& g, char v);
+bool has_variable(const std::shared_ptr<Context>& g, const std::shared_ptr<Variable>& v);
+bool has_variable(const std::shared_ptr<Context>& g, const std::shared_ptr<Term>& v);
+bool has_variable(const std::shared_ptr<Context>& g, char v);
 bool has_constant(const Environment& env, const std::string& name);
 bool has_definition(const Environment& env, const Definition& def);
 bool is_sort(const std::shared_ptr<Term>& t);
