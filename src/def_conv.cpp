@@ -62,7 +62,13 @@ int main(int argc, char* argv[]) {
     if (fname.size() == 0) data = FileData(true);
     else data = FileData(fname);
 
-    auto tokens = tokenize(data);
+    std::vector<Token> tokens;
+    try {
+        tokens = tokenize(data);
+    } catch (BaseError& e) {
+        e.puterror();
+        exit(EXIT_FAILURE);
+    }
 
     if (!is_quiet && (DEBUG_CERR || is_verbose)) {
         for (size_t idx = 0; idx < tokens.size() && idx < 300; ++idx) {
