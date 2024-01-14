@@ -97,7 +97,7 @@ std::string to_string(const std::set<T>& s) {
     ss << "{";
     auto itr = s.begin();
     if (!s.empty()) ss << *itr;
-    while (itr != s.end()) ss << ", " << *itr;
+    for (++itr; itr != s.end(); ++itr) ss << ", " << *itr;
     ss << "}";
     return ss.str();
 }
