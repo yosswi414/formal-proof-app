@@ -530,15 +530,15 @@ bool has_variable(const std::shared_ptr<Context>& g, char v) {
     return has_variable(g, std::make_shared<Variable>(v));
 }
 
-bool has_constant(const Environment& env, const std::string& name) {
-    for (auto&& def : env) {
+bool has_constant(const std::shared_ptr<Environment>& env, const std::string& name) {
+    for (auto&& def : *env) {
         if (def->definiendum() == name) return true;
     }
     return false;
 }
 
-bool has_definition(const Environment& env, const std::shared_ptr<Definition>& def) {
-    for (auto&& d : env) {
+bool has_definition(const std::shared_ptr<Environment>& env, const std::shared_ptr<Definition>& def) {
+    for (auto&& d : *env) {
         if (equiv_def(d, def)) return true;
     }
     return false;
@@ -1097,7 +1097,7 @@ bool is_conv_applicable(const Book& book, size_t idx1, size_t idx2) {
     auto B2 = judge2.term();
     auto s = judge2.type();
     check_true_or_ret_false(
-        is_convertible(B1, B2, judge1.env()),
+        is_convertible(B1, B2, *judge1.env()),
         "type of 1st judgement and term of 2nd judgement are not beta-delta-equivalent"
             << std::endl
             << "type 1: " << B1 << std::endl
@@ -1185,7 +1185,7 @@ bool is_inst_applicable(const Book& book, size_t idx, size_t n, const std::vecto
 
     // check_true_or_ret_false(judge.context()->size() == n,
 
-    const std::shared_ptr<Definition>& D = judge.env()[p];
+    const std::shared_ptr<Definition>& D = (*judge.env())[p];
 
     std::vector<std::shared_ptr<Term>> Us;
     std::vector<std::shared_ptr<Variable>> xs;
@@ -1595,7 +1595,7 @@ Environment Environment::operator+(const std::shared_ptr<Definition>& def) const
 
 const std::string TURNSTILE = (OnlyAscii ? "|-" : "⊢");
 
-Judgement::Judgement(const Environment& env,
+Judgement::Judgement(const std::shared_ptr<Environment>& env,
                      const std::shared_ptr<Context>& context,
                      const std::shared_ptr<Term>& proof,
                      const std::shared_ptr<Term>& prop)
@@ -1605,7 +1605,7 @@ std::string Judgement::string(bool inSingleLine, size_t indentSize) const {
     std::string indent_ex_1(indentSize, '\t');
     std::string indent_ex(inSingleLine ? 0 : indentSize, '\t'), indent_in(inSingleLine ? "" : "\t"), eol(inSingleLine ? " " : "\n");
     res += indent_ex_1 + "Judge<<" + eol;
-    res += _env.string(inSingleLine, inSingleLine ? 0 : indentSize + 1);
+    res += _env->string(inSingleLine, inSingleLine ? 0 : indentSize + 1);
     res += " ;" + eol + indent_ex + indent_in + _context->string();
     res += " " + TURNSTILE + " " + _term->string();
     res += " : " + _type->string();
@@ -1618,7 +1618,7 @@ std::string Judgement::string_brief(bool inSingleLine, size_t indentSize) const 
     std::string indent_ex_1(indentSize, '\t');
     std::string indent_ex(inSingleLine ? 0 : indentSize, '\t'), indent_in(inSingleLine ? "" : "\t"), eol(inSingleLine ? " " : "\n");
     res += indent_ex_1 + "Judge<<" + eol;
-    res += _env.string_brief(inSingleLine, inSingleLine ? 0 : indentSize + 1);
+    res += _env->string_brief(inSingleLine, inSingleLine ? 0 : indentSize + 1);
     res += " ;" + eol + indent_ex + indent_in + _context->string();
     res += " " + TURNSTILE + " " + _term->string();
     res += " : " + _type->string();
@@ -1626,15 +1626,22 @@ std::string Judgement::string_brief(bool inSingleLine, size_t indentSize) const 
     return res;
 }
 
-const Environment& Judgement::env() const { return _env; }
+const std::shared_ptr<Environment>& Judgement::env() const { return _env; }
 const std::shared_ptr<Context>& Judgement::context() const { return _context; }
 const std::shared_ptr<Term>& Judgement::term() const { return _term; }
 const std::shared_ptr<Term>& Judgement::type() const { return _type; }
 
-Environment& Judgement::env() { return _env; }
+std::shared_ptr<Environment>& Judgement::env() { return _env; }
 std::shared_ptr<Context>& Judgement::context() { return _context; }
 std::shared_ptr<Term>& Judgement::term() { return _term; }
 std::shared_ptr<Term>& Judgement::type() { return _type; }
+
+InferenceError::InferenceError() : _msg("InferenceError: ") {}
+InferenceError::InferenceError(const std::string& str) : _msg(str) {}
+void InferenceError::puterror(std::ostream& os) const {
+    os << _msg << std::endl;
+}
+const std::string& InferenceError::str() const { return _msg; }
 
 Book::Book(bool skip_check) : std::vector<Judgement>{}, _skip_check{skip_check} {};
 Book::Book(const std::vector<Judgement>& list) : std::vector<Judgement>(list) {}
@@ -1642,20 +1649,18 @@ Book::Book(const std::vector<Judgement>& list) : std::vector<Judgement>(list) {}
 // inference rules
 void Book::sort() {
     this->emplace_back(
-        Environment(),
+        std::make_shared<Environment>(),
         std::make_shared<Context>(),
         star,
         sq);
 }
 void Book::var(size_t m, char x) {
-    check_true_or_exit(
-        _skip_check || is_var_applicable(*this, m, x),
-        "var at line "
+    if (!_skip_check && !is_var_applicable(*this, m, x)){
+        throw InferenceError()
+            << "var at line "
             << this->size() << " not applicable "
-            << "(idx = " << m << ", var = " << x << ")" << std::endl
-            << "final state of book:" << std::endl
-            << *this,
-        __FILE__, __LINE__, __func__);
+            << "(idx = " << m << ", var = " << x << ")";
+    }
 
     const auto& judge = (*this)[m];
     auto vx = variable(x);
@@ -1666,14 +1671,12 @@ void Book::var(size_t m, char x) {
         vx, A);
 }
 void Book::weak(size_t m, size_t n, char x) {
-    check_true_or_exit(
-        _skip_check || is_weak_applicable(*this, m, n, x),
-        "weak at line "
+    if (!_skip_check && !is_weak_applicable(*this, m, n, x)) {
+        throw InferenceError()
+            << "weak at line "
             << this->size() << " not applicable "
-            << "(idx1 = " << m << ", idx2 = " << n << ", var = " << x << ")" << std::endl
-            << "final state of book:" << std::endl
-            << *this,
-        __FILE__, __LINE__, __func__);
+            << "(idx1 = " << m << ", idx2 = " << n << ", var = " << x << ")";
+    }
     const auto& judge1 = (*this)[m];
     const auto& judge2 = (*this)[n];
     auto vx = variable(x);
@@ -1686,14 +1689,12 @@ void Book::weak(size_t m, size_t n, char x) {
         A, B);
 }
 void Book::form(size_t m, size_t n) {
-    check_true_or_exit(
-        _skip_check || is_form_applicable(*this, m, n),
-        "form at line "
+    if (!_skip_check && !is_form_applicable(*this, m, n)) {
+        throw InferenceError()
+            << "form at line "
             << this->size() << " not applicable "
-            << "(idx1 = " << m << ", idx2 = " << n << ")" << std::endl
-            << "final state of book:" << std::endl
-            << *this,
-        __FILE__, __LINE__, __func__);
+            << "(idx1 = " << m << ", idx2 = " << n << ")";
+    }
     const auto& judge1 = (*this)[m];
     const auto& judge2 = (*this)[n];
     auto x = judge2.context()->back().value();
@@ -1707,14 +1708,12 @@ void Book::form(size_t m, size_t n) {
 }
 
 void Book::appl(size_t m, size_t n) {
-    check_true_or_exit(
-        _skip_check || is_appl_applicable(*this, m, n),
-        "appl at line "
+    if (!_skip_check && !is_appl_applicable(*this, m, n)) {
+        throw InferenceError()
+            << "appl at line "
             << this->size() << " not applicable "
-            << "(idx1 = " << m << ", idx2 = " << n << ")" << std::endl
-            << "final state of book:" << std::endl
-            << *this,
-        __FILE__, __LINE__, __func__);
+            << "(idx1 = " << m << ", idx2 = " << n << ")";
+    }
     const auto& judge1 = (*this)[m];
     const auto& judge2 = (*this)[n];
     auto M = judge1.term();
@@ -1729,14 +1728,12 @@ void Book::appl(size_t m, size_t n) {
 }
 
 void Book::abst(size_t m, size_t n) {
-    check_true_or_exit(
-        _skip_check || is_abst_applicable(*this, m, n),
-        "abst at line "
+    if (!_skip_check && !is_abst_applicable(*this, m, n)) {
+        throw InferenceError()
+            << "abst at line "
             << this->size() << " not applicable "
-            << "(idx1 = " << m << ", idx2 = " << n << ")" << std::endl
-            << "final state of book:" << std::endl
-            << *this,
-        __FILE__, __LINE__, __func__);
+            << "(idx1 = " << m << ", idx2 = " << n << ")";
+    }
     const auto& judge1 = (*this)[m];
     const auto& judge2 = (*this)[n];
     auto M = judge1.term();
@@ -1751,19 +1748,14 @@ void Book::abst(size_t m, size_t n) {
 }
 
 void Book::conv(size_t m, size_t n) {
-    check_true_or_exit(
-        _skip_check || is_conv_applicable(*this, m, n),
-        "conv at line "
+    if (!_skip_check && !is_conv_applicable(*this, m, n)) {
+        throw InferenceError()
+            << "conv at line "
             << this->size() << " not applicable "
-            << "(idx1 = " << m << ", idx2 = " << n << ")" << std::endl
-            << "B1 = " << (*this)[m].type() << std::endl
-            << "B2 = " << (*this)[n].term() << std::endl
-            << "final state of book:" << std::endl
-            << *this << std::endl
-            << "\n####### env #######\n"
-            << std::endl
-            << (*this).back().env().repr(),
-        __FILE__, __LINE__, __func__);
+            << "(idx1 = " << m << ", idx2 = " << n << ")\n"
+            << "B1 = " << (*this)[m].type()->repr_new() << "\n"
+            << "B2 = " << (*this)[n].term()->repr_new() << "\n";
+    }
     const auto& judge1 = (*this)[m];
     const auto& judge2 = (*this)[n];
     auto A = judge1.term();
@@ -1775,14 +1767,12 @@ void Book::conv(size_t m, size_t n) {
 }
 
 void Book::def(size_t m, size_t n, const std::string& a) {
-    check_true_or_exit(
-        _skip_check || is_def_applicable(*this, m, n, a),
-        "def at line "
+    if (!_skip_check && !is_def_applicable(*this, m, n, a)) {
+        throw InferenceError()
+            << "def at line "
             << this->size() << " not applicable "
-            << "(idx1 = " << m << ", idx2 = " << n << ", name = " << a << ")" << std::endl
-            << "final state of book:" << std::endl
-            << *this,
-        __FILE__, __LINE__, __func__);
+            << "(idx1 = " << m << ", idx2 = " << n << ", name = " << a << ")";
+    }
     const auto& judge1 = (*this)[m];
     const auto& judge2 = (*this)[n];
     auto K = judge1.term();
@@ -1793,20 +1783,21 @@ void Book::def(size_t m, size_t n, const std::string& a) {
     std::vector<std::shared_ptr<Term>> xs;
     for (auto&& xA : *xAs) xs.push_back(xA.value());
     this->emplace_back(
-        judge1.env() + std::make_shared<Definition>(xAs, constant(a, xs), M, N),
+        std::make_shared<Environment>(
+            *judge1.env() +
+            std::make_shared<Definition>(
+                xAs, constant(a, xs), M, N)),
         judge1.context(),
         K, L);
 }
 
 void Book::defpr(size_t m, size_t n, const std::string& a) {
-    check_true_or_exit(
-        _skip_check || is_def_applicable(*this, m, n, a),
-        "defpr at line "
+    if (!_skip_check && !is_def_applicable(*this, m, n, a)) {
+        throw InferenceError()
+            << "defpr at line "
             << this->size() << " not applicable "
-            << "(idx1 = " << m << ", idx2 = " << n << ", name = " << a << ")" << std::endl
-            << "final state of book:" << std::endl
-            << *this,
-        __FILE__, __LINE__, __func__);
+            << "(idx1 = " << m << ", idx2 = " << n << ", name = " << a << ")";
+    }
     const auto& judge1 = (*this)[m];
     const auto& judge2 = (*this)[n];
     auto K = judge1.term();
@@ -1816,22 +1807,22 @@ void Book::defpr(size_t m, size_t n, const std::string& a) {
     std::vector<std::shared_ptr<Term>> xs;
     for (auto&& xA : *xAs) xs.push_back(xA.value());
     this->emplace_back(
-        judge1.env() + std::make_shared<Definition>(xAs, constant(a, xs), N),
+        std::make_shared<Environment>(
+            *judge1.env() +
+            std::make_shared<Definition>(xAs, constant(a, xs), N)),
         judge1.context(),
         K, L);
 }
 
 void Book::inst(size_t m, size_t n, const std::vector<size_t>& k, size_t p) {
-    check_true_or_exit(
-        _skip_check || is_inst_applicable(*this, m, n, k, p),
-        "inst at line "
+    if (!_skip_check && !is_inst_applicable(*this, m, n, k, p)) {
+        throw InferenceError()
+            << "inst at line "
             << this->size() << " not applicable "
-            << "(idx1 = " << m << ", n = " << n << ", k = " << to_string(k) << ", p = " << p << ")" << std::endl
-            << "final state of book:" << std::endl
-            << *this,
-        __FILE__, __LINE__, __func__);
+            << "(idx = " << m << ", n = " << n << ", k = " << to_string(k) << ", p = " << p << ")";
+    }
     const auto& judge = (*this)[m];
-    auto& D = judge.env()[p];
+    auto& D = (*judge.env())[p];
 
     auto N = D->type();
 
@@ -1883,12 +1874,12 @@ std::string Book::repr() const {
         const auto& judge = (*this)[lno];
         ss << lno << " : ";
         if (this->env().size() > 0) {
-            if (judge.env().size() > 0) ss << "D" << def_num(judge.env()[0]);
-            for (size_t dno = 1; dno < judge.env().size(); ++dno) {
-                ss << ",D" << def_num(judge.env()[dno]);
+            if (judge.env()->size() > 0) ss << "D" << def_num((*judge.env())[0]);
+            for (size_t dno = 1; dno < judge.env()->size(); ++dno) {
+                ss << ",D" << def_num((*judge.env())[dno]);
             }
-        } else if (judge.env().size() > 0) {
-            ss << "env(#defs = " << judge.env().size() << ")";
+        } else if (judge.env()->size() > 0) {
+            ss << "env(#defs = " << judge.env()->size() << ")";
         }
         ss << " ; ";
         // output context
@@ -1909,12 +1900,12 @@ std::string Book::repr_new() const {
         const auto& judge = (*this)[lno];
         ss << lno << " : ";
         if (this->env().size() > 0) {
-            if (judge.env().size() > 0) ss << "D" << def_num(judge.env()[0]);
-            for (size_t dno = 1; dno < judge.env().size(); ++dno) {
-                ss << ",D" << def_num(judge.env()[dno]);
+            if (judge.env()->size() > 0) ss << "D" << def_num((*judge.env())[0]);
+            for (size_t dno = 1; dno < judge.env()->size(); ++dno) {
+                ss << ",D" << def_num((*judge.env())[dno]);
             }
-        } else if (judge.env().size() > 0) {
-            ss << "env(#defs = " << judge.env().size() << ")";
+        } else if (judge.env()->size() > 0) {
+            ss << "env(#defs = " << judge.env()->size() << ")";
         }
         ss << " ; ";
         // output context

@@ -337,25 +337,25 @@ class Environment : public std::vector<std::shared_ptr<Definition>> {
 
 class Judgement {
   public:
-    Judgement(const Environment& env,
+    Judgement(const std::shared_ptr<Environment>& env,
               const std::shared_ptr<Context>& context,
               const std::shared_ptr<Term>& proof,
               const std::shared_ptr<Term>& prop);
     std::string string(bool inSingleLine = true, size_t indentSize = 0) const;
     std::string string_brief(bool inSingleLine, size_t indentSize) const;
 
-    const Environment& env() const;
+    const std::shared_ptr<Environment>& env() const;
     const std::shared_ptr<Context>& context() const;
     const std::shared_ptr<Term>& term() const;
     const std::shared_ptr<Term>& type() const;
 
-    Environment& env();
+    std::shared_ptr<Environment>& env();
     std::shared_ptr<Context>& context();
     std::shared_ptr<Term>& term();
     std::shared_ptr<Term>& type();
 
   private:
-    Environment _env;
+    std::shared_ptr<Environment> _env;
     std::shared_ptr<Context> _context;
     std::shared_ptr<Term> _term, _type;
 };
@@ -373,8 +373,8 @@ bool equiv_env(const std::shared_ptr<Environment>& a, const std::shared_ptr<Envi
 bool has_variable(const std::shared_ptr<Context>& g, const std::shared_ptr<Variable>& v);
 bool has_variable(const std::shared_ptr<Context>& g, const std::shared_ptr<Term>& v);
 bool has_variable(const std::shared_ptr<Context>& g, char v);
-bool has_constant(const Environment& env, const std::string& name);
-bool has_definition(const Environment& env, const Definition& def);
+bool has_constant(const std::shared_ptr<Environment>& env, const std::string& name);
+bool has_definition(const std::shared_ptr<Environment>& env, const Definition& def);
 bool is_sort(const std::shared_ptr<Term>& t);
 bool is_var_applicable(const Book& book, size_t idx, char var);
 bool is_weak_applicable(const Book& book, size_t idx1, size_t idx2, char var);
@@ -399,6 +399,24 @@ bool is_conv_applicable(const Book& book, size_t idx1, size_t idx2);
 bool is_def_applicable(const Book& book, size_t idx1, size_t idx2, const std::string& name);
 bool is_def_prim_applicable(const Book& book, size_t idx1, size_t idx2, const std::string& name);
 bool is_inst_applicable(const Book& book, size_t idx, size_t n, const std::vector<size_t>& k, size_t p);
+
+class InferenceError {
+  public:
+    InferenceError();
+    InferenceError(const std::string& str);
+    void puterror(std::ostream& os = std::cerr) const;
+    const std::string& str() const;
+    template <typename T>
+    InferenceError& operator<<(const T& rhs) {
+        std::stringstream ss;
+        ss << rhs;
+        _msg += ss.str();
+        return *this;
+    }
+
+  private:
+    std::string _msg;
+};
 
 class Book : public std::vector<Judgement> {
   public:
