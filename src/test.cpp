@@ -1,8 +1,9 @@
 #include <iostream>
-#include <vector>
 #include <memory>
+#include <vector>
 
 #include "lambda.hpp"
+#include "parser.hpp"
 
 #define bout(expr) \
     do { std::cerr << #expr " --> " << (expr ? "true" : "false") << std::endl; } while (false)
@@ -134,27 +135,88 @@ void test_subst() {
     sep();
 }
 
-void test_reduction() {
+void test_reduction1(const Environment& delta) {
     std::cerr << "[beta / delta reduction test]" << std::endl;
-    Environment delta("src/def_file");
     auto S = variable('S');
     auto P = variable('P');
     auto v = variable('v');
     auto a = variable('a');
     auto b = variable('b');
     auto c = variable('c');
+    auto d = variable('d');
+    auto e = variable('e');
+    auto f = variable('f');
+    auto g = variable('g');
+    auto h = variable('h');
+    auto i = variable('i');
+    auto j = variable('j');
+    auto x = variable('x');
+    auto y = variable('y');
+    auto A = variable('A');
+    auto B = variable('B');
 
-    auto B = constant("forall", {S, lambda(a, S, constant("not", {constant("not", {appl(P, a)})}))});
-    show(B);
-    show(delta_reduce(B, delta));
+    std::shared_ptr<Term> exprB = constant("forall", {S, lambda(a, S, constant("not", {constant("not", {appl(P, a)})}))});
+    std::shared_ptr<Term> ansnB = pi(c, S, pi(b, pi(b, appl(P, c), pi(a, star, a)), pi(a, star, a)));
+    show(exprB);
     // Πc:S.Πb:Πb:%P c.Πa:*.a.Πa:*.a
-    auto ans = pi(c, S, pi(b, pi(b, appl(P, c), pi(a, star, a)), pi(a, star, a)));
-    show(ans);
-    bout(is_convertible(B, ans, delta));
+    show(ansnB);
+    show(delta_reduce(constant(exprB), delta));
+    bout(is_convertible(exprB, ansnB, delta));
+    
+    exprB = constant("element", {S, x, constant("emptyset", {S})});
+    ansnB = constant("contra", {});
+    show(exprB);
+    show(ansnB);
+    bout(is_convertible(exprB, ansnB, delta));
+
+    std::shared_ptr<Term> Bbd = beta_nf(delta_nf(exprB, delta));
+    show(Bbd);
+    // bout(is_convertible(Bbd, ans, delta));
+    exprB = appl(P, y);
+    ansnB = constant("element", {S, y, lambda(a, S, appl(P, a))});
+    show(exprB);
+    show(ansnB);
+    bout(is_convertible(exprB, ansnB, delta));
+
+    exprB = parse_lambda("?a:?a:A.or[B, A].?b:?b:B.or[B, A].or[B, A]");
+    ansnB = parse_lambda("?d:?c:A.?a:*.?d:?b:B.a.?e:?b:A.a.a.?e:?c:B.?a:*.?e:?b:B.a.?f:?b:A.a.a.?a:*.?c:?b:B.a.?f:?b:A.a.a");
+    show(exprB);
+    show(ansnB);
+    bout(is_convertible(exprB, ansnB, delta));
+
+    exprB = parse_lambda("?d:S.?c:%P a.?g:%P d.?h:?e:S.*.?i:*.?e:?e:?e:%h a.%h d.?j:?j:%h d.%h a.i.i");
+    ansnB = parse_lambda("?g:S.?d:%P a.?f:%P g.?h:?c:S.*.?c:*.?e:?e:?e:%h a.%h g.?i:?i:%h g.%h a.c.c");
+    show(exprB);
+    show(ansnB);
+    bout(is_convertible(exprB, ansnB, delta));
+
+    sep();
 }
 
-int main(){
+void test_reduction2(const Environment& delta) {
+    std::cerr << "[delta reduction test]" << std::endl;
+    auto exprB = parse_lambda("?a:A.A");
+    auto ansnB = parse_lambda("implies[A, A]");
+    bout(is_convertible(exprB, ansnB, delta));
+    // bout(is_convertible(ansnB, exprB, delta));
+    bout(!is_delta_reducible(exprB, delta));
+    bout(is_delta_reducible(ansnB, delta));
+    bout(alpha_comp(parse_lambda("A"), parse_lambda("A")));
+}
+
+int main() {
+    Environment delta;
+    try {
+        delta = Environment("def_file_bez_cp");
+    } catch (ParseError& e) {
+        e.puterror();
+        exit(EXIT_FAILURE);
+    } catch (TokenizeError& e) {
+        e.puterror();
+        exit(EXIT_FAILURE);
+    }
     test_alpha_subst();
     test_subst();
-    test_reduction();
+    test_reduction1(delta);
+    // test_reduction2(delta);
 }

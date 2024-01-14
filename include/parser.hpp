@@ -184,4 +184,6 @@ class ParseLambdaToken {
 
 std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens, size_t& idx);
 
+std::shared_ptr<Term> parse_lambda(const std::string& str);
+
 Environment parse_defs(const std::vector<Token>& tokens);

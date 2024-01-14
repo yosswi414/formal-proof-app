@@ -1,34 +1,38 @@
 CPPFLAGS = -std=c++17 -Wall -Wextra
 DEBUGFLAGS = -fsanitize=address -fno-omit-frame-pointer -g
 INCDIR = -I./include
+OPTFLAG = -O3
 
 bin/%.obj: src/%.cpp include/*
-	g++ ${CPPFLAGS} -O2 ${INCDIR} -c -o $@ $<
+	g++ ${CPPFLAGS} ${OPTFLAG} ${INCDIR} -c -o $@ $<
 bin/%_leak.obj: src/%.cpp include/*
 	g++ ${CPPFLAGS} ${DEBUGFLAGS} ${INCDIR} -c -o $@ $<
 
 bin/verifier.out: bin/verifier.obj bin/common.obj bin/lambda.obj bin/parser.obj
-	g++ ${CPPFLAGS} $^ -o $@
+	g++ ${CPPFLAGS} ${OPTFLAG} $^ -o $@
 
-bin/verifier_leak.out: bin/verifier_leak.obj bin/common_leak.obj bin/lambda_leak.obj
+bin/verifier_leak.out: bin/verifier_leak.obj bin/common_leak.obj bin/lambda_leak.obj bin/parser_leak.obj
 	g++ ${CPPFLAGS} ${DEBUGFLAGS} $^ -o $@
 
 bin/def_conv.out: bin/def_conv.obj bin/common.obj bin/lambda.obj bin/parser.obj
-	g++ ${CPPFLAGS} $^ -o $@
+	g++ ${CPPFLAGS} ${OPTFLAG} $^ -o $@
 
 bin/def_conv_leak.out: bin/def_conv_leak.obj bin/common_leak.obj bin/lambda_leak.obj bin/parser_leak.obj
 	g++ ${CPPFLAGS} ${DEBUGFLAGS} $^ -o $@
 
 bin/test.out: bin/test.obj bin/common.obj bin/lambda.obj bin/parser.obj
-	g++ ${CPPFLAGS} $^ -o $@
+	g++ ${CPPFLAGS} ${OPTFLAG} $^ -o $@
 
 src/def_file_nocomm: src/def_file bin/def_conv.out
 	bin/def_conv.out -f $< -c > $@
 
-.PHONY: test book parse clean test_read lambda conv conv_leak nocomm
+.PHONY: test book parse clean test_read lambda conv conv_leak nocomm noperiod
 
 nocomm: bin/def_conv.out src/def_file
 	$< -c -f src/def_file > src/def_file_nocomm
+
+noperiod: def_file_bez
+	cat $< | sed 's/)\.(/-@-/g' | sed 's/\./-/g' | sed 's/-@-/)\.(/g' > def_file_bez_cp
 
 test_read: bin/def_conv.out src/def_file
 	$^ -r

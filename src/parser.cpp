@@ -304,6 +304,11 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
     exit(EXIT_FAILURE);
 }
 
+std::shared_ptr<Term> parse_lambda(const std::string& str) {
+    size_t idx;
+    return parse_lambda(tokenize(FileData({str}, "")), idx = 0)->term();
+}
+
 Environment parse_defs(const std::vector<Token>& tokens) {
     Environment env;
     // state variables
