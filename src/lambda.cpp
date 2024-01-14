@@ -119,13 +119,13 @@ std::set<char> free_var(const std::shared_ptr<Term>& term) {
         }
         case Kind::AbstLambda: {
             auto t = lambda(term);
-            FV = free_var(t->expr());
+            FV = free_var(t->var().type(), t->expr());
             FV.erase(t->var().value()->name());
             return FV;
         }
         case Kind::AbstPi: {
             auto t = pi(term);
-            FV = free_var(t->expr());
+            FV = free_var(t->var().type(), t->expr());
             FV.erase(t->var().value()->name());
             return FV;
         }
@@ -173,7 +173,8 @@ std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::s
         case Kind::Square:
             return term;
         case Kind::Variable:
-            return alpha_comp(term, bind) ? copy(expr) : term;
+            // return alpha_comp(term, bind) ? copy(expr) : term;
+            return alpha_comp(term, bind) ? expr : term;
         case Kind::Application: {
             auto t = appl(term);
             return appl(
@@ -184,7 +185,7 @@ std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::s
             auto t = lambda(term);
             auto new_type = substitute(t->var().type(), bind, expr);
             auto old_var = t->var().value();
-            if (alpha_comp(t->var().value(), bind)) return lambda(
+            if (alpha_comp(t->var().value(), bind) || !is_free_var(t->expr(), bind)) return lambda(
                 old_var,
                 new_type,
                 t->expr());
@@ -202,7 +203,7 @@ std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::s
             auto t = pi(term);
             auto new_type = substitute(t->var().type(), bind, expr);
             auto old_var = t->var().value();
-            if (alpha_comp(t->var().value(), bind)) return pi(
+            if (alpha_comp(t->var().value(), bind) || !is_free_var(t->expr(), bind)) return pi(
                 old_var,
                 new_type,
                 t->expr());
@@ -323,13 +324,29 @@ bool alpha_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) 
             auto la = lambda(a);
             auto lb = lambda(b);
             if (!alpha_comp(la->var().type(), lb->var().type())) return false;
-            return alpha_comp(la->expr(), substitute(lb->expr(), lb->var().value(), la->var().value()));
+            auto lax = la->var().value();
+            auto lbx = lb->var().value();
+            if (!is_free_var(lb->expr(), lax)) return alpha_comp(
+                la->expr(),
+                substitute(lb->expr(), lbx, lax));
+            auto z = get_fresh_var(lax, lbx, la->expr(), lb->expr());
+            return alpha_comp(
+                substitute(la->expr(), lax, z),
+                substitute(lb->expr(), lbx, z));
         }
         case Kind::AbstPi: {
             auto la = pi(a);
             auto lb = pi(b);
             if (!alpha_comp(la->var().type(), lb->var().type())) return false;
-            return alpha_comp(la->expr(), substitute(lb->expr(), lb->var().value(), la->var().value()));
+            auto lax = la->var().value();
+            auto lbx = lb->var().value();
+            if (!is_free_var(lb->expr(), lax)) return alpha_comp(
+                la->expr(),
+                substitute(lb->expr(), lbx, lax));
+            auto z = get_fresh_var(lax, lbx, la->expr(), lb->expr());
+            return alpha_comp(
+                substitute(la->expr(), lax, z),
+                substitute(lb->expr(), lbx, z));
         }
         case Kind::Application: {
             auto la = appl(a);
@@ -476,8 +493,15 @@ bool equiv_env(const Environment& a, const Environment& b) {
         "equiv_env(): # of definitions doesn't match",
         __FILE__, __LINE__, __func__);
     for (size_t i = 0; i < a.size(); ++i) {
+        // check_true_or_ret_false(
+        //     equiv_def(a[i], b[i]),
+        //     "equiv_env(): "
+        //         << "the " << i << "-th definition of environment doesn't match" << std::endl
+        //         << "def 1: " << a[i] << std::endl
+        //         << "def 2: " << b[i],
+        //     __FILE__, __LINE__, __func__);
         check_true_or_ret_false(
-            equiv_def(a[i], b[i]),
+            a[i].definiendum() == b[i].definiendum(),
             "equiv_env(): "
                 << "the " << i << "-th definition of environment doesn't match" << std::endl
                 << "def 1: " << a[i] << std::endl
@@ -808,6 +832,10 @@ std::shared_ptr<Term> beta_nf(const std::shared_ptr<Term>& term) {
         __FILE__, __LINE__, __func__);
 }
 
+std::shared_ptr<Term> NF(const std::shared_ptr<Term>& term, const Environment& delta) {
+    return beta_nf(delta_nf(term, delta));
+}
+
 bool is_beta_reducible(const std::shared_ptr<Term>& term) {
     check_true_or_ret_false_nomsg(term->kind() == Kind::Application);
     auto t = appl(term);
@@ -815,11 +843,81 @@ bool is_beta_reducible(const std::shared_ptr<Term>& term) {
     return true;
 }
 
+bool is_delta_reducible(const std::shared_ptr<Term>& term, const Environment& delta) {
+    check_true_or_ret_false_nomsg(term->kind() == Kind::Constant);
+    auto t = constant(term);
+    check_true_or_ret_false_nomsg(delta.lookup_index(t) >= 0);
+    check_true_or_ret_false_nomsg(!delta.lookup_def(t).is_prim());
+    return true;
+}
+
+bool is_normal_form(const std::shared_ptr<Term>& term, const Environment& delta) {
+    switch(term->kind()){
+        case Kind::Star:
+        case Kind::Square:
+        case Kind::Variable:
+            return true;
+        case Kind::Application:{
+            auto t = appl(term);
+            if (t->M()->kind() == Kind::AbstLambda) return false;
+            return is_normal_form(t->M(), delta) && is_normal_form(t->N(), delta);
+        }
+        case Kind::AbstLambda: {
+            auto t = lambda(term);
+            return is_normal_form(t->var().type(), delta) && is_normal_form(t->expr(), delta);
+        }
+        case Kind::AbstPi: {
+            auto t = pi(term);
+            return is_normal_form(t->var().type(), delta) && is_normal_form(t->expr(), delta);
+        }
+        case Kind::Constant:{
+            auto t = constant(term);
+            if (delta.lookup_index(t) < 0 || delta.lookup_def(t).is_prim()) {
+                for(auto&& arg : t->args()){
+                    if (!is_normal_form(arg, delta)) return false;
+                }
+                return true;
+            }
+            return false;
+        }
+    }
+    check_true_or_exit(
+        false,
+        "reached end of function, supposed to be unreachable",
+        __FILE__, __LINE__, __func__);
+}
+std::shared_ptr<Term> reduce_application(const std::shared_ptr<Application>& term, const Environment& delta) {
+    auto M = term->M();
+    auto N = term->N();
+    switch (M->kind()) {
+        case Kind::Star:
+        case Kind::Square:
+        case Kind::Variable:
+        case Kind::AbstPi:
+            return nullptr;
+        case Kind::AbstLambda:
+            return beta_reduce(term);
+        case Kind::Application:{
+            std::shared_ptr<Term> rM = nullptr;
+            if (rM = reduce_application(appl(M), delta)) return reduce_application(appl(rM, N), delta);
+            return nullptr;
+        }
+        case Kind::Constant:{
+            auto cM = constant(M);
+            if (delta.lookup_index(cM) < 0 || delta.lookup_def(cM).is_prim()) return nullptr;
+            return reduce_application(appl(delta_reduce(cM, delta), N), delta);
+        }
+    }
+    check_true_or_exit(
+        false,
+        "reached end of function, supposed to be unreachable",
+        __FILE__, __LINE__, __func__);
+}
+
 bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b, const Environment& delta) {
-    // naive
-    // return alpha_comp(
-    //     beta_nf(delta_nf(a, delta)),
-    //     beta_nf(delta_nf(b, delta)));
+    // std::cerr << "conv a = " << a << std::endl;
+    // std::cerr << "conv b = " << b << std::endl;
+
     if (a->kind() == b->kind()) {
         switch (a->kind()) {
             case Kind::Star:
@@ -833,12 +931,12 @@ bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>&
                 auto N = aa->N();
                 auto K = ab->M();
                 auto L = ab->N();
-                if (alpha_comp(M, K)) return is_convertible(N, L, delta);
-                if (alpha_comp(N, L)) return is_convertible(M, K, delta);
                 if (is_convertible(M, K, delta) &&
                     is_convertible(N, L, delta)) return true;
-                if (is_beta_reducible(aa)) return is_convertible(beta_reduce(aa), ab, delta);
-                if (is_beta_reducible(ab)) return is_convertible(aa, beta_reduce(ab), delta);
+                std::shared_ptr<Term> ra = nullptr;
+                if (ra = reduce_application(aa, delta)) return is_convertible(ra, ab, delta);
+                std::shared_ptr<Term> rb = nullptr;
+                if (rb = reduce_application(ab, delta)) return is_convertible(aa, rb, delta);
                 return false;
             }
             case Kind::AbstLambda: {
@@ -849,12 +947,17 @@ bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>&
                 auto N = la->expr();
                 auto y = lb->var().value();
                 auto K = lb->var().type();
-                auto L = substitute(lb->expr(), y, x);
-                if (alpha_comp(M, K)) return is_convertible(N, L, delta);
-                if (alpha_comp(N, L)) return is_convertible(M, K, delta);
-                if (is_convertible(M, K, delta) &&
-                    is_convertible(N, L, delta)) return true;
-                return false;
+                auto L = lb->expr();
+                if (!is_convertible(M, K, delta)) return false;
+                if (!is_free_var(L, x)) return is_convertible(
+                    N,
+                    substitute(L, y, x),
+                    delta);
+                auto z = get_fresh_var(x, y, N, L);
+                return is_convertible(
+                    substitute(N, x, z),
+                    substitute(L, y, z),
+                    delta);
             }
             case Kind::AbstPi: {
                 auto pa = pi(a);
@@ -864,21 +967,29 @@ bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>&
                 auto N = pa->expr();
                 auto y = pb->var().value();
                 auto K = pb->var().type();
-                auto L = substitute(pb->expr(), y, x);
-                if (alpha_comp(M, K)) return is_convertible(N, L, delta);
-                if (alpha_comp(N, L)) return is_convertible(M, K, delta);
-                if (is_convertible(M, K, delta) &&
-                    is_convertible(N, L, delta)) return true;
-                return false;
+                auto L = pb->expr();
+                if (!is_convertible(M, K, delta)) return false;
+                if (!is_free_var(L, x)) return is_convertible(
+                    N,
+                    substitute(L, y, x),
+                    delta);
+                auto z = get_fresh_var(x, y, N, L);
+                return is_convertible(
+                    substitute(N, x, z),
+                    substitute(L, y, z),
+                    delta);
             }
             case Kind::Constant: {
                 auto ca = constant(a);
                 auto cb = constant(b);
                 if (ca->name() == cb->name()) {
-                    check_true_or_ret_false_nomsg(ca->args().size() == cb->args().size());
+                    if (ca->args().size() != cb->args().size()) return is_convertible(delta_reduce(ca, delta), delta_reduce(cb, delta), delta);
                     for (size_t i = 0; i < ca->args().size(); ++i) {
                         if(!is_convertible(ca->args()[i], cb->args()[i], delta)) {
-                            return is_convertible(delta_reduce(ca, delta), delta_reduce(cb, delta), delta);
+                            if (is_delta_reducible(ca, delta) && is_delta_reducible(cb, delta)){
+                                return is_convertible(delta_reduce(ca, delta), delta_reduce(cb, delta), delta);
+                            }
+                            return false;
                         }
                     }
                     return true;
@@ -902,7 +1013,14 @@ bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>&
         }
     }
     // kind doesn't match
-    if (b->kind() == Kind::Constant) return is_convertible(a, delta_reduce(constant(b), delta), delta);
+    if (b->kind() == Kind::Constant) {
+        auto cb = constant(b);
+        if (is_delta_reducible(cb, delta)) return is_convertible(a, delta_reduce(cb, delta), delta);
+        if (a->kind() != Kind::Application) return false;
+        std::shared_ptr<Term> ra = nullptr;
+        if (ra = reduce_application(appl(a), delta)) return is_convertible(ra, cb, delta);
+        return false;
+    }
     switch (a->kind()) {
         case Kind::Star:
         case Kind::Square:
@@ -916,9 +1034,11 @@ bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>&
                 case Kind::AbstLambda:
                 case Kind::AbstPi:
                     return false;
-                case Kind::Application:
-                    if (is_beta_reducible(b)) return is_convertible(a, beta_reduce(appl(b)), delta);
+                case Kind::Application:{
+                    std::shared_ptr<Term> rb = nullptr;
+                    if (rb = reduce_application(appl(b), delta)) return is_convertible(a, rb, delta);
                     return false;
+                }
                 case Kind::Constant:
                     check_true_or_exit(
                         false,
@@ -931,11 +1051,19 @@ bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>&
                         __FILE__, __LINE__, __func__);
             }
         }
-        case Kind::Application:
-            if (is_beta_reducible(a)) return is_convertible(beta_reduce(appl(a)), b, delta);
+        case Kind::Application:{
+            std::shared_ptr<Term> ra = nullptr;
+            if (ra = reduce_application(appl(a), delta)) return is_convertible(ra, b, delta);
             return false;
-        case Kind::Constant:
-            return is_convertible(delta_reduce(constant(a), delta), b, delta);
+        }
+        case Kind::Constant:{
+            std::shared_ptr<Constant> ca = constant(a);
+            if (is_delta_reducible(a, delta)) return is_convertible(delta_reduce(constant(a), delta), b, delta);            
+            if (b->kind() != Kind::Application) return false;
+            std::shared_ptr<Term> rb = nullptr;
+            if (rb = reduce_application(appl(b), delta)) return is_convertible(a, rb, delta);
+            return false;
+        }
         default:
             check_true_or_exit(
                 false,
@@ -1102,6 +1230,10 @@ bool is_inst_applicable(const Book& book, size_t idx, size_t n, const std::vecto
 std::string Term::repr() const { return string(); }
 std::string Term::repr_new() const { return repr(); }
 std::string Term::repr_book() const { return repr(); }
+std::string Term::string_db(std::vector<char> bound) const {
+    unused(bound);
+    return string();
+}
 
 Star::Star() : Term(Kind::Star) {}
 std::string Star::string() const { return "*"; }
@@ -1113,6 +1245,12 @@ std::string Square::repr() const { return "@"; }
 
 Variable::Variable(char ch) : Term(Kind::Variable), _var_name(ch) {}
 std::string Variable::string() const { return std::string(1, _var_name); }
+std::string Variable::string_db(std::vector<char> bound) const {
+    for (int i = bound.size() - 1; i >= 0; --i) {
+        if (bound[i] == _var_name) return std::to_string(i);
+    }
+    return this->string();
+}
 const char& Variable::name() const { return _var_name; }
 char& Variable::name() { return _var_name; }
 
@@ -1134,6 +1272,9 @@ std::string Application::repr_new() const {
 }
 std::string Application::repr_book() const {
     return "(" + _M->repr_book() + ")|(" + _N->repr_book() + ")";
+}
+std::string Application::string_db(std::vector<char> bound) const {
+    return std::string("%") + _M->string_db(bound) + " " + _N->string_db(bound);
 }
 
 const std::string SYMBOL_LAMBDA = (OnlyAscii ? "$" : "λ");
@@ -1160,6 +1301,12 @@ std::string AbstLambda::repr_new() const {
 std::string AbstLambda::repr_book() const {
     return "Lam " + _var.value()->repr_book() + ":(" + _var.type()->repr_book() + ").(" + _expr->repr_book() + ")";
 }
+std::string AbstLambda::string_db(std::vector<char> bound) const {
+    std::string type = _var.type()->string_db(bound);
+    bound.push_back(_var.value()->name());
+    std::string expr = _expr->string_db(bound);
+    return SYMBOL_LAMBDA + _var.value()->string_db(bound) + ":" + type + "." + expr;
+}
 
 const std::string SYMBOL_PI = (OnlyAscii ? "?" : "Π");
 AbstPi::AbstPi(const Typed<Variable>& v, std::shared_ptr<Term> e) : Term(Kind::AbstPi), _var(v), _expr(e) {}
@@ -1184,6 +1331,12 @@ std::string AbstPi::repr_new() const {
 }
 std::string AbstPi::repr_book() const {
     return "Pai " + _var.value()->repr_book() + ":(" + _var.type()->repr_book() + ").(" + _expr->repr_book() + ")";
+}
+std::string AbstPi::string_db(std::vector<char> bound) const {
+    std::string type = _var.type()->string_db(bound);
+    bound.push_back(_var.value()->name());
+    std::string expr = _expr->string_db(bound);
+    return SYMBOL_PI + _var.value()->string_db(bound) + ":" + type + "." + expr;
 }
 
 Constant::Constant(const std::string& name, std::vector<std::shared_ptr<Term>> list) : Term(Kind::Constant), _name(name), _args(list) {}
@@ -1222,6 +1375,14 @@ std::string Constant::repr_book() const {
     res += "[";
     if (_args.size() > 0) res += "(" + _args[0]->repr_book() + ")";
     for (size_t i = 1; i < _args.size(); ++i) res += ",(" + _args[i]->repr_book() + ")";
+    res += "]";
+    return res;
+}
+std::string Constant::string_db(std::vector<char> bound) const {
+    std::string res(_name);
+    res += "[";
+    if (_args.size() > 0) res += _args[0]->string_db(bound);
+    for (size_t i = 1; i < _args.size(); ++i) res += ", " + _args[i]->string_db(bound);
     res += "]";
     return res;
 }
@@ -1410,10 +1571,7 @@ int Environment::lookup_index(const std::string& cname) const {
             return _def_index[cname] = idx;
         }
     }
-    check_true_or_exit(
-        false,
-        "constant \"" << cname << "\" not found in env",
-        __FILE__, __LINE__, __func__);
+    return -1;
 }
 int Environment::lookup_index(const std::shared_ptr<Constant>& c) const {
     return lookup_index(c->name());
@@ -1478,7 +1636,7 @@ Context& Judgement::context() { return _context; }
 std::shared_ptr<Term>& Judgement::term() { return _term; }
 std::shared_ptr<Term>& Judgement::type() { return _type; }
 
-Book::Book() : std::vector<Judgement>{} {};
+Book::Book(bool skip_check) : std::vector<Judgement>{}, _skip_check{skip_check} {};
 Book::Book(const std::vector<Judgement>& list) : std::vector<Judgement>(list) {}
 
 // inference rules
@@ -1491,7 +1649,7 @@ void Book::sort() {
 }
 void Book::var(size_t m, char x) {
     check_true_or_exit(
-        is_var_applicable(*this, m, x),
+        _skip_check || is_var_applicable(*this, m, x),
         "var at line "
             << this->size() << " not applicable "
             << "(idx = " << m << ", var = " << x << ")" << std::endl
@@ -1509,7 +1667,7 @@ void Book::var(size_t m, char x) {
 }
 void Book::weak(size_t m, size_t n, char x) {
     check_true_or_exit(
-        is_weak_applicable(*this, m, n, x),
+        _skip_check || is_weak_applicable(*this, m, n, x),
         "weak at line "
             << this->size() << " not applicable "
             << "(idx1 = " << m << ", idx2 = " << n << ", var = " << x << ")" << std::endl
@@ -1529,7 +1687,7 @@ void Book::weak(size_t m, size_t n, char x) {
 }
 void Book::form(size_t m, size_t n) {
     check_true_or_exit(
-        is_form_applicable(*this, m, n),
+        _skip_check || is_form_applicable(*this, m, n),
         "form at line "
             << this->size() << " not applicable "
             << "(idx1 = " << m << ", idx2 = " << n << ")" << std::endl
@@ -1550,7 +1708,7 @@ void Book::form(size_t m, size_t n) {
 
 void Book::appl(size_t m, size_t n) {
     check_true_or_exit(
-        is_appl_applicable(*this, m, n),
+        _skip_check || is_appl_applicable(*this, m, n),
         "appl at line "
             << this->size() << " not applicable "
             << "(idx1 = " << m << ", idx2 = " << n << ")" << std::endl
@@ -1572,7 +1730,7 @@ void Book::appl(size_t m, size_t n) {
 
 void Book::abst(size_t m, size_t n) {
     check_true_or_exit(
-        is_abst_applicable(*this, m, n),
+        _skip_check || is_abst_applicable(*this, m, n),
         "abst at line "
             << this->size() << " not applicable "
             << "(idx1 = " << m << ", idx2 = " << n << ")" << std::endl
@@ -1594,12 +1752,17 @@ void Book::abst(size_t m, size_t n) {
 
 void Book::conv(size_t m, size_t n) {
     check_true_or_exit(
-        is_conv_applicable(*this, m, n),
+        _skip_check || is_conv_applicable(*this, m, n),
         "conv at line "
             << this->size() << " not applicable "
             << "(idx1 = " << m << ", idx2 = " << n << ")" << std::endl
+            << "B1 = " << (*this)[m].type() << std::endl
+            << "B2 = " << (*this)[n].term() << std::endl
             << "final state of book:" << std::endl
-            << *this,
+            << *this << std::endl
+            << "\n####### env #######\n"
+            << std::endl
+            << (*this).back().env().repr(),
         __FILE__, __LINE__, __func__);
     auto& judge1 = (*this)[m];
     auto& judge2 = (*this)[n];
@@ -1613,7 +1776,7 @@ void Book::conv(size_t m, size_t n) {
 
 void Book::def(size_t m, size_t n, const std::string& a) {
     check_true_or_exit(
-        is_def_applicable(*this, m, n, a),
+        _skip_check || is_def_applicable(*this, m, n, a),
         "def at line "
             << this->size() << " not applicable "
             << "(idx1 = " << m << ", idx2 = " << n << ", name = " << a << ")" << std::endl
@@ -1637,7 +1800,7 @@ void Book::def(size_t m, size_t n, const std::string& a) {
 
 void Book::defpr(size_t m, size_t n, const std::string& a) {
     check_true_or_exit(
-        is_def_applicable(*this, m, n, a),
+        _skip_check || is_def_applicable(*this, m, n, a),
         "defpr at line "
             << this->size() << " not applicable "
             << "(idx1 = " << m << ", idx2 = " << n << ", name = " << a << ")" << std::endl
@@ -1660,7 +1823,7 @@ void Book::defpr(size_t m, size_t n, const std::string& a) {
 
 void Book::inst(size_t m, size_t n, const std::vector<size_t>& k, size_t p) {
     check_true_or_exit(
-        is_inst_applicable(*this, m, n, k, p),
+        _skip_check || is_inst_applicable(*this, m, n, k, p),
         "inst at line "
             << this->size() << " not applicable "
             << "(idx1 = " << m << ", n = " << n << ", k = " << to_string(k) << ", p = " << p << ")" << std::endl

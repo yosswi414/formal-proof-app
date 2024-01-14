@@ -67,6 +67,7 @@ class Term {
     virtual std::string repr() const;
     virtual std::string repr_new() const;
     virtual std::string repr_book() const;
+    virtual std::string string_db(std::vector<char> bound = {}) const;
 
   protected:
     Term(const Kind& k) : _kind(k) {}
@@ -92,6 +93,7 @@ class Variable : public Term {
   public:
     Variable(char ch);
     std::string string() const override;
+    std::string string_db(std::vector<char> bound = {}) const override;
     const char& name() const;
     char& name();
 
@@ -112,6 +114,7 @@ class Application : public Term {
     std::string repr() const override;
     std::string repr_new() const override;
     std::string repr_book() const override;
+    std::string string_db(std::vector<char> bound = {}) const override;
 
   private:
     std::shared_ptr<Term> _M, _N;
@@ -153,6 +156,7 @@ class AbstLambda : public Term {
     std::string repr() const override;
     std::string repr_new() const override;
     std::string repr_book() const override;
+    std::string string_db(std::vector<char> bound = {}) const override;
 
   private:
     Typed<Variable> _var;
@@ -173,6 +177,7 @@ class AbstPi : public Term {
     std::string repr() const override;
     std::string repr_new() const override;
     std::string repr_book() const override;
+    std::string string_db(std::vector<char> bound = {}) const override;
 
   private:
     Typed<Variable> _var;
@@ -194,6 +199,7 @@ class Constant : public Term {
     std::string repr() const override;
     std::string repr_new() const override;
     std::string repr_book() const override;
+    std::string string_db(std::vector<char> bound = {}) const override;
 
   private:
     std::string _name;
@@ -382,7 +388,10 @@ std::shared_ptr<Term> delta_reduce(const std::shared_ptr<Constant>& term, const 
 std::shared_ptr<Term> delta_nf(const std::shared_ptr<Term>& term, const Environment& delta);
 std::shared_ptr<Term> beta_nf(const std::shared_ptr<Term>& term);
 
+std::shared_ptr<Term> NF(const std::shared_ptr<Term>& term, const Environment& delta);
+
 bool is_beta_reducible(const std::shared_ptr<Term>& term);
+bool is_delta_reducible(const std::shared_ptr<Term>& term, const Environment& delta);
 
 bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b, const Environment& delta);
 
@@ -393,7 +402,7 @@ bool is_inst_applicable(const Book& book, size_t idx, size_t n, const std::vecto
 
 class Book : public std::vector<Judgement> {
   public:
-    Book();
+    Book(bool skip_check = false);
     Book(const std::vector<Judgement>& list);
     template <class... Ts>
     Book(Ts... vals) : std::vector<Judgement>{vals...} {}
@@ -424,4 +433,5 @@ class Book : public std::vector<Judgement> {
   private:
     Environment _env;
     std::map<std::string, int> _def_dict;
+    bool _skip_check = false;
 };
