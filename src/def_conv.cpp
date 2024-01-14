@@ -89,8 +89,10 @@ int main(int argc, char* argv[]) {
                 std::cout << env.string(false) << std::endl;
                 break;
             default:
-                std::cerr << "invalid notation value = " << notation << std::endl;
-                exit(EXIT_FAILURE);
+                check_true_or_exit(
+                    false,
+                    "invalid notation value = " << notation,
+                    __FILE__, __LINE__, __func__);
         }
     }
 

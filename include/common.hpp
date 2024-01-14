@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <set>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -74,12 +75,39 @@ std::set<T>& set_minus_inplace(std::set<T>& a, const std::set<T>& b) {
     return a;
 }
 
-#define check_true(expr)           \
-    do {                           \
-        if (!(expr)) return false; \
-    } while (false);
-#define check_false(expr)       \
-    do {                        \
-        if (expr) return false; \
-    } while (false);
+#define check_true_or_exec(expr, msg, exec, file, line, func, quiet)                       \
+    do {                                                                            \
+        if (!(expr)) {                                                              \
+            if (!(quiet) || DEBUG_CERR) std::cerr << "error: assertion \"" #expr "\" failed." << std::endl      \
+                      << (file) << ": In function `" << (func) << "()`:" << std::endl \
+                      << (file) << ":" << (line) << ": " << msg << std::endl;       \
+            exec;                                                                   \
+        }                                                                           \
+    } while (false)
 
+#define check_true_or_ret(expr, msg, ret, file, line, func) check_true_or_exec(expr, msg, return (ret), file, line, func, true)
+#define check_true_or_ret_false(expr, msg, file, line, func) check_true_or_ret(expr, msg, false, file, line, func)
+#define check_true_or_exit(expr, msg, file, line, func) check_true_or_exec(expr, msg, exit(EXIT_FAILURE), file, line, func, false)
+
+#define check_true_or_ret_false_nomsg(expr) check_true_or_ret_false(expr, "", "", 0, "")
+
+template <class T>
+std::string to_string(const std::set<T>& s) {
+    std::stringstream ss;
+    ss << "{";
+    auto itr = s.begin();
+    if (!s.empty()) ss << *itr;
+    while (itr != s.end()) ss << ", " << *itr;
+    ss << "}";
+    return ss.str();
+}
+
+template <class T>
+std::string to_string(const std::vector<T>& v) {
+    std::stringstream ss;
+    ss << "[";
+    if (v.size() > 0) ss << v[0];
+    for (size_t i = 1; i < v.size(); ++i) ss << ", " << v[i];
+    ss << "]";
+    return ss.str();
+}
