@@ -13,9 +13,11 @@
     std::cerr << "with no FILE, read stdin. options:\n"
               << std::endl;
     std::cerr << "\t-f FILE     read FILE instead of stdin" << std::endl;
-    std::cerr << "\t-c          output def file in conventional notation" << std::endl;
-    std::cerr << "\t-n          output def file in new notation" << std::endl;
-    std::cerr << "\t-r          output def file in rich notation" << std::endl;
+    std::cerr << "\t-c          output book (judgements) in conventional notation" << std::endl;
+    std::cerr << "\t-n          output book in new notation" << std::endl;
+    std::cerr << "\t-r          output book in rich notation" << std::endl;
+    std::cerr << "\t-l LINES    read script until line LINES" << std::endl;
+    std::cerr << "\t-d def_file read def_file for definition reference" << std::endl;
     std::cerr << "\t-v          verbose output for debugging purpose" << std::endl;
     std::cerr << "\t-s          suppress output and just verify input (overrides -v)" << std::endl;
     std::cerr << "\t-h          display this help and exit" << std::endl;
@@ -31,16 +33,23 @@ enum Notation {
 
 int main(int argc, char* argv[]) {
     FileData data;
-    std::string fname("");
+    std::string fname(""), def_file("");
     int notation = Conventional;
     bool is_verbose = false;
     bool is_quiet = false;
+    size_t limit = std::string::npos;
 
     for (int i = 1; i < argc; ++i) {
         std::string arg(argv[i]);
         if (arg[0] == '-') {
             if (arg == "-f") {
                 fname = std::string(argv[++i]);
+                continue;
+            }           else if (arg == "-d") {
+                def_file = std::string(argv[++i]);
+                continue;
+            } else if (arg == "-l") {
+                limit = std::stoi(argv[++i]);
                 continue;
             } else if (arg == "-c") notation = Conventional;
             else if (arg == "-n") notation = New;
@@ -65,9 +74,12 @@ int main(int argc, char* argv[]) {
     else data = FileData(fname);
 
     Book book;
+    if (def_file.size() > 0) book.read_def_file(def_file);
+
+    if (limit == std::string::npos) limit = data.size();
 
     std::stringstream ss;
-    for (size_t i = 0; i < data.size(); ++i) {
+    for (size_t i = 0; i < limit; ++i) {
         ss << data[i];
         int lno;
         std::string op;
@@ -77,22 +89,128 @@ int main(int argc, char* argv[]) {
         if (op == "sort") {
             book.sort();
         } else if (op == "var") {
-            int m;
+            size_t m;
             char x;
-            ss >> m >> x;
+            check_true_or_exit(
+                ss >> m >> x,
+                op
+                    << ": too few arguments are given, or type of argument is wrong"
+                    << " (line " << i + 1 << ")",
+                __FILE__, __LINE__, __func__);
             book.var(m, x);
         } else if (op == "weak") {
-            int m, n;
+            size_t m, n;
             char x;
-            ss >> m >> n >> x;
+            check_true_or_exit(
+                ss >> m >> n >> x,
+                op
+                    << ": too few arguments are given, or type of argument is wrong"
+                    << " (line " << i + 1 << ")",
+                __FILE__, __LINE__, __func__);
             book.weak(m, n, x);
         } else if (op == "form") {
-            int m, n;
-            ss >> m >> n;
+            size_t m, n;
+            check_true_or_exit(
+                ss >> m >> n,
+                op
+                    << ": too few arguments are given, or type of argument is wrong"
+                    << " (line " << i + 1 << ")",
+                __FILE__, __LINE__, __func__);
             book.form(m, n);
+        } else if (op == "appl") {
+            size_t m, n;
+            check_true_or_exit(
+                ss >> m >> n,
+                op
+                    << ": too few arguments are given, or type of argument is wrong"
+                    << " (line " << i + 1 << ")",
+                __FILE__, __LINE__, __func__);
+            book.appl(m, n);
+        } else if (op == "abst") {
+            size_t m, n;
+            check_true_or_exit(
+                ss >> m >> n,
+                op
+                    << ": too few arguments are given, or type of argument is wrong"
+                    << " (line " << i + 1 << ")",
+                __FILE__, __LINE__, __func__);
+            book.abst(m, n);
+        } else if (op == "conv") {
+            size_t m, n;
+            check_true_or_exit(
+                ss >> m >> n,
+                op
+                    << ": too few arguments are given, or type of argument is wrong"
+                    << " (line " << i + 1 << ")",
+                __FILE__, __LINE__, __func__);
+            book.conv(m, n);
+        } else if (op == "def") {
+            size_t m, n;
+            std::string a;
+            check_true_or_exit(
+                ss >> m >> n >> a,
+                op
+                    << ": too few arguments are given, or type of argument is wrong"
+                    << " (line " << i + 1 << ")",
+                __FILE__, __LINE__, __func__);
+            book.def(m, n, a);
+        } else if (op == "defpr") {
+            size_t m, n;
+            std::string a;
+            check_true_or_exit(
+                ss >> m >> n >> a,
+                op
+                    << ": too few arguments are given, or type of argument is wrong"
+                    << " (line " << i + 1 << ")",
+                __FILE__, __LINE__, __func__);
+            book.defpr(m, n, a);
+        } else if (op == "inst") {
+            size_t m, n, p;
+            check_true_or_exit(
+                ss >> m >> n,
+                op
+                    << ": too few arguments are given, or type of argument is wrong"
+                    << " (line " << i + 1 << ")",
+                __FILE__, __LINE__, __func__);
+            std::vector<size_t> k(n);
+            for (auto&& ki : k) {
+                check_true_or_exit(
+                    ss >> ki,
+                    op
+                        << ": too few arguments are given, or type of argument is wrong"
+                        << " (line " << i + 1 << ")",
+                    __FILE__, __LINE__, __func__);
+            }
+            check_true_or_exit(
+                ss >> p,
+                op
+                    << ": too few arguments are given, or type of argument is wrong"
+                    << " (line " << i + 1 << ")",
+                __FILE__, __LINE__, __func__);
+            book.inst(m, n, k, p);
+        } else if (op == "cp") {
+            size_t m;
+            check_true_or_exit(
+                ss >> m,
+                op
+                    << ": too few arguments are given, or type of argument is wrong"
+                    << " (line " << i + 1 << ")",
+                __FILE__, __LINE__, __func__);
+            book.cp(m);
+        } else if (op == "sp") {
+            size_t m, n;
+            check_true_or_exit(
+                ss >> m >> n,
+                op
+                    << ": too few arguments are given, or type of argument is wrong"
+                    << " (line " << i + 1 << ")",
+                __FILE__, __LINE__, __func__);
+            book.sp(m, n);
         } else {
-            std::cerr << "read error" << std::endl;
-            exit(EXIT_FAILURE);
+            check_true_or_exit(
+                false,
+                "read error (token: " << op << ")",
+                __FILE__, __LINE__, __func__);
         }
         if (!is_quiet && is_verbose) std::cout << book.string() << std::endl;
         ss.clear();
@@ -111,8 +229,10 @@ int main(int argc, char* argv[]) {
                 std::cout << book.string() << std::endl;
                 break;
             default:
-                std::cerr << "invalid notation value = " << notation << std::endl;
-                exit(EXIT_FAILURE);
+                check_true_or_exit(
+                    false,
+                    "invalid notation value = " << notation,
+                    __FILE__, __LINE__, __func__);
         }
     }
 
