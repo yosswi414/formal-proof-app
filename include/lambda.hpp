@@ -239,6 +239,10 @@ std::shared_ptr<Variable> variable(const char& ch);
 extern std::shared_ptr<Star> star;
 extern std::shared_ptr<Square> sq;
 std::shared_ptr<Application> appl(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b);
+template <class... Ts>
+std::shared_ptr<Application> appl(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b, Ts... terms) {
+    return appl(appl(a, b), terms...);
+}
 std::shared_ptr<AbstLambda> lambda(const std::shared_ptr<Term>& v, const std::shared_ptr<Term>& t, const std::shared_ptr<Term>& e);
 std::shared_ptr<AbstPi> pi(const std::shared_ptr<Term>& v, const std::shared_ptr<Term>& t, const std::shared_ptr<Term>& e);
 std::shared_ptr<Constant> constant(const std::string& name, const std::vector<std::shared_ptr<Term>>& ts);
