@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -67,11 +68,11 @@ void test_alpha_subst() {
 
     sep();
 
-    auto la1 = lambda(x, star, lambda(y, star, appl(appl(x, z), y)));
-    auto la2 = lambda(v, star, lambda(y, star, appl(appl(v, z), y)));
-    auto la3 = lambda(v, star, lambda(u, star, appl(appl(v, z), u)));
-    auto la4 = lambda(y, star, lambda(y, star, appl(appl(y, z), y)));
-    auto la5 = lambda(z, star, lambda(y, star, appl(appl(z, z), y)));
+    auto la1 = lambda(x, star, lambda(y, star, appl(x, z, y)));
+    auto la2 = lambda(v, star, lambda(y, star, appl(v, z, y)));
+    auto la3 = lambda(v, star, lambda(u, star, appl(v, z, u)));
+    auto la4 = lambda(y, star, lambda(y, star, appl(y, z, y)));
+    auto la5 = lambda(z, star, lambda(y, star, appl(z, z, y)));
 
     show(la1);
     show(la2);
@@ -109,10 +110,10 @@ void test_alpha_subst() {
     sep();
 
     // (3)
-    auto lhs3 = lambda(x, star, lambda(y, star, appl(appl(z, z), x)));
-    auto rhs3_1 = lambda(u, star, lambda(v, star, appl(appl(y, y), u)));
-    auto rhs3_2 = lambda(x, star, lambda(v, star, appl(appl(y, y), x)));
-    auto rhs3_3 = lambda(x, star, lambda(y, star, appl(appl(y, y), x)));
+    auto lhs3 = lambda(x, star, lambda(y, star, appl(z, z, x)));
+    auto rhs3_1 = lambda(u, star, lambda(v, star, appl(y, y, u)));
+    auto rhs3_2 = lambda(x, star, lambda(v, star, appl(y, y, x)));
+    auto rhs3_3 = lambda(x, star, lambda(y, star, appl(y, y, x)));
     show(lhs3);
     subst_show(lhs3, z, y);
     show(rhs3_1);
@@ -155,6 +156,81 @@ void test_subst() {
     test_result();
 }
 
+#define cshow(a, ...)                                                                      \
+    do {                                                                                \
+        std::cerr << #a ", " #__VA_ARGS__ << " |> " << beta_nf(appl(a, __VA_ARGS__)) << std::endl; \
+    } while (false)
+
+#define btest(from, to)                                                               \
+    do {                                                                              \
+        bool v = alpha_comp(beta_nf(from), to);                                       \
+        std::cerr << #from " |> " #to " --> " << (v ? "true" : "false") << std::endl; \
+        ++(v ? test_success : test_fail);                                             \
+    } while (false)
+
+void test_sandbox() {
+#define defvar(vname) std::shared_ptr<Variable> vname = variable(#vname[0])
+    defvar(x);
+    defvar(y);
+    defvar(z);
+
+    std::cerr << "[combinator test]" << std::endl;
+
+    using Expr = std::shared_ptr<Term>;
+
+    // untyped abstraction λv.e
+    auto abst = [](const std::shared_ptr<Variable>& v, const Expr& e) { return lambda(v, star, e); };
+
+    // identity; I(f) = f
+    Expr I = abst(x, x);
+    // constant; K(c)(x) = c
+    Expr K = abst(x, abst(y, x));
+    // stronger composition; S(f, g)(x) = f(x, g(x))
+    Expr S = abst(x, abst(y, abst(z, appl(x, z, appl(y, z)))));
+
+    // basic combinators
+    show(I);
+    show(K);
+    show(S);
+
+    // weak reduction
+    btest(appl(I, x), x);
+    btest(appl(K, x, y), x);
+    btest(appl(S, x, y, z), appl(x, z, appl(y, z)));
+
+    // composition; B(f, g)(x) = f(g(x))
+    Expr B = appl(S, appl(K, S), K);
+    btest(appl(B, x, y, z), appl(x, appl(y, z)));
+
+    // commutativity; C(f)(x, y) = f(y, x)
+    Expr C = appl(S, appl(B, B, S), appl(K, K));
+    btest(appl(C, x, y, z), appl(x, z, y));
+
+    // diagonalizer; W(f)(x) = f(x, x)
+    Expr W = appl(S, S, appl(K, I ));
+    btest(appl(W, x, y), appl(x, y, y));
+
+    Expr I2 = appl(W, K);
+    Expr S2 = appl(B, appl(B, appl(B, W), C), appl(B, B));
+    Expr S3 = appl(B, appl(B, W), appl(B, B, C));
+    btest(appl(I2, x), x);
+    btest(appl(S2, x, y, z), appl(x, z, appl(y, z)));
+    btest(appl(S3, x, y, z), appl(x, z, appl(y, z)));
+
+    // swap; M(x, y) = (y, x)
+    Expr M = appl(C, I);
+    btest(appl(M, x, y), appl(y, x));
+
+    Expr M2 = appl(S, appl(K, appl(S, I)), K);
+    btest(appl(M2, x, y), appl(y, x));
+
+    // irreducible
+    // Expr irr = appl(S, I, I, appl(S, I, I));
+    // cshow(irr);
+
+    test_result();
+}
+
 void test_reduction1(const Environment& delta) {
     std::cerr << "[beta / delta reduction test]" << std::endl;
     auto S = variable('S');
@@ -182,7 +258,7 @@ void test_reduction1(const Environment& delta) {
     show(ansnB);
     show(delta_reduce(constant(exprB), delta));
     test(is_convertible(exprB, ansnB, delta));
-    
+
     exprB = constant("element", {S, x, constant("emptyset", {S})});
     ansnB = constant("contra", {});
     show(exprB);
@@ -228,8 +304,8 @@ void test_reduction2(const Environment& delta) {
 void test_reduction3(const Environment& delta) {
     std::cerr << "[delta reduction test 3]" << std::endl;
     std::shared_ptr<Term> exprB, ansnB;
-    
-    try{
+
+    try {
         exprB = parse_lambda("Rset_fig14-10[A, a, f, g, spec_rec_thD22C[A, a, f, g, e, v, b, u]]");
         ansnB = parse_lambda(
             R"(?q:*.?r:?r:?j:*.?l:?l:?l:?c:integer[].?d:A.*.?c:?c:*.?k:?k:%%l zero[] a.?h:?h:integer[].?m:A.?i:*.?o:?n:?n:?n:*.?o:?o:?o:?d:integer[].*.?d:?d:*.?r:?r:%o zero[].?s:?s:integer[].?t:%o s.%o %Funcs[] s.d.d.%o iota[integer[], $r:integer[].eq[integer[], %Funcs[] r, %Funcs[] h], a12_14-3[%Funcs[] h]].?d:%%l h m.n.n.%%l %Funcs[] h %f m.?o:?o:?o:*.?r:?r:?r:?r:?d:integer[].*.?s:?s:*.?t:?t:%r zero[].?x:?x:integer[].?d:%r x.%r %Funcs[] x.s.s.%r iota[integer[], $d:integer[].eq[integer[], %Funcs[] d, h], a12_14-3[h]].?d:*.d.?d:%%l h m.o.o.%%l iota[integer[], $d:integer[].eq[integer[], %Funcs[] d, h], a12_14-3[h]] %g m.i.i.c.c.%%l zero[] a.?h:?h:?h:*.?d:?d:?d:?c:integer[].*.?c:*.?i:?i:?i:%d zero[].%d %Funcs[] e.?k:?k:%d %Funcs[] e.%d zero[].c.c.?i:?i:?c:A.*.?c:*.?k:?k:?k:%i a.%i b.?m:?m:%i b.%i a.c.c.h.h.?c:*.c.j.j.?s:?s:integer[].?n:A.?t:*.?x:?x:?m:?m:*.?x:?x:?h:?c:integer[].*.?c:?c:*.?i:?i:%h zero[].?j:?j:integer[].?d:%h j.%h %Funcs[] j.c.c.%h iota[integer[], $d:integer[].eq[integer[], %Funcs[] d, %Funcs[] s], a12_14-3[%Funcs[] s]].?y:?y:*.?z:?z:?z:?c:integer[].?d:A.*.?l:?l:*.?o:?o:%%z zero[] a.?B:?B:integer[].?k:A.?j:*.?i:?i:?h:?h:*.?i:?i:?i:?c:integer[].*.?d:?d:*.?c:?c:%i zero[].?C:?C:integer[].?D:%i C.%i %Funcs[] C.d.d.%i iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, %Funcs[] B], a12_14-3[%Funcs[] B]].?c:%%z B k.h.h.%%z %Funcs[] B %f k.?d:?d:?d:*.?h:?h:?h:?h:?c:integer[].*.?c:?c:*.?C:?C:%h zero[].?D:?D:integer[].?E:%h D.%h %Funcs[] D.c.c.%h iota[integer[], $C:integer[].eq[integer[], %Funcs[] C, B], a12_14-3[B]].?c:*.c.?c:%%z B k.d.d.%%z iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, B], a12_14-3[B]] %g k.j.j.l.l.%%z s n.?d:?d:?d:*.?i:?h:?c:?c:integer[].*.?h:*.?i:?i:?i:%c s.%c %Funcs[] e.?j:?j:%c %Funcs[] e.%c s.h.h.?i:?i:?c:A.*.?j:*.?c:?c:?c:%i n.%i b.?k:?k:%i b.%i n.j.j.d.d.?c:*.c.y.y.m.m.?x:*.?y:?y:?y:?c:integer[].?d:A.*.?l:?l:*.?o:?o:%%y zero[] a.?z:?z:integer[].?k:A.?j:*.?i:?i:?h:?h:*.?i:?i:?i:?c:integer[].*.?d:?d:*.?c:?c:%i zero[].?B:?B:integer[].?C:%i B.%i %Funcs[] B.d.d.%i iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, %Funcs[] z], a12_14-3[%Funcs[] z]].?c:%%y z k.h.h.%%y %Funcs[] z %f k.?d:?d:?d:*.?h:?h:?h:?h:?c:integer[].*.?c:?c:*.?B:?B:%h zero[].?C:?C:integer[].?D:%h C.%h %Funcs[] C.c.c.%h iota[integer[], $B:integer[].eq[integer[], %Funcs[] B, z], a12_14-3[z]].?c:*.c.?c:%%y z k.d.d.%%y iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, z], a12_14-3[z]] %g k.j.j.l.l.%%y %Funcs[] s %f n.?h:?h:?h:*.?i:?i:?d:?c:integer[].*.?c:*.?i:?i:?i:%d %Funcs[] s.%d %Funcs[] e.?j:?j:%d %Funcs[] e.%d %Funcs[] s.c.c.?j:?j:?c:A.*.?c:*.?d:?d:?d:%j %f n.%j b.?k:?k:%j b.%j %f n.c.c.h.h.?c:*.c.x.x.?y:?y:?m:*.?y:?y:?h:?h:?c:integer[].*.?c:?c:*.?i:?i:%h zero[].?j:?j:integer[].?d:%h j.%h %Funcs[] j.c.c.%h iota[integer[], $d:integer[].eq[integer[], %Funcs[] d, s], a12_14-3[s]].?c:*.c.?z:?z:*.?B:?B:?B:?c:integer[].?d:A.*.?l:?l:*.?o:?o:%%B zero[] a.?C:?C:integer[].?k:A.?j:*.?i:?i:?h:?h:*.?i:?i:?i:?c:integer[].*.?d:?d:*.?c:?c:%i zero[].?D:?D:integer[].?E:%i D.%i %Funcs[] D.d.d.%i iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, %Funcs[] C], a12_14-3[%Funcs[] C]].?c:%%B C k.h.h.%%B %Funcs[] C %f k.?d:?d:?d:*.?h:?h:?h:?h:?c:integer[].*.?c:?c:*.?D:?D:%h zero[].?E:?E:integer[].?F:%h E.%h %Funcs[] E.c.c.%h iota[integer[], $D:integer[].eq[integer[], %Funcs[] D, C], a12_14-3[C]].?c:*.c.?c:%%B C k.d.d.%%B iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, C], a12_14-3[C]] %g k.j.j.l.l.%%B s n.?d:?d:?d:*.?i:?h:?c:?c:integer[].*.?h:*.?i:?i:?i:%c s.%c %Funcs[] e.?j:?j:%c %Funcs[] e.%c s.h.h.?i:?i:?c:A.*.?j:*.?c:?c:?c:%i n.%i b.?k:?k:%i b.%i n.j.j.d.d.?c:*.c.z.z.m.m.?z:*.?m:?m:?i:?c:integer[].?d:A.*.?B:?B:*.?o:?o:%%i zero[] a.?C:?C:integer[].?l:A.?k:*.?j:?j:?h:?h:*.?j:?j:?j:?c:integer[].*.?m:?m:*.?c:?c:%j zero[].?D:?D:integer[].?d:%j D.%j %Funcs[] D.m.m.%j iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, %Funcs[] C], a12_14-3[%Funcs[] C]].?c:%%i C l.h.h.%%i %Funcs[] C %f l.?d:?d:?d:*.?h:?h:?h:?h:?c:integer[].*.?c:?c:*.?m:?m:%h zero[].?D:?D:integer[].?E:%h D.%h %Funcs[] D.c.c.%h iota[integer[], $m:integer[].eq[integer[], %Funcs[] m, C], a12_14-3[C]].?c:*.c.?c:%%i C l.d.d.%%i iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, C], a12_14-3[C]] %g l.k.k.B.B.%%i iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, s], a12_14-3[s]] %g n.?j:?j:?j:*.?i:?i:?i:?c:integer[].*.?d:*.?c:?c:?c:%i iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, s], a12_14-3[s]].%i %Funcs[] e.?h:?h:%i %Funcs[] e.%i iota[integer[], $k:integer[].eq[integer[], %Funcs[] k, s], a12_14-3[s]].d.d.?c:?c:?c:A.*.?d:*.?h:?h:?h:%c %g n.%c b.?k:?k:%c b.%c %g n.d.d.j.j.?c:*.c.z.z.t.t.q.q)");
@@ -244,9 +320,8 @@ void test_reduction3(const Environment& delta) {
     auto eBdnf = delta_nf(exprB, delta);
     show(eBdnf);
 
-
     test(is_convertible(exprB, ansnB, delta));
-    
+
     test_result();
 }
 
@@ -265,5 +340,6 @@ int main() {
     // test_subst();
     // test_reduction1(delta);
     // test_reduction2(delta);
-    test_reduction3(delta);
+    test_sandbox();
+    // test_reduction3(delta);
 }
