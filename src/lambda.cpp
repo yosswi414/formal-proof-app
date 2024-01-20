@@ -21,9 +21,9 @@
  *              "A:*" -> "A\n*"
  *              "implies := ?x:A.B : *" -> "implies\n?x:(A).(B)\n*"
  * - [done] alpha equiv
- * - beta reduction
+ * - [done] beta reduction
  *      essential for conv
- * - delta reduction
+ * - [done] delta reduction
  * [IDEA]
  * - rename: AbstLambda -> Lambda, AbstPi -> Pi
  * - flag: environment variable for definition
@@ -555,13 +555,13 @@ bool is_sort(const std::shared_ptr<Term>& t) {
 
 bool is_var_applicable(const Book& book, size_t idx, char var) {
     const auto& judge = book[idx];
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         is_sort(judge.type()),
         "type of judgement is neither * nor @"
             << std::endl
             << "type: " << judge.type(),
         __FILE__, __LINE__, __func__);
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         !has_variable(judge.context(), var),
         "context already has a variable " << var,
         __FILE__, __LINE__, __func__);
@@ -571,27 +571,27 @@ bool is_var_applicable(const Book& book, size_t idx, char var) {
 bool is_weak_applicable(const Book& book, size_t idx1, size_t idx2, char var) {
     const auto& judge1 = book[idx1];
     const auto& judge2 = book[idx2];
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         equiv_env(judge1.env(), judge2.env()),
         "environment doesn't match"
             << std::endl
             << "env 1: " << judge1.env() << std::endl
             << "env 2: " << judge2.env(),
         __FILE__, __LINE__, __func__);
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         equiv_context(judge1.context(), judge2.context()),
         "context doesn't match"
             << std::endl
             << "context 1: " << judge1.context() << std::endl
             << "context 2: " << judge2.context(),
         __FILE__, __LINE__, __func__);
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         is_sort(judge2.type()),
         "type of 2nd judgement is neither * nor @"
             << std::endl
             << "type: " << judge2.type(),
         __FILE__, __LINE__, __func__);
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         !has_variable(judge1.context(), var),
         "context already has a variable " << var,
         __FILE__, __LINE__, __func__);
@@ -601,40 +601,40 @@ bool is_weak_applicable(const Book& book, size_t idx1, size_t idx2, char var) {
 bool is_form_applicable(const Book& book, size_t idx1, size_t idx2) {
     const auto& judge1 = book[idx1];
     const auto& judge2 = book[idx2];
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         equiv_env(judge1.env(), judge2.env()),
         "environment doesn't match"
             << std::endl
             << "env 1: " << judge1.env() << std::endl
             << "env 2: " << judge2.env(),
         __FILE__, __LINE__, __func__);
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         equiv_context_n(judge1.context(), judge2.context(), judge1.context()->size()),
         "first " << judge1.context()->size() << " statements of context doesn't match" << std::endl
                  << "context 1: " << judge1.context() << std::endl
                  << "context 2: " << judge2.context(),
         __FILE__, __LINE__, __func__);
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         judge1.context()->size() + 1 == judge2.context()->size(),
         "size of context is not appropriate"
             << std::endl
             << "size 1: " << judge1.context()->size() << std::endl
             << "size 2: " << judge2.context()->size() << " (should have 1 more)",
         __FILE__, __LINE__, __func__);
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         alpha_comp(judge1.term(), judge2.context()->back().type()),
         "term of 1st judge and type of last statement of context doesn't match"
             << std::endl
             << "term: " << judge1.term() << std::endl
             << "type: " << judge2.context()->back().type(),
         __FILE__, __LINE__, __func__);
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         is_sort(judge1.type()),
         "type of 1st judgement is neither * nor @"
             << std::endl
             << "type: " << judge1.type(),
         __FILE__, __LINE__, __func__);
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         is_sort(judge2.type()),
         "type of 2nd judgement is neither * nor @"
             << std::endl
@@ -646,28 +646,28 @@ bool is_form_applicable(const Book& book, size_t idx1, size_t idx2) {
 bool is_appl_applicable(const Book& book, size_t idx1, size_t idx2) {
     const auto& judge1 = book[idx1];
     const auto& judge2 = book[idx2];
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         equiv_env(judge1.env(), judge2.env()),
         "environment doesn't match"
             << std::endl
             << "env 1: " << judge1.env() << std::endl
             << "env 2: " << judge2.env(),
         __FILE__, __LINE__, __func__);
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         equiv_context(judge1.context(), judge2.context()),
         "context doesn't match"
             << std::endl
             << "context 1: " << judge1.context() << std::endl
             << "context 2: " << judge2.context(),
         __FILE__, __LINE__, __func__);
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         judge1.type()->kind() == Kind::AbstPi,
         "type of 1st judgement is not a pi abstraction"
             << std::endl
             << "type: " << judge1.type(),
         __FILE__, __LINE__, __func__);
     auto p = pi(judge1.type());
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         alpha_comp(p->var().type(), judge2.type()),
         "type of bound variable is not alpha-equivalent to the type of 2nd judgement"
             << std::endl
@@ -680,28 +680,28 @@ bool is_appl_applicable(const Book& book, size_t idx1, size_t idx2) {
 bool is_abst_applicable(const Book& book, size_t idx1, size_t idx2) {
     const auto& judge1 = book[idx1];
     const auto& judge2 = book[idx2];
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         equiv_env(judge1.env(), judge2.env()),
         "abst: "
             << "environment doesn't match" << std::endl
             << "env 1: " << judge1.env() << std::endl
             << "env 2: " << judge2.env(),
         __FILE__, __LINE__, __func__);
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         equiv_context_n(judge1.context(), judge2.context(), judge2.context()->size()),
         "abst: "
             << "first " << judge2.context()->size() << " statements of context doesn't match" << std::endl
             << "context 1: " << judge1.context() << std::endl
             << "context 2: " << judge2.context(),
         __FILE__, __LINE__, __func__);
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         judge1.context()->size() == judge2.context()->size() + 1,
         "abst: "
             << "size of context is not appropriate" << std::endl
             << "size 1: " << judge1.context()->size() << std::endl
             << "size 2: " << judge2.context()->size() << " (should have 1 less)",
         __FILE__, __LINE__, __func__);
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         judge2.term()->kind() == Kind::AbstPi,
         "abst: "
             << "term of 2nd judgement is not a pi abstraction" << std::endl
@@ -711,28 +711,28 @@ bool is_abst_applicable(const Book& book, size_t idx1, size_t idx2) {
     auto x = judge1.context()->back().value();
     auto A = judge1.context()->back().type();
     auto B = judge1.type();
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         alpha_comp(p->var().value(), x),
         "abst: "
             << "bound variable is not alpha-equivalent to the last variable in context" << std::endl
             << "bound: " << p->var().value() << std::endl
             << "    x: " << x,
         __FILE__, __LINE__, __func__);
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         alpha_comp(p->var().type(), A),
         "abst: "
             << "type of bound variable is not alpha-equivalent to the last type in context" << std::endl
             << "bound type: " << p->var().type() << std::endl
             << " last type: " << A,
         __FILE__, __LINE__, __func__);
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         alpha_comp(p->expr(), B),
         "abst: "
             << "expr of pi abstraction is not alpha-equivalent to the type of 1st judgement" << std::endl
             << "expr pi: " << p->expr() << std::endl
             << " type 1: " << B,
         __FILE__, __LINE__, __func__);
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         is_sort(judge2.type()),
         "abst: "
             << "type of 2nd judgement is not a sort" << std::endl
@@ -1101,14 +1101,14 @@ bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>&
 bool is_conv_applicable(const Book& book, size_t idx1, size_t idx2) {
     const auto& judge1 = book[idx1];
     const auto& judge2 = book[idx2];
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         equiv_env(judge1.env(), judge2.env()),
         "environment doesn't match"
             << std::endl
             << "env 1: " << judge1.env() << std::endl
             << "env 2: " << judge2.env(),
         __FILE__, __LINE__, __func__);
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         equiv_context(judge1.context(), judge2.context()),
         "context doesn't match"
             << std::endl
@@ -1118,14 +1118,14 @@ bool is_conv_applicable(const Book& book, size_t idx1, size_t idx2) {
     auto B1 = judge1.type();
     auto B2 = judge2.term();
     auto s = judge2.type();
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         is_convertible(B1, B2, *judge1.env()),
         "type of 1st judgement and term of 2nd judgement are not beta-delta-equivalent"
             << std::endl
             << "type 1: " << B1 << std::endl
             << "term 2: " << B2,
         __FILE__, __LINE__, __func__);
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         is_sort(s),
         "type of 2nd judgement is neither * nor @"
             << std::endl
@@ -1137,14 +1137,14 @@ bool is_conv_applicable(const Book& book, size_t idx1, size_t idx2) {
 bool is_def_applicable(const Book& book, size_t idx1, size_t idx2, const std::string& name) {
     const auto& judge1 = book[idx1];
     const auto& judge2 = book[idx2];
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         equiv_env(judge1.env(), judge2.env()),
         "environment doesn't match"
             << std::endl
             << "env 1: " << judge1.env() << std::endl
             << "env 2: " << judge2.env(),
         __FILE__, __LINE__, __func__);
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         !has_constant(judge1.env(), name),
         "environment of 1st judgement already has the definition of \""
             << name << "\"" << std::endl
@@ -1157,20 +1157,20 @@ bool is_def_applicable(const Book& book, size_t idx1, size_t idx2, const std::st
 bool is_def_prim_applicable(const Book& book, size_t idx1, size_t idx2, const std::string& name) {
     const auto& judge1 = book[idx1];
     const auto& judge2 = book[idx2];
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         equiv_env(judge1.env(), judge2.env()),
         "environment doesn't match"
             << std::endl
             << "env 1: " << judge1.env() << std::endl
             << "env 2: " << judge2.env(),
         __FILE__, __LINE__, __func__);
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         !has_constant(judge1.env(), name),
         "environment of 1st judgement already has the definition of \""
             << name << "\"" << std::endl
             << "env: " << judge1.env(),
         __FILE__, __LINE__, __func__);
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         is_sort(judge2.type()),
         "type of 2nd judgement is neither * nor @"
             << std::endl
@@ -1182,21 +1182,21 @@ bool is_def_prim_applicable(const Book& book, size_t idx1, size_t idx2, const st
 bool is_inst_applicable(const Book& book, size_t idx, size_t n, const std::vector<size_t>& k, size_t p) {
     const auto& judge = book[idx];
 
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         k.size() == n,
         "length of k and n doesn't match (this seems to be a bug. please report with your input)"
             << std::endl
             << "length of k: " << k.size() << " (should be n = " << n << ")",
         __FILE__, __LINE__, __func__);
     for (size_t i = 0; i < n; ++i) {
-        check_true_or_ret_false(
+        check_true_or_ret_false_err(
             equiv_env(judge.env(), book[k[i]].env()),
             "environment doesn't match"
                 << std::endl
                 << "env [" << idx << "]: " << judge.env() << std::endl
                 << "env [" << k[i] << "]: " << book[k[i]].env(),
             __FILE__, __LINE__, __func__);
-        check_true_or_ret_false(
+        check_true_or_ret_false_err(
             equiv_context(judge.context(), book[k[i]].context()),
             "context doesn't match"
                 << std::endl
@@ -1205,7 +1205,7 @@ bool is_inst_applicable(const Book& book, size_t idx, size_t n, const std::vecto
             __FILE__, __LINE__, __func__);
     }
 
-    // check_true_or_ret_false(judge.context()->size() == n,
+    // check_true_or_ret_false_err(judge.context()->size() == n,
 
     const std::shared_ptr<Definition>& D = (*judge.env())[p];
 
@@ -1216,7 +1216,7 @@ bool is_inst_applicable(const Book& book, size_t idx, size_t n, const std::vecto
         auto V = book[k[i]].type();
         // check V == A[xs := Us]
         auto AxU = substitute(A, xs, Us);
-        check_true_or_ret_false(
+        check_true_or_ret_false_err(
             alpha_comp(V, AxU),
             "type equivalence (U_i : A_i[x_1:=U_1,..] for all i) doesn't hold"
                 << std::endl
@@ -1233,13 +1233,13 @@ bool is_inst_applicable(const Book& book, size_t idx, size_t n, const std::vecto
         Us.push_back(book[k[i]].term());
     }
 
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         judge.term()->kind() == Kind::Star,
         "term of 1st judgement is not *"
             << std::endl
             << "term: " << judge.term(),
         __FILE__, __LINE__, __func__);
-    check_true_or_ret_false(
+    check_true_or_ret_false_err(
         judge.type()->kind() == Kind::Square,
         "type of 1st judgement is not @"
             << std::endl
@@ -1679,7 +1679,7 @@ void Book::sort() {
         sq);
 }
 void Book::var(size_t m, char x) {
-    if (!_skip_check && !is_var_applicable(*this, m, x)){
+    if (!_skip_check && !is_var_applicable(*this, m, x)) {
         throw InferenceError()
             << "var at line "
             << this->size() << " not applicable "
@@ -1776,9 +1776,7 @@ void Book::conv(size_t m, size_t n) {
         throw InferenceError()
             << "conv at line "
             << this->size() << " not applicable "
-            << "(idx1 = " << m << ", idx2 = " << n << ")\n"
-            << "B1 = " << (*this)[m].type()->repr_new() << "\n"
-            << "B2 = " << (*this)[n].term()->repr_new() << "\n";
+            << "(idx1 = " << m << ", idx2 = " << n << ")";
     }
     const auto& judge1 = (*this)[m];
     const auto& judge2 = (*this)[n];

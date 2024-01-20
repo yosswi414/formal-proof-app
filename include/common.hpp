@@ -95,6 +95,7 @@ std::set<T>& set_minus_inplace(std::set<T>& a, const std::set<T>& b) {
 #define check_true_or_exit(expr, msg, file, line, func) check_true_or_exec(expr, msg, exit(EXIT_FAILURE), file, line, func, false)
 
 #define check_true_or_ret_false_nomsg(expr) check_true_or_ret_false(expr, "", "", 0, "")
+#define check_true_or_ret_false_err(expr, msg, file, line, func) check_true_or_exec(expr, msg, return (false), file, line, func, false)
 
 template <class T>
 std::string to_string(const std::set<T>& s) {
