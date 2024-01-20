@@ -317,7 +317,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
                 tokens[const_hdr],
                 tokens[idx],
                 constant(
-                    tokens[const_hdr].string(),
+                    cname,
                     parameters));
         }
         default:
