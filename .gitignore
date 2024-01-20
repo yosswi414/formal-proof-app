@@ -35,13 +35,15 @@ test_read
 test_read_leak
 def_file_nocomm
 script*
-!script_test
-!script_test_result
+!src/script_test
+!src/script_test_result
 verifier_out*
 def_conv_out*
 log*
-def_file_bez*_cp
-def_file_bez*_new
+def_file_bez*
+!def_file_bez
+test_book3_out*
+test_automake3_out*
 
 # test_automake3
 # test_book3
