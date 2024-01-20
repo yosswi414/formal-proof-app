@@ -31,6 +31,7 @@ enum class TokenType {
     Asterisk,
     AtSign,
     Hash,
+    Underscore,
     DefinedBy,  // ":="
     DefBegin,   // "def2"
     DefEnd,     // "edef2"

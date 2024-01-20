@@ -31,6 +31,7 @@ std::string to_string(const TokenType& t) {
         case TokenType::Asterisk: return "TokenType::Asterisk";
         case TokenType::AtSign: return "TokenType::AtSign";
         case TokenType::Hash: return "TokenType::Hash";
+        case TokenType::Underscore: return "TokenType::Underscore";
         case TokenType::DefinedBy: return "TokenType::DefinedBy";
         case TokenType::DefBegin: return "TokenType::DefBegin";
         case TokenType::DefEnd: return "TokenType::DefEnd";
@@ -62,6 +63,7 @@ TokenType sym2tokentype(char ch) {
         case ';': return TokenType::Semicolon;
         case '#': return TokenType::Hash;
         case '%': return TokenType::Percent;
+        case '_': return TokenType::Underscore;
         default: return TokenType::Unknown;
     }
 }
@@ -100,6 +102,7 @@ std::vector<Token> tokenize(const FileData& lines) {
                     if (lines[lno][pos + 1] == '/') break;
                     if (lines[lno][pos + 1] == '*') {
                         comment = true;
+                        ++pos;
                         continue;
                     }
                 }
@@ -267,10 +270,28 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
         }
         case TokenType::String: {
             size_t const_hdr = idx;
-            incr_idx("an open square bracket", "a constant", const_hdr, 0);
-            if (tokens[idx].type() != TokenType::SquareBracketLeft) throw ExprError(
-                "expected an open square bracket, got an invalid token", tokens[idx],
-                "during parsing a constant", tokens[const_hdr], tokens[idx - 1]);
+            std::string cname = tokens[const_hdr].string();
+            bool reach_left = false;
+            while(!reach_left) {
+                incr_idx("an open square bracket", "a constant", const_hdr, 0);
+                switch (tokens[idx].type()) {
+                    case TokenType::SquareBracketLeft:
+                        reach_left = true;
+                        break;
+                    case TokenType::Number:
+                    case TokenType::Underscore:
+                    case TokenType::String:
+                    case TokenType::Period:
+                    case TokenType::Character:
+                        cname += tokens[idx].string();
+                        break;
+                    default:
+                        throw ExprError(
+                            "expected an open square bracket, got an invalid token", tokens[idx],
+                            "during parsing a constant", tokens[const_hdr], tokens[idx - 1]);
+                }
+            }
+            
             incr_idx("an expr or a closing square bracket", "a constant", const_hdr);
             std::vector<std::shared_ptr<Term>> parameters;
             if (tokens[idx].type() != TokenType::SquareBracketRight) {
@@ -333,7 +354,7 @@ Environment parse_defs(const std::vector<Token>& tokens) {
     // read lambda expression
     bool read_lambda = false;
 
-    std::shared_ptr<Context> context = std::make_shared<Context>();
+    std::shared_ptr<Context> context;  // = std::make_shared<Context>();
     std::string cname;
     std::shared_ptr<Term> term, type;
 
@@ -473,9 +494,8 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                 def_num = i;
                 read_def_num = false;
 
+                context = std::make_shared<Context>();
                 if (def_num > 0) {
-                    context->clear();
-
                     read_def_context = true;
                     read_def_context_var = true;
                     read_lambda = true;
@@ -512,13 +532,16 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                         cname,
                         type));
                 }
-                context->clear();
+                // context->clear();
                 in_def = -1;
                 break;
             }
             case TokenType::String: {
                 if (!read_def_name) throw ParseError("invalid token", t);
                 cname = t.string();
+                while (tokens[idx + 1].type() != TokenType::NewLine && tokens[idx + 1].type() != TokenType::DefinedBy) {
+                    cname += tokens[++idx].string();
+                }
                 read_def_name = false;
                 read_def_term = true;
                 read_lambda = true;
