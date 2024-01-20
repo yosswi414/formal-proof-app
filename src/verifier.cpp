@@ -319,8 +319,10 @@ int main(int argc, char* argv[]) {
         }
     } catch (InferenceError& e) {
         alive1.store(false);
+        e.puterror();
+
         if (efname.size() > 0) {
-            std::cerr << "caught an error. dumping the book... ";
+            std::cerr << "extracting the book / env dump... ";
             std::stringstream err;
             err << e.str() << std::endl;
             err << "########## final state of the book ##########" << std::endl;
@@ -331,15 +333,14 @@ int main(int argc, char* argv[]) {
             err << "################ end of book ################" << std::endl;
             std::cerr << "done." << std::endl;
             std::string errstr = err.str();
-            std::cerr << "process aborted because of an error." << std::endl;
+            std::cerr << "verification has been aborted because of an error." << std::endl;
             std::cerr << "writing error log to \"" << efname << "\" (" << strbytes(errstr.size()) << ")... ";
             std::FILE* fp = fopen(efname.c_str(), "wb");
             std::fwrite(errstr.data(), sizeof(errstr[0]), errstr.size(), fp);
             std::fclose(fp);
             std::cerr << "done." << std::endl;
         } else {
-            e.puterror();
-            std::cerr << "run with option \"-e log_file\" for further information." << std::endl;
+            std::cerr << "run with option \"-e log_file\" for the book / env dump." << std::endl;
         }
         exit(EXIT_FAILURE);
     }
@@ -366,11 +367,8 @@ int main(int argc, char* argv[]) {
                     "invalid notation value = " << notation,
                     __FILE__, __LINE__, __func__);
         }
-        std::cerr << "outputting book data (" << strbytes(book_data.size()) << ")... ";
-        // if (ofs) {
-        //     ofs << book_data;
-        //     ofs.close();
-        // }
+        std::cerr << "outputting book data (" << strbytes(book_data.size()) << ")... " << std::flush;
+
         if (ofname.size() > 0) {
             std::FILE* fp = std::fopen(ofname.c_str(), "wb");
             std::fwrite(book_data.data(), sizeof(book_data[0]), book_data.size(), fp);
@@ -383,7 +381,7 @@ int main(int argc, char* argv[]) {
 
     if (odefname.size() > 0) {
         std::string envrepr = book.back().env()->repr();
-        std::cerr << "outputting def_file data (" << strbytes(envrepr.size()) << ")... ";
+        std::cerr << "outputting def_file data (" << strbytes(envrepr.size()) << ")... " << std::flush;
         // std::ofstream odefs(odefname);
         // odefs << envrepr;
         // odefs.close();
