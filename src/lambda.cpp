@@ -310,6 +310,7 @@ std::shared_ptr<Constant> constant(const std::shared_ptr<Term>& t) {
 }
 
 bool alpha_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) {
+    if (a == b) return true;
     if (a->kind() != b->kind()) return false;
     switch (a->kind()) {
         case Kind::Star:
@@ -372,6 +373,7 @@ bool alpha_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) 
 }
 
 bool exact_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) {
+    if (a == b) return true;
     if (a->kind() != b->kind()) return false;
     switch (a->kind()) {
         case Kind::Star:
@@ -444,6 +446,7 @@ bool equiv_context_n(const Context& a, const Context& b, size_t n) {
 }
 
 bool equiv_context_n(const std::shared_ptr<Context>& a, const std::shared_ptr<Context>& b, size_t n) {
+    if (a == b) return true;
     return equiv_context_n(*a, *b, n);
 }
 
@@ -456,6 +459,7 @@ bool equiv_context(const Context& a, const Context& b) {
 }
 
 bool equiv_context(const std::shared_ptr<Context>& a, const std::shared_ptr<Context>& b) {
+    if (a == b) return true;
     return equiv_context(*a, *b);
 }
 
@@ -484,6 +488,7 @@ bool equiv_def(const Definition& a, const Definition& b) {
 }
 
 bool equiv_def(const std::shared_ptr<Definition>& a, const std::shared_ptr<Definition>& b) {
+    if (a == b) return true;
     return equiv_def(*a, *b);
 }
 
@@ -512,6 +517,7 @@ bool equiv_env(const Environment& a, const Environment& b) {
 }
 
 bool equiv_env(const std::shared_ptr<Environment>& a, const std::shared_ptr<Environment>& b) {
+    if (a == b) return true;
     return equiv_env(*a, *b);
 }
 
@@ -1565,7 +1571,8 @@ std::string Environment::repr_new() const {
 }
 
 int Environment::lookup_index(const std::string& cname) const {
-    if (_def_index.find(cname) != _def_index.end()) return _def_index.at(cname);
+    auto itr = _def_index.find(cname);
+    if (itr != _def_index.end()) return itr->second;
     for (size_t idx = 0; idx < this->size(); ++idx) {
         if ((*this)[idx]->definiendum() == cname) {
             return _def_index[cname] = idx;
@@ -1924,4 +1931,6 @@ void Book::read_def_file(const std::string& fname) {
 }
 
 const Environment& Book::env() const { return _env; }
-int Book::def_num(const std::shared_ptr<Definition>& def) const { return _def_dict.at(def->definiendum()); }
+int Book::def_num(const std::shared_ptr<Definition>& def) const {
+    return _env.lookup_index(def->definiendum());
+}
