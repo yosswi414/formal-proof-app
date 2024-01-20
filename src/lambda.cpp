@@ -790,6 +790,14 @@ std::shared_ptr<Term> delta_nf(const std::shared_ptr<Term>& term, const Environm
         }
         case Kind::Constant: {
             auto t = constant(term);
+            auto dptr = delta.lookup_def(t);
+            if (!dptr || dptr->is_prim()) {
+                if (t->args().size() == 0) return t;
+                std::vector<std::shared_ptr<Term>> nargs;
+                for (auto&& arg : t->args()) nargs.push_back(delta_nf(arg, delta));
+                return constant(t->name(), nargs);
+            }
+
             return delta_nf(delta_reduce(t, delta), delta);
         }
     }
