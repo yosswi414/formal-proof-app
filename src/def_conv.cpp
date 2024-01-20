@@ -70,12 +70,6 @@ int main(int argc, char* argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    if (!is_quiet && (DEBUG_CERR || is_verbose)) {
-        for (size_t idx = 0; idx < tokens.size() && idx < 300; ++idx) {
-            std::cerr << "token #" << idx << ": " << tokens[idx] << std::endl;
-        }
-    }
-
     Environment env;
     try {
         env = parse_defs(tokens);
