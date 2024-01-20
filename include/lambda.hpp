@@ -397,6 +397,9 @@ std::shared_ptr<Term> NF(const std::shared_ptr<Term>& term, const Environment& d
 bool is_beta_reducible(const std::shared_ptr<Term>& term);
 bool is_delta_reducible(const std::shared_ptr<Term>& term, const Environment& delta);
 
+bool is_constant_defined(const std::string& cname, const Environment& delta);
+bool is_constant_primitive(const std::string& cname, const Environment& delta);
+
 bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b, const Environment& delta);
 
 bool is_conv_applicable(const Book& book, size_t idx1, size_t idx2);

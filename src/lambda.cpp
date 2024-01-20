@@ -857,6 +857,14 @@ bool is_delta_reducible(const std::shared_ptr<Term>& term, const Environment& de
     return true;
 }
 
+bool is_constant_defined(const std::string& cname, const Environment& delta) {
+    return delta.lookup_index(cname) >= 0;
+}
+bool is_constant_primitive(const std::string& cname, const Environment& delta) {
+    auto ptr = delta.lookup_def(cname);
+    return ptr && ptr->is_prim();
+}
+
 bool is_normal_form(const std::shared_ptr<Term>& term, const Environment& delta) {
     switch (term->kind()) {
         case Kind::Star:
