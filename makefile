@@ -25,18 +25,15 @@ bin/def_conv_leak.out: bin/def_conv_leak.obj bin/common_leak.obj bin/lambda_leak
 bin/test.out: bin/test.obj bin/common.obj bin/lambda.obj bin/parser.obj
 	g++ ${CPPFLAGS} ${OPTFLAG} $^ -o $@
 
+bin/test_leak.out: bin/test_leak.obj bin/common_leak.obj bin/lambda_leak.obj bin/parser_leak.obj
+	g++ ${CPPFLAGS} ${DEBUGFLAGS} $^ -o $@
+
 src/def_file_nocomm: src/def_file bin/def_conv.out
 	bin/def_conv.out -f $< -c > $@
 
-.PHONY: test book parse clean test_read lambda conv conv_leak nocomm # noperiod
+.PHONY: test book parse clean test_read lambda conv test_leak book_leak conv_leak nocomm
 
-nocomm: bin/def_conv.out src/def_file
-	$< -c -f src/def_file > src/def_file_nocomm
-
-# ${DEF_FILE_NP}: ${DEF_FILE}
-# 	cat $< | sed 's/)\.(/-@-/g' | sed 's/\./-/g' | sed 's/-@-/)\.(/g' > $@
-
-# noperiod: ${DEF_FILE_NP}
+nocomm: src/def_file_nocomm
 
 test_read: bin/def_conv.out src/def_file
 	$^ -r
@@ -53,6 +50,9 @@ book_leak: bin/verifier_leak.out src/script_test
 	diff -s src/verifier_out src/script_test_result
 
 test: bin/test.out ${DEF_FILE}
+	$<
+
+test_leak: bin/test_leak.out ${DEF_FILE}
 	$<
 
 conv: bin/def_conv.out src/def_file
