@@ -443,6 +443,7 @@ class Book : public std::vector<Judgement> {
     // sugar syntax
     void cp(size_t m);
     void sp(size_t m, size_t n);
+    void tp(size_t m);
 
     std::string string() const;
     std::string repr() const;

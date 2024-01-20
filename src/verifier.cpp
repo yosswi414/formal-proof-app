@@ -295,10 +295,20 @@ int main(int argc, char* argv[]) {
                     __FILE__, __LINE__, __func__);
 
                 book.sp(idx, n);
+            } else if (op == "tp") {
+                size_t idx;
+                check_true_or_exit(
+                    ss >> idx,
+                    op
+                        << ": too few arguments are given, or type of argument is wrong"
+                        << " (line " << i + 1 << ")",
+                    __FILE__, __LINE__, __func__);
+
+                book.tp(idx);
             } else {
                 check_true_or_exit(
                     false,
-                    "read error (token: " << op << ")",
+                    "not implemented (token: " << op << ")",
                     __FILE__, __LINE__, __func__);
             }
             if (!is_quiet && is_verbose) {

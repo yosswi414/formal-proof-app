@@ -1861,6 +1861,15 @@ void Book::sp(size_t m, size_t n) {
         tv.type());
 }
 
+void Book::tp(size_t m) {
+    const auto& judge = (*this)[m];
+    this->emplace_back(
+        judge.env(),
+        judge.context(),
+        sq,
+        sq);
+}
+
 std::string Book::string() const {
     std::string res("Book[[");
     bool singleLine = true;
