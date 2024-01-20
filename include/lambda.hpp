@@ -329,8 +329,8 @@ class Environment : public std::vector<std::shared_ptr<Definition>> {
     int lookup_index(const std::string& cname) const;
     int lookup_index(const std::shared_ptr<Constant>& c) const;
 
-    const std::shared_ptr<Definition>& lookup_def(const std::string& cname) const;
-    const std::shared_ptr<Definition>& lookup_def(const std::shared_ptr<Constant>& c) const;
+    const std::shared_ptr<Definition> lookup_def(const std::string& cname) const;
+    const std::shared_ptr<Definition> lookup_def(const std::shared_ptr<Constant>& c) const;
 
     Environment& operator+=(const std::shared_ptr<Definition>& def);
     Environment operator+(const std::shared_ptr<Definition>& def) const;

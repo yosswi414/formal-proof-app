@@ -1600,10 +1600,11 @@ int Environment::lookup_index(const std::shared_ptr<Constant>& c) const {
     return lookup_index(c->name());
 }
 
-const std::shared_ptr<Definition>& Environment::lookup_def(const std::string& cname) const {
-    return (*this)[lookup_index(cname)];
+const std::shared_ptr<Definition> Environment::lookup_def(const std::string& cname) const {
+    int idx = lookup_index(cname);
+    return idx < 0 ? nullptr : (*this)[idx];
 }
-const std::shared_ptr<Definition>& Environment::lookup_def(const std::shared_ptr<Constant>& c) const {
+const std::shared_ptr<Definition> Environment::lookup_def(const std::shared_ptr<Constant>& c) const {
     return lookup_def(c->name());
 }
 
