@@ -18,11 +18,26 @@
 size_t test_success = 0;
 size_t test_fail = 0;
 
+#define STR_SUCCESS BOLD(GREEN("OK"))
+#define STR_FAIL BOLD(RED("NG"))
+
 #define test(expr)                                                         \
     do {                                                                   \
         bool v = (expr);                                                   \
-        std::cerr << #expr " --> " << (v ? "true" : "false") << std::endl; \
+        std::cerr << #expr " --> " << (v ? STR_SUCCESS : STR_FAIL) << std::endl; \
         ++(v ? test_success : test_fail);                                  \
+    } while (false)
+
+#define cshow(a, ...)                                                                              \
+    do {                                                                                           \
+        std::cerr << #a ", " #__VA_ARGS__ << " |> " << beta_nf(appl(a, __VA_ARGS__)) << std::endl; \
+    } while (false)
+
+#define btest(from, to)                                                               \
+    do {                                                                              \
+        bool v = alpha_comp(beta_nf(from), to);                                       \
+        std::cerr << #from " |> " #to " --> " << (v ? STR_SUCCESS : STR_FAIL) << std::endl; \
+        ++(v ? test_success : test_fail);                                             \
     } while (false)
 
 #define test_result()                                                                                \
@@ -35,13 +50,16 @@ size_t test_fail = 0;
         sep();                                                                                       \
     } while (false)
 
+#define defvar(vname) std::shared_ptr<Term> vname = variable(#vname[0])
+
+
 void test_alpha_subst() {
     std::shared_ptr<Term> e1, e2, e3;
-    auto x = variable('x');
-    auto y = variable('y');
-    auto z = variable('z');
-    auto u = variable('u');
-    auto v = variable('v');
+    defvar(x);
+    defvar(y);
+    defvar(z);
+    defvar(u);
+    defvar(v);
 
     std::cerr << "[textbook p.11 Example 1.5.3]" << std::endl;
 
@@ -128,13 +146,13 @@ void test_alpha_subst() {
 
 void test_subst() {
     std::cerr << "[substitution test]" << std::endl;
-    auto A = variable('A');
-    auto a = variable('a');
-    auto b = variable('b');
-    auto c = variable('c');
-    auto d = variable('d');
-    auto e = variable('e');
-    auto f = variable('f');
+    defvar(A);
+    defvar(a);
+    defvar(b);
+    defvar(c);
+    defvar(d);
+    defvar(e);
+    defvar(f);
 
     show(A);
     show(a);
@@ -156,30 +174,17 @@ void test_subst() {
     test_result();
 }
 
-#define cshow(a, ...)                                                                      \
-    do {                                                                                \
-        std::cerr << #a ", " #__VA_ARGS__ << " |> " << beta_nf(appl(a, __VA_ARGS__)) << std::endl; \
-    } while (false)
-
-#define btest(from, to)                                                               \
-    do {                                                                              \
-        bool v = alpha_comp(beta_nf(from), to);                                       \
-        std::cerr << #from " |> " #to " --> " << (v ? "true" : "false") << std::endl; \
-        ++(v ? test_success : test_fail);                                             \
-    } while (false)
-
 void test_sandbox() {
-#define defvar(vname) std::shared_ptr<Variable> vname = variable(#vname[0])
+    std::cerr << "[combinator test]" << std::endl;
+
     defvar(x);
     defvar(y);
     defvar(z);
 
-    std::cerr << "[combinator test]" << std::endl;
-
     using Expr = std::shared_ptr<Term>;
 
     // untyped abstraction λv.e
-    auto abst = [](const std::shared_ptr<Variable>& v, const Expr& e) { return lambda(v, star, e); };
+    auto abst = [](const std::shared_ptr<Term>& v, const Expr& e) { return lambda(v, star, e); };
 
     // identity; I(f) = f
     Expr I = abst(x, x);
@@ -233,23 +238,23 @@ void test_sandbox() {
 
 void test_reduction1(const Environment& delta) {
     std::cerr << "[beta / delta reduction test]" << std::endl;
-    auto S = variable('S');
-    auto P = variable('P');
-    auto v = variable('v');
-    auto a = variable('a');
-    auto b = variable('b');
-    auto c = variable('c');
-    auto d = variable('d');
-    auto e = variable('e');
-    auto f = variable('f');
-    auto g = variable('g');
-    auto h = variable('h');
-    auto i = variable('i');
-    auto j = variable('j');
-    auto x = variable('x');
-    auto y = variable('y');
-    auto A = variable('A');
-    auto B = variable('B');
+    defvar(S);
+    defvar(P);
+    defvar(v);
+    defvar(a);
+    defvar(b);
+    defvar(c);
+    defvar(d);
+    defvar(e);
+    defvar(f);
+    defvar(g);
+    defvar(h);
+    defvar(i);
+    defvar(j);
+    defvar(x);
+    defvar(y);
+    defvar(A);
+    defvar(B);
 
     std::shared_ptr<Term> exprB = constant("forall", {S, lambda(a, S, constant("not", {constant("not", {appl(P, a)})}))});
     std::shared_ptr<Term> ansnB = pi(c, S, pi(b, pi(b, appl(P, c), pi(a, star, a)), pi(a, star, a)));

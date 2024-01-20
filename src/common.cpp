@@ -8,7 +8,7 @@
 TextData read_lines(const std::string& fname) {
     std::ifstream ifs(fname);
     if (!ifs) {
-        std::cerr << "read_lines(): " << fname << ": file not found" << std::endl;
+        std::cerr << BOLD(RED("error")) << ": read_lines(): " << fname << ": file not found" << std::endl;
         exit(EXIT_FAILURE);
     }
     TextData lines;

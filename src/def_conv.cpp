@@ -47,13 +47,13 @@ int main(int argc, char* argv[]) {
             else if (arg == "-h") usage(argv[0], false);
             else if (arg == "-s") is_quiet = true;
             else {
-                std::cerr << "invalid token: " << arg << std::endl;
+                std::cerr << BOLD(RED("error")) << ": invalid token: " << arg << std::endl;
                 usage(argv[0]);
             }
         } else {
             if (fname.size() == 0) fname = arg;
             else {
-                std::cerr << "invalid token: " << arg << std::endl;
+                std::cerr << BOLD(RED("error")) << ": invalid token: " << arg << std::endl;
                 usage(argv[0]);
             }
         }

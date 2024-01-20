@@ -75,10 +75,15 @@ std::set<T>& set_minus_inplace(std::set<T>& a, const std::set<T>& b) {
     return a;
 }
 
+#define BOLD(str) "\033[1m" str "\033[m"
+#define RED(str) "\033[31m" str "\033[m"
+#define GREEN(str) "\033[32m" str "\033[m"
+#define CYAN(str) "\033[36m" str "\033[m"
+
 #define check_true_or_exec(expr, msg, exec, file, line, func, quiet)                       \
     do {                                                                            \
         if (!(expr)) {                                                              \
-            if (!(quiet) || DEBUG_CERR) std::cerr << "error: assertion \"" #expr "\" failed." << std::endl      \
+            if (!(quiet) || DEBUG_CERR) std::cerr << BOLD(RED("error")) ": assertion \"" #expr "\" failed." << std::endl      \
                       << (file) << ": In function `" << (func) << "()`:" << std::endl \
                       << (file) << ":" << (line) << ": " << msg << std::endl;       \
             exec;                                                                   \
@@ -111,3 +116,5 @@ std::string to_string(const std::vector<T>& v) {
     ss << "]";
     return ss.str();
 }
+
+

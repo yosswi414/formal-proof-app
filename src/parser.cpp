@@ -37,8 +37,10 @@ std::string to_string(const TokenType& t) {
         case TokenType::EndOfFile: return "TokenType::EndOfFile";
         case TokenType::Unknown: return "TokenType::Unknown";
         default: {
-            std::cerr << "unknown TokenType value (" << (int)t << ")" << std::endl;
-            exit(EXIT_FAILURE);
+            check_true_or_exit(
+                false,
+                "unknown TokenType value (" << (int)t << ")",
+                __FILE__, __LINE__, __func__);
         }
     }
 }
@@ -300,8 +302,8 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
         default:
             throw ExprError("invalid token", tokens[idx]);
     }
-    std::cerr << "parse_lambda() end" << std::endl;
-    exit(EXIT_FAILURE);
+
+    throw ParseError("reached end of parse_lambda()", tokens[idx]);
 }
 
 std::shared_ptr<Term> parse_lambda(const std::string& str) {
@@ -511,10 +513,6 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                         type));
                 }
                 context->clear();
-                if(context->size() != 0) {
-                    std::cerr << "parse: context.clear() doesn't clear the content" << std::endl;
-                    exit(EXIT_FAILURE);
-                }
                 in_def = -1;
                 break;
             }

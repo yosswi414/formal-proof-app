@@ -1636,7 +1636,7 @@ std::shared_ptr<Context>& Judgement::context() { return _context; }
 std::shared_ptr<Term>& Judgement::term() { return _term; }
 std::shared_ptr<Term>& Judgement::type() { return _type; }
 
-InferenceError::InferenceError() : _msg("InferenceError: ") {}
+InferenceError::InferenceError() : _msg(BOLD(RED("InferenceError")) ": ") {}
 InferenceError::InferenceError(const std::string& str) : _msg(str) {}
 void InferenceError::puterror(std::ostream& os) const {
     os << _msg << std::endl;

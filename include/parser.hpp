@@ -110,14 +110,14 @@ class BaseError {
           _msg(msg),
           _token(token),
           _token2(token),
-          _note(std::make_shared<BaseError>("Note", data...)) {}
+          _note(std::make_shared<BaseError>(BOLD(CYAN("Note")), data...)) {}
     template <typename... Ts>
     BaseError(const std::string& errtype, const std::string& msg, const Token& token_l, const Token& token_r, Ts... data)
         : _errtype(errtype),
           _msg(msg),
           _token(token_l),
           _token2(token_r),
-          _note(std::make_shared<BaseError>("Note", data...)) {}
+          _note(std::make_shared<BaseError>(BOLD(CYAN("Note")), data...)) {}
 
     void puterror(std::ostream& os = std::cerr) const {
         os << _token.pos_info_str() << ": " << _errtype << ": " << _msg << std::endl;
@@ -150,15 +150,15 @@ class BaseError {
     std::shared_ptr<BaseError> _note;
 };
 
-#define DEFINE_ERROR(name)                                                                                                                         \
-    class name : public BaseError {                                                                                                                \
-      public:                                                                                                                                      \
-        name(const std::string& msg, const Token& token) : BaseError(#name, msg, token) {}                                                         \
-        name(const std::string& msg, const Token& token_l, const Token& token_r) : BaseError(#name, msg, token_l, token_r) {}                      \
-        template <typename... Ts>                                                                                                                  \
-        name(const std::string& msg, const Token& token, Ts... data) : BaseError(#name, msg, token, data...) {}                                    \
-        template <typename... Ts>                                                                                                                  \
-        name(const std::string& msg, const Token& token_l, const Token& token_r, Ts... data) : BaseError(#name, msg, token_l, token_r, data...) {} \
+#define DEFINE_ERROR(name)                                                                                                                                    \
+    class name : public BaseError {                                                                                                                           \
+      public:                                                                                                                                                 \
+        name(const std::string& msg, const Token& token) : BaseError(BOLD(RED(#name)), msg, token) {}                                                         \
+        name(const std::string& msg, const Token& token_l, const Token& token_r) : BaseError(BOLD(RED(#name)), msg, token_l, token_r) {}                      \
+        template <typename... Ts>                                                                                                                             \
+        name(const std::string& msg, const Token& token, Ts... data) : BaseError(BOLD(RED(#name)), msg, token, data...) {}                                    \
+        template <typename... Ts>                                                                                                                             \
+        name(const std::string& msg, const Token& token_l, const Token& token_r, Ts... data) : BaseError(BOLD(RED(#name)), msg, token_l, token_r, data...) {} \
     }
 
 DEFINE_ERROR(TokenizeError);

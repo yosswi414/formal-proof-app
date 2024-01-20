@@ -50,7 +50,7 @@ book_leak: bin/verifier_leak.out src/script_test
 	$< -c -f src/script_test > src/verifier_out
 	diff -s src/verifier_out src/script_test_result
 
-test: bin/test.out
+test: bin/test.out def_file_bez_438259_cp
 	$<
 
 conv: bin/def_conv.out src/def_file
