@@ -373,7 +373,6 @@ bool alpha_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) 
 }
 
 bool exact_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) {
-    if (a == b) return true;
     if (a->kind() != b->kind()) return false;
     switch (a->kind()) {
         case Kind::Star:
@@ -939,6 +938,7 @@ std::shared_ptr<Term> reduce_application(const std::shared_ptr<Application>& ter
 bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b, const Environment& delta) {
     // std::cerr << "conv a = " << a << std::endl;
     // std::cerr << "conv b = " << b << std::endl;
+    if (a == b) return true;
 
     if (a->kind() == b->kind()) {
         switch (a->kind()) {
