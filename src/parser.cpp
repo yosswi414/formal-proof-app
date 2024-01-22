@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <queue>
 
 #include "common.hpp"
 
@@ -312,7 +313,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
                             "during parsing a constant", tokens[const_hdr], tokens[idx - 1]);
                 }
             }
-            
+
             incr_idx("an expr or a closing square bracket", "a constant", const_hdr);
             std::vector<std::shared_ptr<Term>> parameters;
             if (tokens[idx].type() != TokenType::SquareBracketRight) {
@@ -371,7 +372,7 @@ Environment parse_defs(const std::vector<Token>& tokens) {
     bool read_def_type_col = false;
     bool read_def_end = false;
     // definition: size of context
-    size_t def_num = 0;
+    int def_num = 0;
     // read lambda expression
     bool read_lambda = false;
 
@@ -379,7 +380,7 @@ Environment parse_defs(const std::vector<Token>& tokens) {
     std::string cname;
     std::shared_ptr<Term> term, type;
 
-    std::shared_ptr<Variable> temp_var;
+    std::queue<std::shared_ptr<Variable>> temp_vars;
 
     auto flag_str = [&]() {
         std::string res("");
@@ -443,6 +444,12 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                         continue;
                     }
                     throw invalid_err;
+                case TokenType::Comma:
+                    if (read_def_context && !read_def_context_var) {
+                        read_def_context_var = true;
+                        continue;
+                    }
+                    throw invalid_err;
                 case TokenType::Colon:
                     if (read_def_context && !read_def_context_var) {
                         if (!read_def_context_col) {
@@ -471,14 +478,19 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                         "expected a variable, got " + to_string(expr->term()->kind()),
                         expr->begin(),
                         expr->end());
-                    temp_var = variable(expr->term());
+                    temp_vars.push(variable(expr->term()));
                     read_def_context_var = false;
                     read_def_context_col = false;
                     read_lambda = true;
                 } else {
-                    context->emplace_back(temp_var, expr->term());
+                    while(!temp_vars.empty()) {
+                        auto q = temp_vars.front();
+                        temp_vars.pop();
+                        context->emplace_back(q, expr->term());
+                        if (--def_num < 0) throw ParseError("too many statements", t);
+                    }
                     read_def_context_col = false;
-                    if (--def_num == 0) {
+                    if (def_num == 0) {
                         read_def_context = false;
                         read_def_name = true;
                     } else {
