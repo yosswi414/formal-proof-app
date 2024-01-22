@@ -33,6 +33,7 @@ enum class TokenType {
     Hash,
     Underscore,
     Hyphen,
+    Verticalbar,
     Leftarrow,              // <-
     Rightarrow,             // ->
     Leftrightarrow,         // <->

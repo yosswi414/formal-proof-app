@@ -35,6 +35,7 @@ std::string to_string(const TokenType& t) {
         case TokenType::Hash: return "TokenType::Hash";
         case TokenType::Underscore: return "TokenType::Underscore";
         case TokenType::Hyphen: return "TokenType::Hyphen";
+        case TokenType::Verticalbar: return "TokenType::Verticalbar";
         case TokenType::Leftarrow: return "TokenType::Leftarrow";
         case TokenType::Rightarrow: return "TokenType::Rightarrow";
         case TokenType::Leftrightarrow: return "TokenType::Leftrightarrow";
@@ -61,6 +62,8 @@ TokenType sym2tokentype(char ch) {
         case ')': return TokenType::ParenRight;
         case '[': return TokenType::SquareBracketLeft;
         case ']': return TokenType::SquareBracketRight;
+        case '{': return TokenType::CurlyBracketLeft;
+        case '}': return TokenType::CurlyBracketRight;
         case '$': return TokenType::DollarSign;
         case '?': return TokenType::QuestionMark;
         case '@': return TokenType::AtSign;
@@ -72,6 +75,7 @@ TokenType sym2tokentype(char ch) {
         case ';': return TokenType::Semicolon;
         case '#': return TokenType::Hash;
         case '%': return TokenType::Percent;
+        case '|': return TokenType::Verticalbar;
         case '_': return TokenType::Underscore;
         case '-': return TokenType::Hyphen;
         default: return TokenType::Unknown;
@@ -478,6 +482,9 @@ Environment parse_defs(const std::vector<Token>& tokens) {
 
     std::queue<std::shared_ptr<Variable>> temp_vars;
 
+    std::vector<std::shared_ptr<Context>> flag_context;
+    size_t flag_num = 0;
+
     auto flag_str = [&]() {
         std::string res("");
         res += (read_def_num ? 'Z' : '-');
@@ -684,7 +691,19 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                 eof = true;
                 continue;
             }
+            case TokenType::SquareBracketLeft: {
+                read_flag_context = true;
+                read_lambda = true;
+                continue;
+            }
+            case TokenType::Verticalbar: {
+                if(!flag_context[flag_num++]){
+                    throw ParseError("context of " + std::to_string(flag_num) + "-th flag is undefined", t);
+                }
+            }
             case TokenType::NewLine: {
+                if (flag_context.size() > flag_num) flag_context.resize(flag_num);
+                flag_num = 0;
                 continue;
             }
             default:
