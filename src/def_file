@@ -1798,115 +1798,39 @@ edef2
 
 
 // p.260 Figure 12.2; Definition of equality, and the reflexivity property for equality
-// S: *
-// | x: S
-// | | y: S
-def2
-3
-S: *
-x, y: S
-eq := ?P : S->* . (%P x <=> %P y)    : *
-edef2
+[S: *]
+| [x: S]
+| | [y: S]
+| | | eq := ?P: S->* . (%P x <=> %P y) : *
+| | [P: S->*]
+| | | a2_fig12.2 := equiv_in[%P x, %P x, $u:%P x.u, $u:%P x.u] : %P x <=> %P x
+| | eq_refl := $P:S->*.a2_fig12.2[S, x, P] : eq[S, x, x]
 
-// | | P: ?x:S.*
-def2
-3
-S: *
-x: S
-P: S->*
-a2_fig12.2 := equiv_in[%P x, %P x, $u:%P x.u, $u:%P x.u] : %P x <=> %P x
-edef2
-
-// | |
-def2
-2
-S: *
-x: S
-eq_refl := $P:S->*.a2_fig12.2[S, x, P] : eq[S, x, x]
-edef2
 
 // p.276 Exercises 12.2
-def2
-3
-S: *
-x, y: S
-eq_alt := ?P: S->* . (%P x => %P y) : *
-edef2
+[S: *, x, y: S]
+| eq_alt := ?P: S->* . (%P x => %P y) : *
 
 // p.262 Figure 12.4; Substitutivity as property of equality
-def2
-5
-S: *
-P: S->*
-x, y: S
-u: eq[S, x, y]
-a1_fig12.4 := %u P : %P x <=> %P y
-edef2
-
-def2
-5
-S: *
-P: S->*
-x, y: S
-u: eq[S, x, y]
-a2_fig12.4 := equiv_el1[%P x, %P y, a1_fig12.4[S, P, x, y, u]] : %P x => %P y
-edef2
-
-def2
-6
-S: *
-P: S->*
-x, y: S
-u: eq[S, x, y]
-v: %P x
-eq_subs := %a2_fig12.4[S, P, x, y, u] v : %P y
-edef2
+[S: *]
+| [P: S->*]
+| | [x, y: S]
+| | | [u: eq[S, x, y]]
+| | | | a1_fig12.4 := %u P : %P x <=> %P y
+| | | | a2_fig12.4 := equiv_el1[%P x, %P y, a1_fig12.4[S, P, x, y, u]] : %P x => %P y
+| | | | [v: %P x]
+| | | | | eq_subs := %a2_fig12.4[S, P, x, y, u] v : %P y
 
 // p.263 Figure 12.5; First proof of the congruence property for equality
-def2
-8
-S, T: *
-f: S->T
-x, y: S
-u: eq[S, x, y]
-Q: T->*
-v: %Q %f x
-a1_fig12.5 := eq_subs[S, $z:S.%Q %f z, x, y, u, v] : %Q %f y
-edef2
+[S, T: *]
+| [f: S->T]
+| | [x, y: S]
+| | | [u: eq[S, x, y]]
+| | | | [Q: T->*]
+| | | | | [v: %Q %f x]
+| | | | | | a1_fig12.5 := eq_subs[S, $z:S.%Q %f z, x, y, u, v] : %Q %f y
 
 /*
-[S, T: *]
-|[f: S->T]
-||[x, y: S]
-|||[u: eq[S, x, y]]
-||||
-||||
-|||
-|||[v: %Q %f x]
-||||
-||||
-|||
-||
-|
-
-S, T: *
-|f: S->T
-||x, y: S
-|||u: eq[S, x, y]
-||||
-||||
-|||
-|||v: %Q %f x
-||||
-||||
-|||
-||
-|
-
-
-
-eq_alt
-a1_fig12.5
 a2_fig12.5
 a3_fig12.5
 eq_cong
