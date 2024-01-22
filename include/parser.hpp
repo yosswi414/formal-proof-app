@@ -32,6 +32,13 @@ enum class TokenType {
     AtSign,
     Hash,
     Underscore,
+    Hyphen,
+    Leftarrow,              // <-
+    Rightarrow,             // ->
+    Leftrightarrow,         // <->
+    Leftdoublearrow,        // <=
+    Rightdoublearrow,       // =>
+    Leftrightdoublearrow,   // <=>
     DefinedBy,  // ":="
     DefBegin,   // "def2"
     DefEnd,     // "edef2"
@@ -198,7 +205,7 @@ class ParseLambdaToken {
     std::shared_ptr<Term> _term;
 };
 
-std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens, size_t& idx);
+std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens, size_t& idx, bool no_chainer = false);
 
 std::shared_ptr<Term> parse_lambda(const std::string& str);
 
