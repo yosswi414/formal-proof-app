@@ -1,9 +1,9 @@
 #pragma once
 
 #include <iostream>
-#include <vector>
-#include <string>
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "common.hpp"
 #include "lambda.hpp"
@@ -72,20 +72,24 @@ class Token {
     size_t pos() const { return std::min(_pos, _data[lno()].size()); }
     size_t len() const { return std::min(_len, _data[lno()].size()); }
     const FileData& filedata() const { return _data; }
-    std::string pos_info_str() const {
-        std::string res(_data.name());
-        if (res.size() > 0) res += ":";
-        res += std::to_string(lno() + 1);
-        res += ":" + std::to_string(pos() + 1);
-        if (_len > 1) res += "-" + std::to_string(std::min(pos() + len(), _data[_lno].size()) + 1);
-        return res;
-    }
+    // std::string pos_info_str() const {
+    //     std::string res(_data.name());
+    //     if (res.size() > 0) res += ":";
+    //     res += std::to_string(lno() + 1);
+    //     res += ":" + std::to_string(pos() + 1);
+    //     if (_len > 1) res += "-" + std::to_string(std::min(pos() + len(), _data[_lno].size()) + 1);
+    //     return res;
+    // }
+    // friend std::string pos_info_str(const Token& t1, const Token& t2);
 
   private:
     const FileData& _data;
     const size_t _lno, _pos, _len;
     TokenType _type;
 };
+
+std::string pos_info_str(const Token& t1, const Token& t2);
+std::string pos_info_str(const Token& t);
 
 std::string to_string(const Token& t);
 
@@ -121,23 +125,34 @@ class BaseError {
           _note(std::make_shared<BaseError>(BOLD(CYAN("Note")), data...)) {}
 
     void puterror(std::ostream& os = std::cerr) const {
-        os << _token.pos_info_str() << ": " << _errtype << ": " << _msg << std::endl;
-        if (_token.lno() == _token2.lno() && _token.pos() == _token2.pos()) {
-            std::string line_no = std::to_string(_token.lno() + 1);
+        os << pos_info_str(_token, _token2) << ": " << _errtype << ": " << _msg << std::endl;
+        size_t lno1 = _token.lno();
+        size_t lno2 = _token2.lno();
+        size_t pos1 = _token.pos();
+        size_t pos2 = _token2.pos();
+        size_t len1 = _token.len();
+        size_t len2 = _token2.len();
+
+        if (lno1 == lno2) {
+            std::string line_no = std::to_string(lno1 + 1);
             os << line_no << " | " << _token.line() << std::endl;
-            if (_token.len() > 0) {
-                os << std::string(line_no.size(), ' ') << " | " << std::string(_token.pos(), ' ');
-                os << "^" << std::string(_token.len() - 1, '~') << std::endl;
+            if (len1 > 0) {
+                size_t from, to, l;
+                from = std::min(pos1, pos2);
+                to = std::max(pos1 + len1, pos2 + len2);
+                l = to - from;
+                os << std::string(line_no.size(), ' ') << " | " << std::string(from, ' ');
+                os << "^" << std::string(l - 1, '~') << std::endl;
             }
         } else {
-            size_t lno_begin = _token.lno(), lno_end = _token2.lno();
+            size_t lno_begin = lno1, lno_end = lno2;
             size_t lno_str_len = std::to_string(lno_end + 1).size();
-            os << std::string(lno_str_len, ' ') << " | " << std::string(_token.pos(), ' ') << "v" << std::string("~~~...").substr(0, _token.line().size() - 1 - _token.pos()) << std::endl;
+            os << std::string(lno_str_len, ' ') << " | " << std::string(pos1, ' ') << "v" << std::string("~~~...").substr(0, _token.line().size() - 1 - pos1) << std::endl;
             for (size_t lno_i = lno_begin; lno_i <= lno_end; ++lno_i) {
                 std::string lno_i_str = std::to_string(lno_i + 1);
-                os << std::string(lno_str_len - lno_i_str.size(), ' ') << lno_i << " | " << _token.filedata()[lno_i] << std::endl;
+                os << std::string(lno_str_len - lno_i_str.size(), ' ') << lno_i + 1 << " | " << _token.filedata()[lno_i] << std::endl;
             }
-            int end_pos = _token2.pos() + _token2.len() - 1;
+            int end_pos = pos2 + len2 - 1;
             os << std::string(lno_str_len, ' ') << " | " << std::string(std::max(end_pos - 6, 0), ' ') << std::string("...~~~").substr(std::max(6 - end_pos, 0)) << "^" << std::endl;
         }
         if (_note) _note->puterror();

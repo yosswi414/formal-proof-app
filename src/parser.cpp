@@ -73,8 +73,29 @@ std::ostream& operator<<(std::ostream& os, const TokenType& t) {
     return os;
 }
 
+std::string pos_info_str(const Token& t1, const Token& t2) {
+    if (t1.lno() > t2.lno()) return pos_info_str(t2, t1);
+    std::string res(t1.filename());
+    if (res.size() > 0) res += ":";
+    if (t1.lno() == t2.lno()) {
+        res += std::to_string(t1.lno() + 1);
+        size_t from, to;
+        from = std::min(t1.pos(), t2.pos());
+        to = std::max(t1.pos() + t1.len(), t2.pos() + t2.len());
+        res += ":" + std::to_string(from + 1);
+        if (to - from > 1) res += "-" + std::to_string(std::min(to, t1.filedata()[t1.lno()].size()) + 1);
+    } else {
+        res += std::to_string(t1.lno() + 1);
+        res += ":" + std::to_string(t1.pos() + 1);
+        res += "-" + std::to_string(t2.lno() + 1);
+        res += ":" + std::to_string(t2.pos() + t2.len());
+    }
+    return res;
+}
+std::string pos_info_str(const Token& t) { return pos_info_str(t, t); }
+
 std::string to_string(const Token& t) {
-    return "Token[" + t.pos_info_str() + ": \"" + t.string() + "\"; " + to_string(t.type()) + "]";
+    return "Token[" + pos_info_str(t) + ": \"" + t.string() + "\"; " + to_string(t.type()) + "]";
 }
 
 std::ostream& operator<<(std::ostream& os, const Token& t) {
