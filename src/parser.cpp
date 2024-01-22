@@ -424,7 +424,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
                     "after this " + chainer_name, tokens[chainer_pos]);
             }
             std::shared_ptr<Term> expr = plt->term(), combined;
-            switch(tokens[chainer_pos].type()) {
+            switch (tokens[chainer_pos].type()) {
                 case TokenType::Rightarrow:
                     combined = pi(get_fresh_var(res_ptr, expr), res_ptr, expr);
                     break;
@@ -476,6 +476,17 @@ Environment parse_defs(const std::vector<Token>& tokens) {
     // read lambda expression
     bool read_lambda = false;
 
+    // read flag
+    bool vbar_head_of_line = true;
+    bool read_flag_context = false;
+    bool read_flag_context_type = false;
+    bool read_flag_context_end = false;
+    bool read_flag_cname = false;
+    bool read_flag_defby = false;
+    bool read_flag_stmt_term = false;
+    bool read_flag_stmt_col = false;
+    bool read_flag_stmt_type = false;
+
     std::shared_ptr<Context> context;  // = std::make_shared<Context>();
     std::string cname;
     std::shared_ptr<Term> term, type;
@@ -483,9 +494,9 @@ Environment parse_defs(const std::vector<Token>& tokens) {
     std::queue<std::shared_ptr<Variable>> temp_vars;
 
     std::vector<std::shared_ptr<Context>> flag_context;
-    size_t flag_num = 0;
+    size_t flag_line_num = 0;
 
-    auto flag_str = [&]() {
+    auto def_str = [&]() {
         std::string res("");
         res += (read_def_num ? 'Z' : '-');
         res += (read_def_context ? 'C' : '-');
@@ -499,11 +510,38 @@ Environment parse_defs(const std::vector<Token>& tokens) {
         res += (read_def_end ? 'E' : '-');
         return res;
     };
-    unused(flag_str);
+    unused(def_str);
 
+    auto flg_str = [&]() {
+        std::string res("");
+        res += "[" + std::to_string(flag_line_num) + "]";
+        res += (vbar_head_of_line ? 'V' : '-');
+        res += (read_flag_context ? 'C' : '-');
+        res += (read_flag_context_type ? 't' : '-');
+        res += (read_flag_context_end ? 'E' : '-');
+        res += "/";
+        res += (read_flag_cname ? 'N' : '-');
+        res += (read_flag_defby ? 'D' : '-');
+        res += (read_flag_stmt_term ? 'T' : '-');
+        res += (read_flag_stmt_col ? 'c' : '-');
+        res += (read_flag_stmt_type ? 't' : '-');
+        return res;
+    };
+    unused(flg_str);
+    bool strap = false;
     for (size_t idx = 0; !eof && idx < tokens.size(); ++idx) {
-        if (DEBUG_CERR) std::cerr << "[debug; parse loop] flag[def]: " << flag_str() << std::endl;
-
+        if (DEBUG_CERR) std::cerr << "[debug; parse loop] flag[def]: " << def_str() << std::endl;
+        if (strap) {
+            std::cerr << "[debug; parse loop] flag[flg]: " << flg_str() << ", token: \"" << (tokens[idx].type() == TokenType::NewLine ? "<NL>" : tokens[idx].string()) << "\"\t";
+            std::cerr << "flag context dump (size: " << flag_context.size() << "): ";
+            for (auto&& c : flag_context) {
+                std::cerr << "[";
+                if (c) std::cerr << c;
+                else std::cerr << "NUL";
+                std::cerr << "], ";
+            }
+            std::cerr << std::endl;
+        }
         auto& t = tokens[idx];
         if (read_lambda) {
             std::shared_ptr<ParseLambdaToken> expr;
@@ -539,11 +577,17 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                     }
                     throw invalid_err;
                 case TokenType::Hash:
+                    term = nullptr;
                     if (read_def_term) {
                         read_def_term = false;
                         read_def_term_defby = false;
                         read_def_type = true;
-                        term = nullptr;
+                        continue;
+                    }
+                    if (read_flag_stmt_term) {
+                        read_flag_stmt_term = false;
+                        read_flag_stmt_col = true;
+                        read_lambda = false;
                         continue;
                     }
                     throw invalid_err;
@@ -612,6 +656,35 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                 read_def_type = false;
                 read_def_type_col = false;
                 read_def_end = true;
+            } else if (read_flag_context) {
+                if (read_flag_context_type) {
+                    while (!temp_vars.empty()) {
+                        auto q = temp_vars.front();
+                        temp_vars.pop();
+                        flag_context[flag_line_num]->emplace_back(q, expr->term());
+                    }
+                    read_flag_context_type = false;
+                    read_lambda = false;
+                } else {
+                    if (expr->term()->kind() != Kind::Variable) throw ParseError(
+                        "expected a variable, got " + to_string(expr->term()->kind()),
+                        expr->begin(),
+                        expr->end());
+                    temp_vars.push(variable(expr->term()));
+                    read_lambda = false;
+                }
+            } else if (read_flag_stmt_term) {
+                term = expr->term();
+                read_flag_stmt_term = false;
+                read_flag_stmt_col = true;
+                read_lambda = false;
+            } else if (read_flag_stmt_type) {
+                type = expr->term();
+                read_flag_stmt_type = false;
+                context = std::make_shared<Context>();
+                for (size_t i = 0; i < flag_line_num; ++i) *context += *flag_context[i];
+                if (term) env.push_back(std::make_shared<Definition>(context, cname, term, type));
+                else env.push_back(std::make_shared<Definition>(context, cname, type));
             }
             continue;
         }
@@ -674,15 +747,24 @@ Environment parse_defs(const std::vector<Token>& tokens) {
             }
             case TokenType::Character:
             case TokenType::String: {
-                if (!read_def_name) throw ParseError("invalid token", t);
-                cname = t.string();
-                while (tokens[idx + 1].type() != TokenType::NewLine && tokens[idx + 1].type() != TokenType::DefinedBy) {
-                    cname += tokens[++idx].string();
+                if (read_def_name || read_flag_cname) {
+                    cname = t.string();
+                    while (tokens[idx + 1].type() != TokenType::NewLine && tokens[idx + 1].type() != TokenType::DefinedBy) {
+                        cname += tokens[++idx].string();
+                    }
                 }
-                read_def_name = false;
-                read_def_term = true;
-                read_lambda = true;
-                break;
+                if (read_def_name) {
+                    read_def_name = false;
+                    read_def_term = true;
+                    read_lambda = true;
+                    break;
+                } else if (read_flag_cname) {
+                    read_flag_cname = false;
+                    vbar_head_of_line = false;
+                    read_flag_defby = true;
+                    break;
+                }
+                throw ParseError("invalid token", t);
             }
             case TokenType::EndOfFile: {
                 if (in_def >= 0) throw ParseError(
@@ -692,18 +774,74 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                 continue;
             }
             case TokenType::SquareBracketLeft: {
+                strap = true;
+                vbar_head_of_line = false;
                 read_flag_context = true;
+                read_flag_context_type = false;
                 read_lambda = true;
+                if (flag_line_num < flag_context.size()) flag_context[flag_line_num] = std::make_shared<Context>();
+                else flag_context.push_back(std::make_shared<Context>());
                 continue;
             }
-            case TokenType::Verticalbar: {
-                if(!flag_context[flag_num++]){
-                    throw ParseError("context of " + std::to_string(flag_num) + "-th flag is undefined", t);
+            case TokenType::SquareBracketRight: {
+                if (read_flag_context) {
+                    read_flag_context = false;
+                    read_flag_context_end = true;
+                    continue;
                 }
+                throw ParseError("invalid token", t);
+            }
+            case TokenType::Comma: {
+                if (read_flag_context && !read_lambda) {
+                    read_lambda = true;
+                    continue;
+                }
+                throw ParseError("invalid token", t);
+            }
+            case TokenType::Colon: {
+                if (read_flag_context) {
+                    read_flag_context_type = true;
+                    read_lambda = true;
+                    continue;
+                } else if (read_flag_stmt_col) {
+                    read_flag_stmt_col = false;
+                    read_flag_stmt_type = true;
+                    read_lambda = true;
+                    continue;
+                }
+                throw ParseError("invalid token", t);
+            }
+            case TokenType::Verticalbar: {
+                if (!vbar_head_of_line) throw ParseError("vertical bar '|' should be placed at the head of line", t);
+                ++flag_line_num;
+                if (flag_context.size() < flag_line_num || !flag_context[flag_line_num - 1]) {
+                    std::cerr << "flag context dump (size: " << flag_context.size() << "): ";
+                    for (auto&& c : flag_context) {
+                        std::cerr << "[";
+                        if (c) std::cerr << c;
+                        else std::cerr << "NUL";
+                        std::cerr << "], ";
+                    }
+                    std::cerr << std::endl;
+                    throw ParseError("context of " + std::to_string(flag_line_num) + "-th flag is undefined", t);
+                }
+                continue;
+            }
+            case TokenType::DefinedBy: {
+                if (read_flag_defby) {
+                    read_flag_defby = false;
+                    read_flag_stmt_term = true;
+                    read_lambda = true;
+                    continue;
+                }
+                throw ParseError("invalid token", t);
             }
             case TokenType::NewLine: {
-                if (flag_context.size() > flag_num) flag_context.resize(flag_num);
-                flag_num = 0;
+                if (!read_flag_context_end && flag_line_num < flag_context.size()) flag_context.resize(flag_line_num);
+                flag_line_num = 0;
+                vbar_head_of_line = true;
+                read_flag_cname = true;
+                read_flag_context_end = false;
                 continue;
             }
             default:

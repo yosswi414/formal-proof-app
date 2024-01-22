@@ -272,6 +272,8 @@ class Context : public std::vector<Typed<Variable>> {
 
     Context& operator+=(const Typed<Variable>& tv);
     Context operator+(const Typed<Variable>& tv) const;
+    Context& operator+=(const Context& c);
+    Context operator+(const Context& c) const;
 };
 
 class Definition {

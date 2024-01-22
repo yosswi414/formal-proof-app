@@ -1451,6 +1451,15 @@ Context Context::operator+(const Typed<Variable>& tv) const {
     return Context(*this) += tv;
 }
 
+Context& Context::operator+=(const Context& c) {
+    for (auto&& tv : c) this->emplace_back(tv);
+    return *this;
+}
+
+Context Context::operator+(const Context& c) const {
+    return Context(*this) += c;
+}
+
 const std::string DEFINITION_SEPARATOR = (OnlyAscii ? "|>" : "▷");
 const std::string EMPTY_DEFINIENS = (OnlyAscii ? "#" : "⫫");
 
