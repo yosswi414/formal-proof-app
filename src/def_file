@@ -123,7 +123,7 @@ u
 A
 v
 not[(A)]
-a1_fig11-8     // name
+a1_fig11.8     // name
 not_el[(A),(v),(u)]
 contra[]
 edef2
@@ -135,8 +135,8 @@ A
 *
 u
 A
-a2_fig11-8     // name
-not_in[(not[(A)]),($v:(not[(A)]).(a1_fig11-8[(A),(u),(v)]))]
+a2_fig11.8     // name
+not_in[(not[(A)]),($v:(not[(A)]).(a1_fig11.8[(A),(u),(v)]))]
 not[(not[(A)])]
 edef2
 
@@ -145,8 +145,8 @@ def2    // (3)
 1
 A
 *
-a3_fig11-8     // name
-implies_in[(A),(not[(not[(A)])]),($u:(A).(a2_fig11-8[(A),(u)]))]
+a3_fig11.8     // name
+implies_in[(A),(not[(not[(A)])]),($u:(A).(a2_fig11.8[(A),(u)]))]
 implies[(A),(not[(not[(A)])])]
 edef2
 
@@ -160,7 +160,7 @@ A
 *
 u
 A
-a2_fig11-9
+a2_fig11.9
 $v:(not[(A)]).(%(v)(u))
 not[(not[(A)])]
 edef2
@@ -170,8 +170,8 @@ def2    // (3)
 1
 A
 *
-a3_fig11-9
-$u:(A).(a2_fig11-9[(A), (u)])
+a3_fig11.9
+$u:(A).(a2_fig11.9[(A), (u)])
 implies[(A), (not[(not[(A)])])]
 edef2
 
@@ -368,7 +368,7 @@ y
 not[(A)]
 u
 A
-a1_fig11-13
+a1_fig11.13
 not_el[(A),(y),(u)]
 contra[]
 edef2
@@ -386,8 +386,8 @@ y
 not[(A)]
 u
 A
-a2_fig11-13
-contra_el[(B),(a1_fig11-13[(A),(B),(x),(y),(u)])]
+a2_fig11.13
+contra_el[(B),(a1_fig11.13[(A),(B),(x),(y),(u)])]
 B
 edef2
 
@@ -402,8 +402,8 @@ x
 or[(A),(B)]
 y
 not[(A)]
-a3_fig11-13     // name
-implies_in[(A),(B),($u:(A).(a2_fig11-13[(A),(B),(x),(y),(u)]))]
+a3_fig11.13     // name
+implies_in[(A),(B),($u:(A).(a2_fig11.13[(A),(B),(x),(y),(u)]))]
 implies[(A),(B)]
 edef2
 
@@ -418,7 +418,7 @@ x
 or[(A),(B)]
 y
 not[(A)]
-a4_fig11-13     // name
+a4_fig11.13     // name
 implies_in[(B),(B),($v:(B).(v))]
 implies[(B),(B)]
 edef2
@@ -434,8 +434,8 @@ x
 or[(A),(B)]
 y
 not[(A)]
-a5_fig11-13     // name
-or_el[(A),(B),(B),(x),(a3_fig11-13[(A),(B),(x),(y)]),(a4_fig11-13[(A),(B),(x),(y)])]
+a5_fig11.13     // name
+or_el[(A),(B),(B),(x),(a3_fig11.13[(A),(B),(x),(y)]),(a4_fig11.13[(A),(B),(x),(y)])]
 B
 edef2
 
@@ -448,8 +448,8 @@ B
 *
 x
 or[(A),(B)]
-a6_fig11-13     // name
-implies_in[(not[(A)]), (B), ($y:(not[(A)]).(a5_fig11-13[(A),(B),(x),(y)]))]
+a6_fig11.13     // name
+implies_in[(not[(A)]), (B), ($y:(not[(A)]).(a5_fig11.13[(A),(B),(x),(y)]))]
 implies[(not[(A)]),(B)]
 edef2
 
@@ -460,8 +460,8 @@ A
 *
 B
 *
-a7_fig11-13     // name
-implies_in[(or[(A),(B)]), (implies[(not[(A)]),(B)]), ($x:(or[(A),(B)]).(a6_fig11-13[(A),(B),(x)]))]
+a7_fig11.13     // name
+implies_in[(or[(A),(B)]), (implies[(not[(A)]),(B)]), ($x:(or[(A),(B)]).(a6_fig11.13[(A),(B),(x)]))]
 implies[(or[(A),(B)]),(implies[(not[(A)]),(B)])]
 edef2
 
@@ -477,7 +477,7 @@ B
 *
 u
 or[(A),(B)]
-a1_fig11-14
+a1_fig11.14
 $v:(A).(or_in2[(B),(A),(v)])
 implies[(A),(or[(B),(A)])]
 edef2
@@ -491,7 +491,7 @@ B
 *
 u
 or[(A),(B)]
-a2_fig11-14
+a2_fig11.14
 $w:(B).(or_in1[(B),(A),(w)])
 implies[(B),(or[(B),(A)])]
 edef2
@@ -505,8 +505,8 @@ B
 *
 u
 or[(A),(B)]
-a3_fig11-14
-%(%(%(u)(or[(B),(A)]))(a1_fig11-14[(A),(B),(u)]))(a2_fig11-14[(A),(B),(u)])
+a3_fig11.14
+%(%(%(u)(or[(B),(A)]))(a1_fig11.14[(A),(B),(u)]))(a2_fig11.14[(A),(B),(u)])
 or[(B),(A)]
 edef2
 
@@ -518,7 +518,7 @@ A
 B
 *
 sym_or
-$u:(or[(A),(B)]).(a3_fig11-14[(A),(B),(u)])
+$u:(or[(A),(B)]).(a3_fig11.14[(A),(B),(u)])
 implies[(or[(A),(B)]),(or[(B),(A)])]
 edef2
 
@@ -540,7 +540,7 @@ y
 not[(A)]
 u
 A
-a1_fig11-15     // name
+a1_fig11.15     // name
 %(y)(u)
 contra[]
 edef2
@@ -558,8 +558,8 @@ y
 not[(A)]
 u
 A
-a2_fig11-15     // name
-%(a1_fig11-15[(A),(B),(x),(y),(u)])(B)
+a2_fig11.15     // name
+%(a1_fig11.15[(A),(B),(x),(y),(u)])(B)
 B
 edef2
 
@@ -574,8 +574,8 @@ x
 or[(A),(B)]
 y
 not[(A)]
-a3_fig11-15     // name
-$u:(A).(a2_fig11-15[(A),(B),(x),(y),(u)])
+a3_fig11.15     // name
+$u:(A).(a2_fig11.15[(A),(B),(x),(y),(u)])
 implies[(A),(B)]
 edef2
 
@@ -590,7 +590,7 @@ x
 or[(A),(B)]
 y
 not[(A)]
-a4_fig11-15     // name
+a4_fig11.15     // name
 $v:(B).(v)
 implies[(B),(B)]
 edef2
@@ -606,8 +606,8 @@ x
 or[(A),(B)]
 y
 not[(A)]
-a5_fig11-15     // name
-%(%(%(x)(B))(a3_fig11-15[(A),(B),(x),(y)]))(a4_fig11-15[(A),(B),(x),(y)])
+a5_fig11.15     // name
+%(%(%(x)(B))(a3_fig11.15[(A),(B),(x),(y)]))(a4_fig11.15[(A),(B),(x),(y)])
 B
 edef2
 
@@ -620,8 +620,8 @@ B
 *
 x
 or[(A),(B)]
-a6_fig11-15     // name
-$y:(not[(A)]).(a5_fig11-15[(A),(B),(x),(y)])
+a6_fig11.15     // name
+$y:(not[(A)]).(a5_fig11.15[(A),(B),(x),(y)])
 implies[(not[(A)]), (B)]
 edef2
 
@@ -632,8 +632,8 @@ A
 *
 B
 *
-a7_fig11-15     // name
-$x:(or[(A),(B)]).(a6_fig11-15[(A),(B),(x)])
+a7_fig11.15     // name
+$x:(or[(A),(B)]).(a6_fig11.15[(A),(B),(x)])
 implies[(or[(A),(B)]), (implies[(not[(A)]), (B)])]
 edef2
 
@@ -654,7 +654,7 @@ def2    // (2)
 1
 A
 *
-a2_fig11-16
+a2_fig11.16
 $v:(A).(v)
 implies[(A), (A)]
 edef2
@@ -669,7 +669,7 @@ u
 not[(not[(A)])]
 v
 not[(A)]
-a3_fig11-16     // name
+a3_fig11.16     // name
 %(u)(v)
 contra[]
 edef2
@@ -683,8 +683,8 @@ u
 not[(not[(A)])]
 v
 not[(A)]
-a4_fig11-16     // name
-%(a3_fig11-16[(A),(u),(v)])(A)
+a4_fig11.16     // name
+%(a3_fig11.16[(A),(u),(v)])(A)
 A
 edef2
 
@@ -695,8 +695,8 @@ A
 *
 u
 not[(not[(A)])]
-a5_fig11-16     // name
-$v:(not[(A)]).(a4_fig11-16[(A),(u),(v)])
+a5_fig11.16     // name
+$v:(not[(A)]).(a4_fig11.16[(A),(u),(v)])
 implies[(not[(A)]),(A)]
 edef2
 
@@ -707,8 +707,8 @@ A
 *
 u
 not[(not[(A)])]
-a6_fig11-16     // name
-%(%(%(exc_thrd[(A)])(A))(a2_fig11-16[(A)]))(a5_fig11-16[(A),(u)])
+a6_fig11.16     // name
+%(%(%(exc_thrd[(A)])(A))(a2_fig11.16[(A)]))(a5_fig11.16[(A),(u)])
 A
 edef2
 
@@ -718,7 +718,7 @@ def2    // (7)
 A
 *
 doub_neg    // name
-$u:(not[(not[(A)])]).(a6_fig11-16[(A),(u)])
+$u:(not[(not[(A)])]).(a6_fig11.16[(A),(u)])
 implies[(not[(not[(A)])]), (A)]
 edef2
 
@@ -767,7 +767,7 @@ v
 not[(or[(A),(B)])]
 w
 A
-a1_fig11-18     // name
+a1_fig11.18     // name
 or_in1[(A), (B), (w)]
 or[(A), (B)]
 edef2
@@ -785,8 +785,8 @@ v
 not[(or[(A),(B)])]
 w
 A
-a2_fig11-18     // name
-%(v)(a1_fig11-18[(A),(B),(u),(v),(w)])
+a2_fig11.18     // name
+%(v)(a1_fig11.18[(A),(B),(u),(v),(w)])
 contra[]
 edef2
 
@@ -801,8 +801,8 @@ u
 implies[(not[(A)]),(B)]
 v
 not[(or[(A),(B)])]
-a3_fig11-18     // name
-$w:(A).(a2_fig11-18[(A),(B),(u),(v),(w)])
+a3_fig11.18     // name
+$w:(A).(a2_fig11.18[(A),(B),(u),(v),(w)])
 not[(A)]
 edef2
 
@@ -819,7 +819,7 @@ v
 not[(or[(A),(B)])]
 w
 B
-a4_fig11-18     // name
+a4_fig11.18     // name
 or_in2[(A), (B), (w)]
 or[(A), (B)]
 edef2
@@ -837,8 +837,8 @@ v
 not[(or[(A),(B)])]
 w
 B
-a5_fig11-18     // name
-%(v)(a4_fig11-18[(A),(B),(u),(v),(w)])
+a5_fig11.18     // name
+%(v)(a4_fig11.18[(A),(B),(u),(v),(w)])
 contra[]
 edef2
 
@@ -853,8 +853,8 @@ u
 implies[(not[(A)]),(B)]
 v
 not[(or[(A),(B)])]
-a6_fig11-18     // name
-$w:(B).(a5_fig11-18[(A),(B),(u),(v),(w)])
+a6_fig11.18     // name
+$w:(B).(a5_fig11.18[(A),(B),(u),(v),(w)])
 not[(B)]
 edef2
 
@@ -869,8 +869,8 @@ u
 implies[(not[(A)]),(B)]
 v
 not[(or[(A),(B)])]
-a7_fig11-18     // name
-%(u)(a3_fig11-18[(A),(B),(u),(v)])
+a7_fig11.18     // name
+%(u)(a3_fig11.18[(A),(B),(u),(v)])
 B
 edef2
 
@@ -885,8 +885,8 @@ u
 implies[(not[(A)]),(B)]
 v
 not[(or[(A),(B)])]
-a8_fig11-18     // name
-%(a6_fig11-18[(A),(B),(u),(v)])(a7_fig11-18[(A),(B),(u),(v)])
+a8_fig11.18     // name
+%(a6_fig11.18[(A),(B),(u),(v)])(a7_fig11.18[(A),(B),(u),(v)])
 contra[]
 edef2
 
@@ -899,8 +899,8 @@ B
 *
 u
 implies[(not[(A)]),(B)]
-a9_fig11-18     // name
-$v:(not[(or[(A),(B)])]).(a8_fig11-18[(A),(B),(u),(v)])
+a9_fig11.18     // name
+$v:(not[(or[(A),(B)])]).(a8_fig11.18[(A),(B),(u),(v)])
 not[(not[(or[(A),(B)])])]
 edef2
 
@@ -913,8 +913,8 @@ B
 *
 u
 implies[(not[(A)]),(B)]
-a10_fig11-18     // name
-notnot_el[(or[(A), (B)]), (a9_fig11-18[(A), (B), (u)])]
+a10_fig11.18     // name
+notnot_el[(or[(A), (B)]), (a9_fig11.18[(A), (B), (u)])]
 or[(A), (B)]
 edef2
 
@@ -925,8 +925,8 @@ A
 *
 B
 *
-a11_fig11-18     // name
-$u:(implies[(not[(A)]), (B)]).(a10_fig11-18[(A), (B), (u)])
+a11_fig11.18     // name
+$u:(implies[(not[(A)]), (B)]).(a10_fig11.18[(A), (B), (u)])
 implies[(implies[(not[(A)]), (B)]), (or[(A), (B)])]
 edef2
 
@@ -943,7 +943,7 @@ B
 u
 implies[(not[(A)]), (B)]
 or_in_alt1      // name
-a10_fig11-18[(A), (B), (u)]
+a10_fig11.18[(A), (B), (u)]
 or[(A), (B)]
 edef2
 
@@ -956,7 +956,7 @@ B
 *
 v
 implies[(not[(B)]), (A)]
-a2_fig11-19      // name
+a2_fig11.19      // name
 or_in_alt1[(B), (A), (v)]
 or[(B), (A)]
 edef2
@@ -971,7 +971,7 @@ B
 v
 implies[(not[(B)]), (A)]
 or_in_alt2      // name
-a3_fig11-14[(B), (A), (a2_fig11-19[(A), (B), (v)])]
+a3_fig11.14[(B), (A), (a2_fig11.19[(A), (B), (v)])]
 or[(A), (B)]
 edef2
 
@@ -988,7 +988,7 @@ or[(A), (B)]
 v
 not[(A)]
 or_el_alt1      // name
-a5_fig11-13[(A), (B), (u), (v)]
+a5_fig11.13[(A), (B), (u), (v)]
 B
 edef2
 
@@ -1004,7 +1004,7 @@ or[(A), (B)]
 w
 not[(B)]
 or_el_alt2      // name
-or_el_alt1[(B), (A), (a3_fig11-14[(A), (B), (u)]), (w)]
+or_el_alt1[(B), (A), (a3_fig11.14[(A), (B), (u)]), (w)]
 A
 edef2
 
@@ -1023,7 +1023,7 @@ u
 not[(and[(A),(B)])]
 v
 not[(not[(A)])]
-a1_fig11-20
+a1_fig11.20
 notnot_el[(A), (v)]
 A
 edef2
@@ -1041,8 +1041,8 @@ v
 not[(not[(A)])]
 w
 B
-a2_fig11-20
-and_in[(A), (B), (a1_fig11-20[(A),(B),(u),(v)]), (w)]
+a2_fig11.20
+and_in[(A), (B), (a1_fig11.20[(A),(B),(u),(v)]), (w)]
 and[(A), (B)]
 edef2
 
@@ -1059,8 +1059,8 @@ v
 not[(not[(A)])]
 w
 B
-a3_fig11-20
-%(u)(a2_fig11-20[(A), (B), (u), (v), (w)])
+a3_fig11.20
+%(u)(a2_fig11.20[(A), (B), (u), (v), (w)])
 contra[]
 edef2
 
@@ -1075,8 +1075,8 @@ u
 not[(and[(A),(B)])]
 v
 not[(not[(A)])]
-a4_fig11-20
-$w:(B).(a3_fig11-20[(A), (B), (u), (v), (w)])
+a4_fig11.20
+$w:(B).(a3_fig11.20[(A), (B), (u), (v), (w)])
 not[(B)]
 edef2
 
@@ -1089,8 +1089,8 @@ B
 *
 u
 not[(and[(A),(B)])]
-a5_fig11-20
-or_in_alt1[(not[(A)]), (not[(B)]), ($v:(not[(not[(A)])]).(a4_fig11-20[(A), (B), (u), (v)]))]
+a5_fig11.20
+or_in_alt1[(not[(A)]), (not[(B)]), ($v:(not[(not[(A)])]).(a4_fig11.20[(A), (B), (u), (v)]))]
 or[(not[(A)]), (not[(B)])]
 edef2
 
@@ -1109,7 +1109,7 @@ u
 or[(not[(A)]), (not[(B)])]
 v
 and[(A), (B)]
-a1_fig11-21
+a1_fig11.21
 and_el1[(A), (B), (v)]
 A
 edef2
@@ -1125,7 +1125,7 @@ u
 or[(not[(A)]), (not[(B)])]
 v
 and[(A), (B)]
-a2_fig11-21
+a2_fig11.21
 and_el2[(A), (B), (v)]
 B
 edef2
@@ -1141,8 +1141,8 @@ u
 or[(not[(A)]), (not[(B)])]
 v
 and[(A), (B)]
-a3_fig11-21
-notnot_in[(A), (a1_fig11-21[(A), (B), (u), (v)])]
+a3_fig11.21
+notnot_in[(A), (a1_fig11.21[(A), (B), (u), (v)])]
 not[(not[(A)])]
 edef2
 
@@ -1157,8 +1157,8 @@ u
 or[(not[(A)]), (not[(B)])]
 v
 and[(A), (B)]
-a4_fig11-21
-or_el_alt1[(not[(A)]), (not[(B)]), (u), (a3_fig11-21[(A), (B), (u), (v)])]
+a4_fig11.21
+or_el_alt1[(not[(A)]), (not[(B)]), (u), (a3_fig11.21[(A), (B), (u), (v)])]
 not[(B)]
 edef2
 
@@ -1173,8 +1173,8 @@ u
 or[(not[(A)]), (not[(B)])]
 v
 and[(A), (B)]
-a5_fig11-21
-%(a4_fig11-21[(A), (B), (u), (v)])(a2_fig11-21[(A), (B), (u), (v)])
+a5_fig11.21
+%(a4_fig11.21[(A), (B), (u), (v)])(a2_fig11.21[(A), (B), (u), (v)])
 contra[]
 edef2
 
@@ -1187,8 +1187,8 @@ B
 *
 u
 or[(not[(A)]), (not[(B)])]
-a6_fig11-21
-$v:(and[(A), (B)]).(a5_fig11-21[(A), (B), (u), (v)])
+a6_fig11.21
+$v:(and[(A), (B)]).(a5_fig11.21[(A), (B), (u), (v)])
 not[(and[(A), (B)])]
 edef2
 
@@ -1249,7 +1249,7 @@ edef2
 // ?A:(*).(implies[(?x:(S).(implies[(%(P)(x)), (A)])), (A)])
 // *
 // edef2
-// 
+//
 // // | u: S | v: Pu
 // def2    // (2)
 // 4
@@ -1265,7 +1265,7 @@ edef2
 // $A:(*).($w:(?x:(S).(implies[(%(P)(x)), (A)])).(%(%(w)(u))(v)))
 // exists[(S), (P)]
 // edef2
-// 
+//
 // // | u: exists[(S), (P)] | A: * | v: ?x:(S).(implies[(%(P)(x)), (A)])
 // def2    // (3)
 // 5
@@ -1348,7 +1348,7 @@ x
 S
 w
 %(P)(x)
-a1_fig11-24     // name
+a1_fig11.24     // name
 %(v)(x)
 implies[(%(P)(x)), (%(Q)(x))]
 edef2
@@ -1370,8 +1370,8 @@ x
 S
 w
 %(P)(x)
-a2_fig11-24     // name
-%(a1_fig11-24[(S), (P), (Q), (u), (v), (x), (w)])(w)
+a2_fig11.24     // name
+%(a1_fig11.24[(S), (P), (Q), (u), (v), (x), (w)])(w)
 %(Q)(x)
 edef2
 
@@ -1392,8 +1392,8 @@ x
 S
 w
 %(P)(x)
-a3_fig11-24     // name
-exists_in[(S), (Q), (x), (a2_fig11-24[(S), (P), (Q), (u), (v), (x), (w)])]
+a3_fig11.24     // name
+exists_in[(S), (Q), (x), (a2_fig11.24[(S), (P), (Q), (u), (v), (x), (w)])]
 exists[(S), (Q)]
 edef2
 
@@ -1410,8 +1410,8 @@ u
 exists[(S), (P)]
 v
 forall[(S), ($y:(S).(implies[(%(P)(y)), (%(Q)(y))]))]
-a4_fig11-24     // name
-$x:(S).($w:(%(P)(x)).(a3_fig11-24[(S), (P), (Q), (u), (v), (x), (w)]))
+a4_fig11.24     // name
+$x:(S).($w:(%(P)(x)).(a3_fig11.24[(S), (P), (Q), (u), (v), (x), (w)]))
 forall[(S), ($x:(S).(implies[(%(P)(x)), (exists[(S), (Q)])]))]
 edef2
 
@@ -1428,8 +1428,8 @@ u
 exists[(S), (P)]
 v
 forall[(S), ($y:(S).(implies[(%(P)(y)), (%(Q)(y))]))]
-a5_fig11-24     // name
-exists_el[(S), (P), (u), (exists[(S), (Q)]), (a4_fig11-24[(S), (P), (Q), (u), (v)])]
+a5_fig11.24     // name
+exists_el[(S), (P), (u), (exists[(S), (Q)]), (a4_fig11.24[(S), (P), (Q), (u), (v)])]
 exists[(S), (Q)]
 edef2
 
@@ -1442,8 +1442,8 @@ P
 ?x:(S).(*)
 Q
 ?x:(S).(*)
-a6_fig11-24     // name
-$u:(exists[(S), (P)]).($v:(forall[(S), ($y:(S).(implies[(%(P)(y)), (%(Q)(y))]))]).(a5_fig11-24[(S), (P), (Q), (u), (v)]))
+a6_fig11.24     // name
+$u:(exists[(S), (P)]).($v:(forall[(S), ($y:(S).(implies[(%(P)(y)), (%(Q)(y))]))]).(a5_fig11.24[(S), (P), (Q), (u), (v)]))
 implies[(exists[(S), (P)]), (implies[(forall[(S), ($y:(S).(implies[(%(P)(y)), (%(Q)(y))]))]), (exists[(S), (Q)])])]
 edef2
 
@@ -1462,7 +1462,7 @@ u
 exists[(S), (P)]
 v
 forall[(S), ($y:(S).(not[(%(P)(y))]))]
-a1_fig11-25     // name
+a1_fig11.25     // name
 exists_el[(S), (P), (u), (contra[]), (v)]
 contra[]
 edef2
@@ -1476,8 +1476,8 @@ P
 ?x:(S).(*)
 u
 exists[(S), (P)]
-a2_fig11-25     // name
-$v:(forall[(S), ($y:(S).(not[(%(P)(y))]))]).(a1_fig11-25[(S), (P), (u), (v)])
+a2_fig11.25     // name
+$v:(forall[(S), ($y:(S).(not[(%(P)(y))]))]).(a1_fig11.25[(S), (P), (u), (v)])
 not[(forall[(S), ($y:(S).(not[(%(P)(y))]))])]
 edef2
 
@@ -1488,8 +1488,8 @@ S
 *
 P
 ?x:(S).(*)
-a3_fig11-25     // name
-$u:(exists[(S), (P)]).(a2_fig11-25[(S), (P), (u)])
+a3_fig11.25     // name
+$u:(exists[(S), (P)]).(a2_fig11.25[(S), (P), (u)])
 implies[(exists[(S), (P)]), (not[(forall[(S), ($y:(S).(not[(%(P)(y))]))])])]
 edef2
 
@@ -1511,7 +1511,7 @@ y
 S
 v
 %(P)(y)
-a1_fig11-26     // name
+a1_fig11.26     // name
 exists_in[(S), (P), (y), (v)]
 exists[(S), (P)]
 edef2
@@ -1529,8 +1529,8 @@ y
 S
 v
 %(P)(y)
-a2_fig11-26     // name
-%(u)(a1_fig11-26[(S), (P), (u), (y), (v)])
+a2_fig11.26     // name
+%(u)(a1_fig11.26[(S), (P), (u), (y), (v)])
 contra[]
 edef2
 
@@ -1545,8 +1545,8 @@ u
 not[(exists[(S), (P)])]
 y
 S
-a3_fig11-26     // name
-$v:(%(P)(y)).(a2_fig11-26[(S), (P), (u), (y), (v)])
+a3_fig11.26     // name
+$v:(%(P)(y)).(a2_fig11.26[(S), (P), (u), (y), (v)])
 not[(%(P)(y))]
 edef2
 
@@ -1559,8 +1559,8 @@ P
 ?x:(S).(*)
 u
 not[(exists[(S), (P)])]
-a4_fig11-26     // name
-$y:(S).(a3_fig11-26[(S),(P),(u),(y)])
+a4_fig11.26     // name
+$y:(S).(a3_fig11.26[(S),(P),(u),(y)])
 forall[(S), ($y:(S).(not[(%(P)(y))]))]
 edef2
 
@@ -1571,8 +1571,8 @@ S
 *
 P
 ?x:(S).(*)
-a5_fig11-26     // name
-$u:(not[(exists[(S), (P)])]).(a4_fig11-26[(S),(P),(u)])
+a5_fig11.26     // name
+$u:(not[(exists[(S), (P)])]).(a4_fig11.26[(S),(P),(u)])
 implies[(not[(exists[(S), (P)])]), (forall[(S), ($y:(S).(not[(%(P)(y))]))])]
 edef2
 
@@ -1591,8 +1591,8 @@ u
 not[(forall[(S), ($x:(S).(not[(%(P)(x))]))])]
 v
 not[(exists[(S), (P)])]
-a1_fig11-27
-a4_fig11-26[(S), (P), (v)]
+a1_fig11.27
+a4_fig11.26[(S), (P), (v)]
 forall[(S), ($z:(S).(not[(%(P)(z))]))]
 edef2
 
@@ -1607,8 +1607,8 @@ u
 not[(forall[(S), ($x:(S).(not[(%(P)(x))]))])]
 v
 not[(exists[(S), (P)])]
-a2_fig11-27
-%(u)(a1_fig11-27[(S), (P), (u), (v)])
+a2_fig11.27
+%(u)(a1_fig11.27[(S), (P), (u), (v)])
 contra[]
 edef2
 
@@ -1621,8 +1621,8 @@ P
 ?x:(S).(*)
 u
 not[(forall[(S), ($x:(S).(not[(%(P)(x))]))])]
-a3_fig11-27
-$v:(not[(exists[(S), (P)])]).(a2_fig11-27[(S), (P), (u), (v)])
+a3_fig11.27
+$v:(not[(exists[(S), (P)])]).(a2_fig11.27[(S), (P), (u), (v)])
 not[(not[(exists[(S), (P)])])]
 edef2
 
@@ -1635,8 +1635,8 @@ P
 ?x:(S).(*)
 u
 not[(forall[(S), ($x:(S).(not[(%(P)(x))]))])]
-a4_fig11-27
-notnot_el[(exists[(S), (P)]), (a3_fig11-27[(S), (P), (u)])]
+a4_fig11.27
+notnot_el[(exists[(S), (P)]), (a3_fig11.27[(S), (P), (u)])]
 exists[(S), (P)]
 edef2
 
@@ -1647,8 +1647,8 @@ S
 *
 P
 ?x:(S).(*)
-a5_fig11-27
-$u:(not[(forall[(S), ($x:(S).(not[(%(P)(x))]))])]).(a4_fig11-27[(S), (P), (u)])
+a5_fig11.27
+$u:(not[(forall[(S), ($x:(S).(not[(%(P)(x))]))])]).(a4_fig11.27[(S), (P), (u)])
 implies[(not[(forall[(S), ($x:(S).(not[(%(P)(x))]))])]), (exists[(S), (P)])]
 edef2
 
@@ -1665,7 +1665,7 @@ P
 u
 not[(forall[(S), ($x:(S).(not[(%(P)(x))]))])]
 exists_in_alt   // name
-a4_fig11-27[(S), (P), (u)]
+a4_fig11.27[(S), (P), (u)]
 exists[(S), (P)]
 edef2
 
@@ -1679,7 +1679,7 @@ P
 u
 exists[(S), (P)]
 exists_el_alt   // name
-a2_fig11-25[(S), (P), (u)]
+a2_fig11.25[(S), (P), (u)]
 not[(forall[(S), ($x:(S).(not[(%(P)(x))]))])]
 edef2
 
@@ -1701,7 +1701,7 @@ v
 forall[(S), ($y:(S).(not[(not[(%(P)(y))])]))]
 x
 S
-a1_fig11-29     // name
+a1_fig11.29     // name
 %(v)(x)
 not[(not[(%(P)(x))])]
 edef2
@@ -1719,8 +1719,8 @@ v
 forall[(S), ($y:(S).(not[(not[(%(P)(y))])]))]
 x
 S
-a2_fig11-29     // name
-notnot_el[(%(P)(x)), (a1_fig11-29[(S), (P), (u), (v), (x)])]
+a2_fig11.29     // name
+notnot_el[(%(P)(x)), (a1_fig11.29[(S), (P), (u), (v), (x)])]
 %(P)(x)
 edef2
 
@@ -1735,8 +1735,8 @@ u
 not[(forall[(S), (P)])]
 v
 forall[(S), ($y:(S).(not[(not[(%(P)(y))])]))]
-a3_fig11-29     // name
-$x:(S).(a2_fig11-29[(S), (P), (u), (v), (x)])
+a3_fig11.29     // name
+$x:(S).(a2_fig11.29[(S), (P), (u), (v), (x)])
 forall[(S), (P)]
 edef2
 
@@ -1751,8 +1751,8 @@ u
 not[(forall[(S), (P)])]
 v
 forall[(S), ($y:(S).(not[(not[(%(P)(y))])]))]
-a4_fig11-29     // name
-%(u)(a3_fig11-29[(S), (P), (u), (v)])
+a4_fig11.29     // name
+%(u)(a3_fig11.29[(S), (P), (u), (v)])
 contra[]
 edef2
 
@@ -1765,8 +1765,8 @@ P
 ?x:(S).(*)
 u
 not[(forall[(S), (P)])]
-a5_fig11-29     // name
-$v:(forall[(S), ($y:(S).(not[(not[(%(P)(y))])]))]).(a4_fig11-29[(S), (P), (u), (v)])
+a5_fig11.29     // name
+$v:(forall[(S), ($y:(S).(not[(not[(%(P)(y))])]))]).(a4_fig11.29[(S), (P), (u), (v)])
 not[(forall[(S), ($y:(S).(not[(not[(%(P)(y))])]))])]
 edef2
 
@@ -1779,8 +1779,8 @@ P
 ?x:(S).(*)
 u
 not[(forall[(S), (P)])]
-a6_fig11-29     // name
-exists_in_alt[(S), ($y:(S).(not[(%(P)(y))])), (a5_fig11-29[(S), (P), (u)])]
+a6_fig11.29     // name
+exists_in_alt[(S), ($y:(S).(not[(%(P)(y))])), (a5_fig11.29[(S), (P), (u)])]
 exists[(S), ($y:(S).(not[(%(P)(y))]))]
 edef2
 
@@ -1791,9 +1791,136 @@ S
 *
 P
 ?x:(S).(*)
-a7_fig11-29     // name
-$u:(not[(forall[(S), (P)])]).(a6_fig11-29[(S), (P), (u)])
+a7_fig11.29     // name
+$u:(not[(forall[(S), (P)])]).(a6_fig11.29[(S), (P), (u)])
 implies[(not[(forall[(S), (P)])]), (exists[(S), ($y:(S).(not[(%(P)(y))]))])]
 edef2
+
+
+// p.260 Figure 12.2; Definition of equality, and the reflexivity property for equality
+// S: *
+// | x: S
+// | | y: S
+def2
+3
+S: *
+x, y: S
+eq := ?P : S->* . (%P x <=> %P y)    : *
+edef2
+
+// | | P: ?x:S.*
+def2
+3
+S: *
+x: S
+P: S->*
+a2_fig12.2 := equiv_in[%P x, %P x, $u:%P x.u, $u:%P x.u] : %P x <=> %P x
+edef2
+
+// | |
+def2
+2
+S: *
+x: S
+eq_refl := $P:S->*.a2_fig12.2[S, x, P] : eq[S, x, x]
+edef2
+
+// p.276 Exercises 12.2
+def2
+3
+S: *
+x, y: S
+eq_alt := ?P: S->* . (%P x => %P y) : *
+edef2
+
+// p.262 Figure 12.4; Substitutivity as property of equality
+def2
+5
+S: *
+P: S->*
+x, y: S
+u: eq[S, x, y]
+a1_fig12.4 := %u P : %P x <=> %P y
+edef2
+
+def2
+5
+S: *
+P: S->*
+x, y: S
+u: eq[S, x, y]
+a2_fig12.4 := equiv_el1[%P x, %P y, a1_fig12.4[S, P, x, y, u]] : %P x => %P y
+edef2
+
+def2
+6
+S: *
+P: S->*
+x, y: S
+u: eq[S, x, y]
+v: %P x
+eq_subs := %a2_fig12.4[S, P, x, y, u] v : %P y
+edef2
+
+// p.263 Figure 12.5; First proof of the congruence property for equality
+def2
+8
+S, T: *
+f: S->T
+x, y: S
+u: eq[S, x, y]
+Q: T->*
+v: %Q %f x
+a1_fig12.5 := eq_subs[S, $z:S.%Q %f z, x, y, u, v] : %Q %f y
+edef2
+
+/*
+[S, T: *]
+|[f: S->T]
+||[x, y: S]
+|||[u: eq[S, x, y]]
+||||
+||||
+|||
+|||[v: %Q %f x]
+||||
+||||
+|||
+||
+|
+
+S, T: *
+|f: S->T
+||x, y: S
+|||u: eq[S, x, y]
+||||
+||||
+|||
+|||v: %Q %f x
+||||
+||||
+|||
+||
+|
+
+
+
+eq_alt
+a1_fig12.5
+a2_fig12.5
+a3_fig12.5
+eq_cong
+Q1_fig12.6
+eq_cong2
+Q2_fig12.10
+a2_fig12.10
+eq_sym
+a4_fig12.10
+eq_sym2
+Q3_fig12.12
+eq_trans
+a3_fig12.12
+*/
+
 
 END
