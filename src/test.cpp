@@ -366,6 +366,19 @@ void test_parse() {
     show(A);
 }
 
+std::shared_ptr<Term> get_type(const std::shared_ptr<Term>& term, const Environment& delta, const Context& gamma) {
+    switch (term->kind()){
+        case Kind::Star:
+            return sq;
+        case Kind::Square:
+            return nullptr;
+    }
+}
+
+void test_type_inf(const Environment& delta) {
+    Context context;
+}
+
 int main() {
     Environment delta;
     try {
@@ -377,12 +390,13 @@ int main() {
         e.puterror();
         exit(EXIT_FAILURE);
     }
-    // test_alpha_subst();
-    // test_subst();
-    // test_reduction1(delta);
-    // test_reduction2(delta);
-    // test_sandbox();
+    test_alpha_subst();
+    test_subst();
+    test_reduction1(delta);
+    test_reduction2(delta);
+    test_sandbox();
 
-    // test_parse();
-    test_reduction3(delta);
+    test_parse();
+    // test_reduction3(delta);
+    // test_type_inf(delta);
 }
