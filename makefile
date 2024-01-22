@@ -31,9 +31,16 @@ bin/test_leak.out: bin/test_leak.obj bin/common_leak.obj bin/lambda_leak.obj bin
 src/def_file_nocomm: src/def_file bin/def_conv.out
 	bin/def_conv.out -f $< -c > $@
 
-.PHONY: test book parse clean test_read lambda conv test_leak book_leak conv_leak nocomm
+.PHONY: test book parse clean test_read lambda conv test_leak book_leak conv_leak nocomm compile
 
 nocomm: src/def_file_nocomm
+
+# usage: $ makefile compile "DEF=implies"
+compile: bin/verifier.out
+	rm -f src/def_file_nocomm
+	make nocomm
+	./test_automake3 src/def_file_nocomm ${DEF} script_autotest > /dev/null
+	bin/verifier.out -f script_autotest -d src/def_file_nocomm -s
 
 test_read: bin/def_conv.out src/def_file
 	$^ -r
@@ -81,4 +88,5 @@ clean:
 	rm -f ./src/def_conv_out*
 	rm -f ./def_file_bez*_cp
 	rm -f ./log*
+	rm -f ./script_autotest*
 
