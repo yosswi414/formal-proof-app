@@ -346,7 +346,7 @@ int main(int argc, char* argv[]) {
     }
 
     alive1.store(false);
-    std::cerr << "verification finished." << std::endl;
+    std::cerr << BOLD(GREEN("verification finished.")) << std::endl;
 
     // std::ofstream ofs(ofname);
     if (!is_quiet || ofname.size() > 0) {
