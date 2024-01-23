@@ -1678,6 +1678,152 @@ const std::string& InferenceError::str() const { return _msg; }
 
 Book::Book(bool skip_check) : std::vector<Judgement>{}, _skip_check{skip_check} {};
 Book::Book(const std::vector<Judgement>& list) : std::vector<Judgement>(list) {}
+Book::Book(const std::string& scriptname, size_t limit) : Book(false) {
+    read_script(scriptname, limit);
+}
+Book::Book(const FileData& fdata, size_t limit) : Book(false) {
+    read_script(fdata, limit);
+}
+
+void Book::read_script(const FileData& fdata, size_t limit) {
+    std::stringstream ss;
+    auto errmsg = [](const std::string& op, size_t lno) {
+        return op + ": wrong format (line " + std::to_string(lno + 1) + ")";
+    };
+    for (size_t i = 0; i < limit; ++i) {
+        ss << fdata[i];
+        int lno;
+        std::string op;
+        ss >> lno;
+        if (lno == -1) break;
+        ss >> op;
+        if (op == "sort") {
+            sort();
+        } else if (op == "var") {
+            size_t idx;
+            char x;
+            check_true_or_exit(
+                ss >> idx >> x,
+                errmsg(op, i),
+                __FILE__, __LINE__, __func__);
+
+            var(idx, x);
+        } else if (op == "weak") {
+            size_t idx1, idx2;
+            char x;
+            check_true_or_exit(
+                ss >> idx1 >> idx2 >> x,
+                errmsg(op, i),
+                __FILE__, __LINE__, __func__);
+
+            weak(idx1, idx2, x);
+        } else if (op == "form") {
+            size_t idx1, idx2;
+            check_true_or_exit(
+                ss >> idx1 >> idx2,
+                errmsg(op, i),
+                __FILE__, __LINE__, __func__);
+
+            form(idx1, idx2);
+        } else if (op == "appl") {
+            size_t idx1, idx2;
+            check_true_or_exit(
+                ss >> idx1 >> idx2,
+                errmsg(op, i),
+                __FILE__, __LINE__, __func__);
+
+            appl(idx1, idx2);
+        } else if (op == "abst") {
+            size_t idx1, idx2;
+            check_true_or_exit(
+                ss >> idx1 >> idx2,
+                errmsg(op, i),
+                __FILE__, __LINE__, __func__);
+
+            abst(idx1, idx2);
+        } else if (op == "conv") {
+            size_t idx1, idx2;
+            check_true_or_exit(
+                ss >> idx1 >> idx2,
+                errmsg(op, i),
+                __FILE__, __LINE__, __func__);
+
+            conv(idx1, idx2);
+        } else if (op == "def") {
+            size_t idx1, idx2;
+            std::string a;
+            check_true_or_exit(
+                ss >> idx1 >> idx2 >> a,
+                errmsg(op, i),
+                __FILE__, __LINE__, __func__);
+
+            def(idx1, idx2, a);
+        } else if (op == "defpr") {
+            size_t idx1, idx2;
+            std::string a;
+            check_true_or_exit(
+                ss >> idx1 >> idx2 >> a,
+                errmsg(op, i),
+                __FILE__, __LINE__, __func__);
+
+            defpr(idx1, idx2, a);
+        } else if (op == "inst") {
+            size_t idx0, n, p;
+            check_true_or_exit(
+                ss >> idx0 >> n,
+                errmsg(op, i),
+                __FILE__, __LINE__, __func__);
+
+            std::vector<size_t> idxs(n);
+            for (auto&& ki : idxs) {
+                check_true_or_exit(
+                    ss >> ki,
+                    errmsg(op, i),
+                    __FILE__, __LINE__, __func__);
+            }
+            check_true_or_exit(
+                ss >> p,
+                errmsg(op, i),
+                __FILE__, __LINE__, __func__);
+            inst(idx0, n, idxs, p);
+        } else if (op == "cp") {
+            size_t idx;
+            check_true_or_exit(
+                ss >> idx,
+                errmsg(op, i),
+                __FILE__, __LINE__, __func__);
+
+            cp(idx);
+        } else if (op == "sp") {
+            size_t idx, n;
+            check_true_or_exit(
+                ss >> idx >> n,
+                errmsg(op, i),
+                __FILE__, __LINE__, __func__);
+
+            sp(idx, n);
+        } else if (op == "tp") {
+            size_t idx;
+            check_true_or_exit(
+                ss >> idx,
+                errmsg(op, i),
+                __FILE__, __LINE__, __func__);
+
+            tp(idx);
+        } else {
+            check_true_or_exit(
+                false,
+                "not implemented (token: " << op << ")",
+                __FILE__, __LINE__, __func__);
+        }
+        ss.clear();
+        ss.str("");
+    }
+}
+
+void Book::read_script(const std::string& scriptname, size_t limit) {
+    read_script(FileData(scriptname), limit);
+}
 
 // inference rules
 void Book::sort() {

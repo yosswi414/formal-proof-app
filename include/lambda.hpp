@@ -431,8 +431,8 @@ class Book : public std::vector<Judgement> {
   public:
     Book(bool skip_check = false);
     Book(const std::vector<Judgement>& list);
-    template <class... Ts>
-    Book(Ts... vals) : std::vector<Judgement>{vals...} {}
+    Book(const std::string& scriptname, size_t limit = -1);
+    Book(const FileData& fdata, size_t limit = -1);
 
     // inference rules
     void sort();
@@ -453,6 +453,9 @@ class Book : public std::vector<Judgement> {
     std::string string() const;
     std::string repr() const;
     std::string repr_new() const;
+
+    void read_script(const std::string& scriptname, size_t limit = -1);
+    void read_script(const FileData& fdata, size_t limit = -1);
 
     void read_def_file(const std::string& fname);
     const Environment& env() const;
