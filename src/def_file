@@ -1829,21 +1829,13 @@ edef2
 | | | | [Q: T->*]
 | | | | | [v: %Q %f x]
 | | | | | | a1_fig12.5 := eq_subs[S, $z:S.%Q %f z, x, y, u, v] : %Q %f y
+| | | | | a2_fig12.5 := $v: %Q %f x . a1_fig12.5[S, T, f, x, y, u, Q, v] : %Q %f x => %Q %f y
+| | | | a3_fig12.5 := $Q: T->* . a2_fig12.5[S, T, f, x, y, u, Q] : ?Q: T->* . (%Q %f x => %Q %f y)
+| | | | eq_cong1 := a3_fig12.5[S, T, f, x, y, u] : eq[T, %f x, %f y]
 
 /*
-a2_fig12.5
-a3_fig12.5
-eq_cong
-Q1_fig12.6
-eq_cong2
-Q2_fig12.10
-a2_fig12.10
-eq_sym
-a4_fig12.10
-eq_sym2
-Q3_fig12.12
-eq_trans
-a3_fig12.12
+Q1_fig12.6 eq_cong2 Q2_fig12.10 a2_fig12.10 eq_sym a4_fig12.10 eq_sym2
+Q3_fig12.12 eq_trans a3_fig12.12
 */
 
 
