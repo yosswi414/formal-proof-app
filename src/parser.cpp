@@ -304,7 +304,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
                     "above error raised during parsing bind variable of abstraction", tokens[idx],
                     "abstraction starts here", tokens[abst_hdr]);
             }
-            if (var->term()->kind() != Kind::Variable) throw ExprError("expected a variable", tokens[idx]);
+            if (var->term()->etype() != EpsilonType::Variable) throw ExprError("expected a variable", tokens[idx]);
             incr_idx("a colon", "an abstraction", abst_hdr);
             if (tokens[idx].type() != TokenType::Colon) throw ExprError(
                 "expected colon, got an invalid token", tokens[idx],
@@ -528,10 +528,10 @@ Environment parse_defs(const std::vector<Token>& tokens) {
         return res;
     };
     unused(flg_str);
-    bool strap = false;
+
     for (size_t idx = 0; !eof && idx < tokens.size(); ++idx) {
         if (DEBUG_CERR) std::cerr << "[debug; parse loop] flag[def]: " << def_str() << std::endl;
-        if (strap) {
+        if (DEBUG_CERR) {
             std::cerr << "[debug; parse loop] flag[flg]: " << flg_str() << ", token: \"" << (tokens[idx].type() == TokenType::NewLine ? "<NL>" : tokens[idx].string()) << "\"\t";
             std::cerr << "flag context dump (size: " << flag_context.size() << "): ";
             for (auto&& c : flag_context) {
@@ -621,8 +621,8 @@ Environment parse_defs(const std::vector<Token>& tokens) {
             read_lambda = false;
             if (read_def_context) {
                 if (read_def_context_var) {
-                    if (expr->term()->kind() != Kind::Variable) throw ParseError(
-                        "expected a variable, got " + to_string(expr->term()->kind()),
+                    if (expr->term()->etype() != EpsilonType::Variable) throw ParseError(
+                        "expected a variable, got " + to_string(expr->term()->etype()),
                         expr->begin(),
                         expr->end());
                     temp_vars.push(variable(expr->term()));
@@ -666,8 +666,8 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                     read_flag_context_type = false;
                     read_lambda = false;
                 } else {
-                    if (expr->term()->kind() != Kind::Variable) throw ParseError(
-                        "expected a variable, got " + to_string(expr->term()->kind()),
+                    if (expr->term()->etype() != EpsilonType::Variable) throw ParseError(
+                        "expected a variable, got " + to_string(expr->term()->etype()),
                         expr->begin(),
                         expr->end());
                     temp_vars.push(variable(expr->term()));
@@ -774,7 +774,6 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                 continue;
             }
             case TokenType::SquareBracketLeft: {
-                strap = true;
                 vbar_head_of_line = false;
                 read_flag_context = true;
                 read_flag_context_type = false;

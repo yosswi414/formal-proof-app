@@ -37,57 +37,57 @@
  *      #define x -> y := ?z:x.y
  */
 
-std::string to_string(const Kind& k) {
+std::string to_string(const EpsilonType& k) {
     switch (k) {
-        case Kind::Star:
-            return "Kind::Star";
-        case Kind::Square:
-            return "Kind::Square";
-        case Kind::Variable:
-            return "Kind::Variable";
-        case Kind::Application:
-            return "Kind::Application";
-        case Kind::AbstLambda:
-            return "Kind::AbstLambda";
-        case Kind::AbstPi:
-            return "Kind::AbstPi";
-        case Kind::Constant:
-            return "Kind::Constant";
+        case EpsilonType::Star:
+            return "EpsilonType::Star";
+        case EpsilonType::Square:
+            return "EpsilonType::Square";
+        case EpsilonType::Variable:
+            return "EpsilonType::Variable";
+        case EpsilonType::Application:
+            return "EpsilonType::Application";
+        case EpsilonType::AbstLambda:
+            return "EpsilonType::AbstLambda";
+        case EpsilonType::AbstPi:
+            return "EpsilonType::AbstPi";
+        case EpsilonType::Constant:
+            return "EpsilonType::Constant";
         default:
             check_true_or_exit(
                 false,
-                "unknown Kind value (value:" << (int)k << ")",
+                "unknown EpsilonType value (value:" << (int)k << ")",
                 __FILE__, __LINE__, __func__);
     }
 }
 
-std::ostream& operator<<(std::ostream& os, const Kind& k) {
+std::ostream& operator<<(std::ostream& os, const EpsilonType& k) {
     return os << to_string(k);
 }
 
 std::shared_ptr<Term> copy(const std::shared_ptr<Term>& term) {
-    switch (term->kind()) {
-        case Kind::Star:
+    switch (term->etype()) {
+        case EpsilonType::Star:
             return star;
-        case Kind::Square:
+        case EpsilonType::Square:
             return sq;
-        case Kind::Variable: {
+        case EpsilonType::Variable: {
             auto t = variable(term);
             return std::make_shared<Variable>(t->name());
         }
-        case Kind::Application: {
+        case EpsilonType::Application: {
             auto t = appl(term);
             return std::make_shared<Application>(copy(t->M()), copy(t->N()));
         }
-        case Kind::AbstLambda: {
+        case EpsilonType::AbstLambda: {
             auto t = lambda(term);
             return std::make_shared<AbstLambda>(copy(t->var().value()), copy(t->var().type()), copy(t->expr()));
         }
-        case Kind::AbstPi: {
+        case EpsilonType::AbstPi: {
             auto t = pi(term);
             return std::make_shared<AbstPi>(copy(t->var().value()), copy(t->var().type()), copy(t->expr()));
         }
-        case Kind::Constant: {
+        case EpsilonType::Constant: {
             auto t = constant(term);
             std::vector<std::shared_ptr<Term>> args;
             for (auto&& ptr : t->args()) args.emplace_back(copy(ptr));
@@ -96,40 +96,40 @@ std::shared_ptr<Term> copy(const std::shared_ptr<Term>& term) {
         default:
             check_true_or_exit(
                 false,
-                "unknown kind: " << to_string(term->kind()),
+                "unknown etype: " << to_string(term->etype()),
                 __FILE__, __LINE__, __func__);
     }
 }
 
 std::set<char> free_var(const std::shared_ptr<Term>& term) {
     std::set<char> FV;
-    switch (term->kind()) {
-        case Kind::Star:
-        case Kind::Square:
+    switch (term->etype()) {
+        case EpsilonType::Star:
+        case EpsilonType::Square:
             return FV;
-        case Kind::Variable: {
+        case EpsilonType::Variable: {
             auto t = variable(term);
             FV.insert(t->name());
             return FV;
         }
-        case Kind::Application: {
+        case EpsilonType::Application: {
             auto t = appl(term);
             set_union(free_var(t->M()), free_var(t->N()), FV);
             return FV;
         }
-        case Kind::AbstLambda: {
+        case EpsilonType::AbstLambda: {
             auto t = lambda(term);
             FV = free_var(t->var().type(), t->expr());
             FV.erase(t->var().value()->name());
             return FV;
         }
-        case Kind::AbstPi: {
+        case EpsilonType::AbstPi: {
             auto t = pi(term);
             FV = free_var(t->var().type(), t->expr());
             FV.erase(t->var().value()->name());
             return FV;
         }
-        case Kind::Constant: {
+        case EpsilonType::Constant: {
             auto t = constant(term);
             for (auto& arg : t->args()) set_union_inplace(FV, free_var(arg));
             return FV;
@@ -137,13 +137,24 @@ std::set<char> free_var(const std::shared_ptr<Term>& term) {
         default:
             check_true_or_exit(
                 false,
-                "unknown kind: " << to_string(term->kind()),
+                "unknown etype: " << to_string(term->etype()),
                 __FILE__, __LINE__, __func__);
     }
 }
 
+std::set<char> free_var(const Context& con) {
+    std::set<char> FV;
+    for (auto&& tv : con) FV.insert(tv.value()->name());
+    return FV;
+}
+
 bool is_free_var(const std::shared_ptr<Term>& term, const std::shared_ptr<Variable>& var) {
     auto fv = free_var(term);
+    return fv.find(var->name()) != fv.end();
+}
+
+bool is_free_var(const Context& con, const std::shared_ptr<Variable>& var) {
+    auto fv = free_var(con);
     return fv.find(var->name()) != fv.end();
 }
 
@@ -167,21 +178,31 @@ std::shared_ptr<Variable> get_fresh_var(const std::vector<std::shared_ptr<Term>>
                        __FILE__, __LINE__, __func__);
 }
 
+std::shared_ptr<Variable> get_fresh_var(const Context& con) {
+    std::set<char> univ;
+    for (char ch = 'A'; ch <= 'Z'; ++ch) univ.insert(ch);
+    for (char ch = 'a'; ch <= 'z'; ++ch) univ.insert(ch);
+    set_minus_inplace(univ, free_var(con));
+    if (!univ.empty()) return variable(*univ.begin());
+    check_true_or_exit(false, "out of fresh variable",
+                       __FILE__, __LINE__, __func__);
+}
+
 std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::shared_ptr<Variable>& bind, const std::shared_ptr<Term>& expr) {
-    switch (term->kind()) {
-        case Kind::Star:
-        case Kind::Square:
+    switch (term->etype()) {
+        case EpsilonType::Star:
+        case EpsilonType::Square:
             return term;
-        case Kind::Variable:
+        case EpsilonType::Variable:
             // return alpha_comp(term, bind) ? copy(expr) : term;
             return alpha_comp(term, bind) ? expr : term;
-        case Kind::Application: {
+        case EpsilonType::Application: {
             auto t = appl(term);
             return appl(
                 substitute(t->M(), bind, expr),
                 substitute(t->N(), bind, expr));
         }
-        case Kind::AbstLambda: {
+        case EpsilonType::AbstLambda: {
             auto t = lambda(term);
             auto new_type = substitute(t->var().type(), bind, expr);
             auto old_var = t->var().value();
@@ -199,7 +220,7 @@ std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::s
                 new_type,
                 substitute(substitute(t->expr(), old_var, new_var), bind, expr));
         }
-        case Kind::AbstPi: {
+        case EpsilonType::AbstPi: {
             auto t = pi(term);
             auto new_type = substitute(t->var().type(), bind, expr);
             auto old_var = t->var().value();
@@ -217,7 +238,7 @@ std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::s
                 new_type,
                 substitute(substitute(t->expr(), old_var, new_var), bind, expr));
         }
-        case Kind::Constant: {
+        case EpsilonType::Constant: {
             auto t = constant(term);
             std::vector<std::shared_ptr<Term>> args;
             for (auto& type : t->args()) args.emplace_back(substitute(type, bind, expr));
@@ -226,15 +247,15 @@ std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::s
         default:
             check_true_or_exit(
                 false,
-                "unknown kind: " << to_string(term->kind()),
+                "unknown etype: " << to_string(term->etype()),
                 __FILE__, __LINE__, __func__);
     }
 }
 
 std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::shared_ptr<Term>& var_bind, const std::shared_ptr<Term>& expr) {
     check_true_or_exit(
-        var_bind->kind() == Kind::Variable,
-        "var_bind kind error (expected Kind::Variable, got " << to_string(var_bind->kind()) << ")",
+        var_bind->etype() == EpsilonType::Variable,
+        "var_bind etype error (expected EpsilonType::Variable, got " << to_string(var_bind->etype()) << ")",
         __FILE__, __LINE__, __func__);
     return substitute(term, variable(var_bind), expr);
 }
@@ -311,17 +332,17 @@ std::shared_ptr<Constant> constant(const std::shared_ptr<Term>& t) {
 
 bool alpha_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) {
     if (a == b) return true;
-    if (a->kind() != b->kind()) return false;
-    switch (a->kind()) {
-        case Kind::Star:
-        case Kind::Square:
+    if (a->etype() != b->etype()) return false;
+    switch (a->etype()) {
+        case EpsilonType::Star:
+        case EpsilonType::Square:
             return true;
-        case Kind::Variable: {
+        case EpsilonType::Variable: {
             auto la = variable(a);
             auto lb = variable(b);
             return la->name() == lb->name();
         }
-        case Kind::AbstLambda: {
+        case EpsilonType::AbstLambda: {
             auto la = lambda(a);
             auto lb = lambda(b);
             if (!alpha_comp(la->var().type(), lb->var().type())) return false;
@@ -335,7 +356,7 @@ bool alpha_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) 
                 substitute(la->expr(), lax, z),
                 substitute(lb->expr(), lbx, z));
         }
-        case Kind::AbstPi: {
+        case EpsilonType::AbstPi: {
             auto la = pi(a);
             auto lb = pi(b);
             if (!alpha_comp(la->var().type(), lb->var().type())) return false;
@@ -349,12 +370,12 @@ bool alpha_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) 
                 substitute(la->expr(), lax, z),
                 substitute(lb->expr(), lbx, z));
         }
-        case Kind::Application: {
+        case EpsilonType::Application: {
             auto la = appl(a);
             auto lb = appl(b);
             return alpha_comp(la->M(), lb->M()) && alpha_comp(la->N(), lb->N());
         }
-        case Kind::Constant: {
+        case EpsilonType::Constant: {
             auto la = constant(a);
             auto lb = constant(b);
             if (la->name() != lb->name()) return false;
@@ -367,38 +388,38 @@ bool alpha_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) 
         default:
             check_true_or_exit(
                 false,
-                "alpha_comp(): unknown kind: " << to_string(a->kind()),
+                "alpha_comp(): unknown etype: " << to_string(a->etype()),
                 __FILE__, __LINE__, __func__);
     }
 }
 
 bool exact_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) {
-    if (a->kind() != b->kind()) return false;
-    switch (a->kind()) {
-        case Kind::Star:
-        case Kind::Square:
+    if (a->etype() != b->etype()) return false;
+    switch (a->etype()) {
+        case EpsilonType::Star:
+        case EpsilonType::Square:
             return true;
-        case Kind::Variable: {
+        case EpsilonType::Variable: {
             auto la = variable(a);
             auto lb = variable(b);
             return la->name() == lb->name();
         }
-        case Kind::AbstLambda: {
+        case EpsilonType::AbstLambda: {
             auto la = lambda(a);
             auto lb = lambda(b);
             return exact_comp(la->var().value(), lb->var().value()) && exact_comp(la->var().type(), lb->var().type()) && exact_comp(la->expr(), lb->expr());
         }
-        case Kind::AbstPi: {
+        case EpsilonType::AbstPi: {
             auto la = pi(a);
             auto lb = pi(b);
             return exact_comp(la->var().value(), lb->var().value()) && exact_comp(la->var().type(), lb->var().type()) && exact_comp(la->expr(), lb->expr());
         }
-        case Kind::Application: {
+        case EpsilonType::Application: {
             auto la = appl(a);
             auto lb = appl(b);
             return exact_comp(la->M(), lb->M()) && exact_comp(la->N(), lb->N());
         }
-        case Kind::Constant: {
+        case EpsilonType::Constant: {
             auto la = constant(a);
             auto lb = constant(b);
             if (la->name() != lb->name()) return false;
@@ -411,7 +432,7 @@ bool exact_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) 
         default:
             check_true_or_exit(
                 false,
-                "exact_comp(): unknown kind: " << to_string(a->kind()),
+                "exact_comp(): unknown etype: " << to_string(a->etype()),
                 __FILE__, __LINE__, __func__);
     }
 }
@@ -550,7 +571,7 @@ bool has_definition(const std::shared_ptr<Environment>& env, const std::shared_p
 }
 
 bool is_sort(const std::shared_ptr<Term>& t) {
-    return t->kind() == Kind::Star || t->kind() == Kind::Square;
+    return t->etype() == EpsilonType::Star || t->etype() == EpsilonType::Square;
 }
 
 bool is_var_applicable(const Book& book, size_t idx, char var) {
@@ -661,7 +682,7 @@ bool is_appl_applicable(const Book& book, size_t idx1, size_t idx2) {
             << "context 2: " << judge2.context(),
         __FILE__, __LINE__, __func__);
     check_true_or_ret_false_err(
-        judge1.type()->kind() == Kind::AbstPi,
+        judge1.type()->etype() == EpsilonType::AbstPi,
         "type of 1st judgement is not a pi abstraction"
             << std::endl
             << "type: " << judge1.type(),
@@ -702,7 +723,7 @@ bool is_abst_applicable(const Book& book, size_t idx1, size_t idx2) {
             << "size 2: " << judge2.context()->size() << " (should have 1 less)",
         __FILE__, __LINE__, __func__);
     check_true_or_ret_false_err(
-        judge2.term()->kind() == Kind::AbstPi,
+        judge2.term()->etype() == EpsilonType::AbstPi,
         "abst: "
             << "term of 2nd judgement is not a pi abstraction" << std::endl
             << "term: " << judge2.term(),
@@ -742,7 +763,7 @@ bool is_abst_applicable(const Book& book, size_t idx1, size_t idx2) {
 }
 
 std::shared_ptr<Term> beta_reduce(const std::shared_ptr<Application>& term) {
-    if (term->M()->kind() != Kind::AbstLambda) return term;
+    if (term->M()->etype() != EpsilonType::AbstLambda) return term;
     auto M = lambda(term->M());
     auto N = term->N();
     return substitute(M->expr(), M->var().value(), N);
@@ -762,32 +783,32 @@ std::shared_ptr<Term> delta_reduce(const std::shared_ptr<Constant>& term, const 
 }
 
 std::shared_ptr<Term> delta_nf(const std::shared_ptr<Term>& term, const Environment& delta) {
-    switch (term->kind()) {
-        case Kind::Star:
-        case Kind::Square:
-        case Kind::Variable:
+    switch (term->etype()) {
+        case EpsilonType::Star:
+        case EpsilonType::Square:
+        case EpsilonType::Variable:
             return term;
-        case Kind::Application: {
+        case EpsilonType::Application: {
             auto t = appl(term);
             return appl(
                 delta_nf(t->M(), delta),
                 delta_nf(t->N(), delta));
         }
-        case Kind::AbstLambda: {
+        case EpsilonType::AbstLambda: {
             auto t = lambda(term);
             return lambda(
                 t->var().value(),
                 delta_nf(t->var().type(), delta),
                 delta_nf(t->expr(), delta));
         }
-        case Kind::AbstPi: {
+        case EpsilonType::AbstPi: {
             auto t = pi(term);
             return pi(
                 t->var().value(),
                 delta_nf(t->var().type(), delta),
                 delta_nf(t->expr(), delta));
         }
-        case Kind::Constant: {
+        case EpsilonType::Constant: {
             auto t = constant(term);
             auto dptr = delta.lookup_def(t);
             if (!dptr || dptr->is_prim()) {
@@ -807,33 +828,33 @@ std::shared_ptr<Term> delta_nf(const std::shared_ptr<Term>& term, const Environm
 }
 
 std::shared_ptr<Term> beta_nf(const std::shared_ptr<Term>& term) {
-    switch (term->kind()) {
-        case Kind::Star:
-        case Kind::Square:
-        case Kind::Variable:
+    switch (term->etype()) {
+        case EpsilonType::Star:
+        case EpsilonType::Square:
+        case EpsilonType::Variable:
             return term;
-        case Kind::Application: {
+        case EpsilonType::Application: {
             auto t = appl(term);
             if (is_beta_reducible(t)) return beta_nf(beta_reduce(t));
             auto s = appl(beta_nf(t->M()), beta_nf(t->N()));
             if (is_beta_reducible(s)) return beta_nf(beta_reduce(s));
             else return s;
         }
-        case Kind::AbstLambda: {
+        case EpsilonType::AbstLambda: {
             auto t = lambda(term);
             return lambda(
                 t->var().value(),
                 beta_nf(t->var().type()),
                 beta_nf(t->expr()));
         }
-        case Kind::AbstPi: {
+        case EpsilonType::AbstPi: {
             auto t = pi(term);
             return pi(
                 t->var().value(),
                 beta_nf(t->var().type()),
                 beta_nf(t->expr()));
         }
-        case Kind::Constant: {
+        case EpsilonType::Constant: {
             auto t = constant(copy(term));
             for (auto&& arg : t->args()) arg = beta_nf(arg);
             return t;
@@ -848,16 +869,19 @@ std::shared_ptr<Term> beta_nf(const std::shared_ptr<Term>& term) {
 std::shared_ptr<Term> NF(const std::shared_ptr<Term>& term, const Environment& delta) {
     return beta_nf(delta_nf(term, delta));
 }
+std::shared_ptr<Term> NF(const std::shared_ptr<Term>& term, const std::shared_ptr<Environment>& delta) {
+    return NF(term, *delta);
+}
 
 bool is_beta_reducible(const std::shared_ptr<Term>& term) {
-    check_true_or_ret_false_nomsg(term->kind() == Kind::Application);
+    check_true_or_ret_false_nomsg(term->etype() == EpsilonType::Application);
     auto t = appl(term);
-    check_true_or_ret_false_nomsg(t->M()->kind() == Kind::AbstLambda);
+    check_true_or_ret_false_nomsg(t->M()->etype() == EpsilonType::AbstLambda);
     return true;
 }
 
 bool is_delta_reducible(const std::shared_ptr<Term>& term, const Environment& delta) {
-    check_true_or_ret_false_nomsg(term->kind() == Kind::Constant);
+    check_true_or_ret_false_nomsg(term->etype() == EpsilonType::Constant);
     std::shared_ptr<Constant> t = constant(term);
     check_true_or_ret_false_nomsg(delta.lookup_index(t) >= 0);
     check_true_or_ret_false_nomsg(!delta.lookup_def(t)->is_prim());
@@ -873,25 +897,25 @@ bool is_constant_primitive(const std::string& cname, const Environment& delta) {
 }
 
 bool is_normal_form(const std::shared_ptr<Term>& term, const Environment& delta) {
-    switch (term->kind()) {
-        case Kind::Star:
-        case Kind::Square:
-        case Kind::Variable:
+    switch (term->etype()) {
+        case EpsilonType::Star:
+        case EpsilonType::Square:
+        case EpsilonType::Variable:
             return true;
-        case Kind::Application: {
+        case EpsilonType::Application: {
             auto t = appl(term);
-            if (t->M()->kind() == Kind::AbstLambda) return false;
+            if (t->M()->etype() == EpsilonType::AbstLambda) return false;
             return is_normal_form(t->M(), delta) && is_normal_form(t->N(), delta);
         }
-        case Kind::AbstLambda: {
+        case EpsilonType::AbstLambda: {
             auto t = lambda(term);
             return is_normal_form(t->var().type(), delta) && is_normal_form(t->expr(), delta);
         }
-        case Kind::AbstPi: {
+        case EpsilonType::AbstPi: {
             auto t = pi(term);
             return is_normal_form(t->var().type(), delta) && is_normal_form(t->expr(), delta);
         }
-        case Kind::Constant: {
+        case EpsilonType::Constant: {
             auto t = constant(term);
             if (delta.lookup_index(t) < 0 || delta.lookup_def(t)->is_prim()) {
                 for (auto&& arg : t->args()) {
@@ -910,20 +934,20 @@ bool is_normal_form(const std::shared_ptr<Term>& term, const Environment& delta)
 std::shared_ptr<Term> reduce_application(const std::shared_ptr<Application>& term, const Environment& delta) {
     auto M = term->M();
     auto N = term->N();
-    switch (M->kind()) {
-        case Kind::Star:
-        case Kind::Square:
-        case Kind::Variable:
-        case Kind::AbstPi:
+    switch (M->etype()) {
+        case EpsilonType::Star:
+        case EpsilonType::Square:
+        case EpsilonType::Variable:
+        case EpsilonType::AbstPi:
             return nullptr;
-        case Kind::AbstLambda:
+        case EpsilonType::AbstLambda:
             return beta_reduce(term);
-        case Kind::Application: {
+        case EpsilonType::Application: {
             std::shared_ptr<Term> rM = nullptr;
             if (rM = reduce_application(appl(M), delta)) return reduce_application(appl(rM, N), delta);
             return nullptr;
         }
-        case Kind::Constant: {
+        case EpsilonType::Constant: {
             std::shared_ptr<Constant> cM = constant(M);
             if (delta.lookup_index(cM) < 0 || delta.lookup_def(cM)->is_prim()) return nullptr;
             return reduce_application(appl(delta_reduce(cM, delta), N), delta);
@@ -940,13 +964,13 @@ bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>&
     // std::cerr << "conv b = " << b << std::endl;
     if (a == b) return true;
 
-    if (a->kind() == b->kind()) {
-        switch (a->kind()) {
-            case Kind::Star:
-            case Kind::Square:
-            case Kind::Variable:
+    if (a->etype() == b->etype()) {
+        switch (a->etype()) {
+            case EpsilonType::Star:
+            case EpsilonType::Square:
+            case EpsilonType::Variable:
                 return alpha_comp(a, b);
-            case Kind::Application: {
+            case EpsilonType::Application: {
                 auto aa = appl(a);
                 auto ab = appl(b);
                 auto M = aa->M();
@@ -961,7 +985,7 @@ bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>&
                 if (rb = reduce_application(ab, delta)) return is_convertible(aa, rb, delta);
                 return false;
             }
-            case Kind::AbstLambda: {
+            case EpsilonType::AbstLambda: {
                 auto la = lambda(a);
                 auto lb = lambda(b);
                 auto x = la->var().value();
@@ -981,7 +1005,7 @@ bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>&
                     substitute(L, y, z),
                     delta);
             }
-            case Kind::AbstPi: {
+            case EpsilonType::AbstPi: {
                 auto pa = pi(a);
                 auto pb = pi(b);
                 auto x = pa->var().value();
@@ -1001,7 +1025,7 @@ bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>&
                     substitute(L, y, z),
                     delta);
             }
-            case Kind::Constant: {
+            case EpsilonType::Constant: {
                 auto ca = constant(a);
                 auto cb = constant(b);
                 if (ca->name() == cb->name()) {
@@ -1030,38 +1054,38 @@ bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>&
             default:
                 check_true_or_exit(
                     false,
-                    "unknown kind (value = " << (int)(a->kind()) << ")",
+                    "unknown etype (value = " << (int)(a->etype()) << ")",
                     __FILE__, __LINE__, __func__);
         }
     }
-    // kind doesn't match
-    if (b->kind() == Kind::Constant) {
+    // etype doesn't match
+    if (b->etype() == EpsilonType::Constant) {
         auto cb = constant(b);
         if (is_delta_reducible(cb, delta)) return is_convertible(a, delta_reduce(cb, delta), delta);
-        if (a->kind() != Kind::Application) return false;
+        if (a->etype() != EpsilonType::Application) return false;
         std::shared_ptr<Term> ra = nullptr;
         if (ra = reduce_application(appl(a), delta)) return is_convertible(ra, cb, delta);
         return false;
     }
-    switch (a->kind()) {
-        case Kind::Star:
-        case Kind::Square:
-        case Kind::Variable:
-        case Kind::AbstLambda:
-        case Kind::AbstPi: {
-            switch (b->kind()) {
-                case Kind::Star:
-                case Kind::Square:
-                case Kind::Variable:
-                case Kind::AbstLambda:
-                case Kind::AbstPi:
+    switch (a->etype()) {
+        case EpsilonType::Star:
+        case EpsilonType::Square:
+        case EpsilonType::Variable:
+        case EpsilonType::AbstLambda:
+        case EpsilonType::AbstPi: {
+            switch (b->etype()) {
+                case EpsilonType::Star:
+                case EpsilonType::Square:
+                case EpsilonType::Variable:
+                case EpsilonType::AbstLambda:
+                case EpsilonType::AbstPi:
                     return false;
-                case Kind::Application: {
+                case EpsilonType::Application: {
                     std::shared_ptr<Term> rb = nullptr;
                     if (rb = reduce_application(appl(b), delta)) return is_convertible(a, rb, delta);
                     return false;
                 }
-                case Kind::Constant:
+                case EpsilonType::Constant:
                     check_true_or_exit(
                         false,
                         "contradiction; this line is logically unreachable. this must be a bug",
@@ -1069,19 +1093,19 @@ bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>&
                 default:
                     check_true_or_exit(
                         false,
-                        "unknown kind (value = " << (int)(b->kind()) << ")",
+                        "unknown etype (value = " << (int)(b->etype()) << ")",
                         __FILE__, __LINE__, __func__);
             }
         }
-        case Kind::Application: {
+        case EpsilonType::Application: {
             std::shared_ptr<Term> ra = nullptr;
             if (ra = reduce_application(appl(a), delta)) return is_convertible(ra, b, delta);
             return false;
         }
-        case Kind::Constant: {
+        case EpsilonType::Constant: {
             std::shared_ptr<Constant> ca = constant(a);
             if (is_delta_reducible(a, delta)) return is_convertible(delta_reduce(constant(a), delta), b, delta);
-            if (b->kind() != Kind::Application) return false;
+            if (b->etype() != EpsilonType::Application) return false;
             std::shared_ptr<Term> rb = nullptr;
             if (rb = reduce_application(appl(b), delta)) return is_convertible(a, rb, delta);
             return false;
@@ -1089,7 +1113,7 @@ bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>&
         default:
             check_true_or_exit(
                 false,
-                "unknown kind (value = " << (int)(a->kind()) << ")",
+                "unknown etype (value = " << (int)(a->etype()) << ")",
                 __FILE__, __LINE__, __func__);
     }
     check_true_or_exit(
@@ -1122,8 +1146,8 @@ bool is_conv_applicable(const Book& book, size_t idx1, size_t idx2) {
         is_convertible(B1, B2, *judge1.env()),
         "type of 1st judgement and term of 2nd judgement are not beta-delta-equivalent"
             << std::endl
-            << "type 1: " << B1 << std::endl
-            << "term 2: " << B2,
+            << "type 1: " << B1->repr_new() << std::endl
+            << "term 2: " << B2->repr_new(),
         __FILE__, __LINE__, __func__);
     check_true_or_ret_false_err(
         is_sort(s),
@@ -1234,13 +1258,13 @@ bool is_inst_applicable(const Book& book, size_t idx, size_t n, const std::vecto
     }
 
     check_true_or_ret_false_err(
-        judge.term()->kind() == Kind::Star,
+        judge.term()->etype() == EpsilonType::Star,
         "term of 1st judgement is not *"
             << std::endl
             << "term: " << judge.term(),
         __FILE__, __LINE__, __func__);
     check_true_or_ret_false_err(
-        judge.type()->kind() == Kind::Square,
+        judge.type()->etype() == EpsilonType::Square,
         "type of 1st judgement is not @"
             << std::endl
             << "type: " << judge.type(),
@@ -1257,15 +1281,15 @@ std::string Term::string_db(std::vector<char> bound) const {
     return string();
 }
 
-Star::Star() : Term(Kind::Star) {}
+Star::Star() : Term(EpsilonType::Star) {}
 std::string Star::string() const { return "*"; }
 
-Square::Square() : Term(Kind::Square) {}
+Square::Square() : Term(EpsilonType::Square) {}
 const std::string SYMBOL_SQUARE = (OnlyAscii ? "@" : "□");
 std::string Square::string() const { return SYMBOL_SQUARE; }
 std::string Square::repr() const { return "@"; }
 
-Variable::Variable(char ch) : Term(Kind::Variable), _var_name(ch) {}
+Variable::Variable(char ch) : Term(EpsilonType::Variable), _var_name(ch) {}
 std::string Variable::string() const { return std::string(1, _var_name); }
 std::string Variable::string_db(std::vector<char> bound) const {
     for (int i = bound.size() - 1; i >= 0; --i) {
@@ -1276,7 +1300,7 @@ std::string Variable::string_db(std::vector<char> bound) const {
 const char& Variable::name() const { return _var_name; }
 char& Variable::name() { return _var_name; }
 
-Application::Application(std::shared_ptr<Term> m, std::shared_ptr<Term> n) : Term(Kind::Application), _M(m), _N(n) {}
+Application::Application(std::shared_ptr<Term> m, std::shared_ptr<Term> n) : Term(EpsilonType::Application), _M(m), _N(n) {}
 
 const std::shared_ptr<Term>& Application::M() const { return _M; }
 const std::shared_ptr<Term>& Application::N() const { return _N; }
@@ -1300,9 +1324,9 @@ std::string Application::string_db(std::vector<char> bound) const {
 }
 
 const std::string SYMBOL_LAMBDA = (OnlyAscii ? "$" : "λ");
-AbstLambda::AbstLambda(const Typed<Variable>& v, std::shared_ptr<Term> e) : Term(Kind::AbstLambda), _var(v), _expr(e) {}
+AbstLambda::AbstLambda(const Typed<Variable>& v, std::shared_ptr<Term> e) : Term(EpsilonType::AbstLambda), _var(v), _expr(e) {}
 AbstLambda::AbstLambda(std::shared_ptr<Term> v, std::shared_ptr<Term> t, std::shared_ptr<Term> e)
-    : Term(Kind::AbstLambda),
+    : Term(EpsilonType::AbstLambda),
       _var(variable(v), t),
       _expr(e) {}
 
@@ -1331,9 +1355,9 @@ std::string AbstLambda::string_db(std::vector<char> bound) const {
 }
 
 const std::string SYMBOL_PI = (OnlyAscii ? "?" : "Π");
-AbstPi::AbstPi(const Typed<Variable>& v, std::shared_ptr<Term> e) : Term(Kind::AbstPi), _var(v), _expr(e) {}
+AbstPi::AbstPi(const Typed<Variable>& v, std::shared_ptr<Term> e) : Term(EpsilonType::AbstPi), _var(v), _expr(e) {}
 AbstPi::AbstPi(std::shared_ptr<Term> v, std::shared_ptr<Term> t, std::shared_ptr<Term> e)
-    : Term(Kind::AbstPi),
+    : Term(EpsilonType::AbstPi),
       _var(std::dynamic_pointer_cast<Variable>(v), t),
       _expr(e) {}
 
@@ -1361,7 +1385,7 @@ std::string AbstPi::string_db(std::vector<char> bound) const {
     return SYMBOL_PI + _var.value()->string_db(bound) + ":" + type + "." + expr;
 }
 
-Constant::Constant(const std::string& name, std::vector<std::shared_ptr<Term>> list) : Term(Kind::Constant), _name(name), _args(list) {}
+Constant::Constant(const std::string& name, std::vector<std::shared_ptr<Term>> list) : Term(EpsilonType::Constant), _name(name), _args(list) {}
 
 const std::vector<std::shared_ptr<Term>>& Constant::args() const { return _args; }
 std::vector<std::shared_ptr<Term>>& Constant::args() { return _args; }
@@ -1676,7 +1700,7 @@ void InferenceError::puterror(std::ostream& os) const {
 }
 const std::string& InferenceError::str() const { return _msg; }
 
-Book::Book(bool skip_check) : std::vector<Judgement>{}, _skip_check{skip_check} {};
+Book::Book(bool skip_check) : std::vector<Judgement>{}, _skip_check{skip_check} {}
 Book::Book(const std::vector<Judgement>& list) : std::vector<Judgement>(list) {}
 Book::Book(const std::string& scriptname, size_t limit) : Book(false) {
     read_script(scriptname, limit);

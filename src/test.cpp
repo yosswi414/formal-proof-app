@@ -5,6 +5,7 @@
 
 #include "lambda.hpp"
 #include "parser.hpp"
+#include "inference.hpp"
 
 #define bout(expr) \
     do { std::cerr << #expr " --> " << (expr ? "true" : "false") << std::endl; } while (false)
@@ -21,11 +22,11 @@ size_t test_fail = 0;
 #define STR_SUCCESS BOLD(GREEN("OK"))
 #define STR_FAIL BOLD(RED("NG"))
 
-#define test(expr)                                                         \
-    do {                                                                   \
-        bool v = (expr);                                                   \
+#define test(expr)                                                               \
+    do {                                                                         \
+        bool v = (expr);                                                         \
         std::cerr << #expr " --> " << (v ? STR_SUCCESS : STR_FAIL) << std::endl; \
-        ++(v ? test_success : test_fail);                                  \
+        ++(v ? test_success : test_fail);                                        \
     } while (false)
 
 #define cshow(a, ...)                                                                              \
@@ -33,11 +34,11 @@ size_t test_fail = 0;
         std::cerr << #a ", " #__VA_ARGS__ << " |> " << beta_nf(appl(a, __VA_ARGS__)) << std::endl; \
     } while (false)
 
-#define btest(from, to)                                                               \
-    do {                                                                              \
-        bool v = alpha_comp(beta_nf(from), to);                                       \
+#define btest(from, to)                                                                     \
+    do {                                                                                    \
+        bool v = alpha_comp(beta_nf(from), to);                                             \
         std::cerr << #from " |> " #to " --> " << (v ? STR_SUCCESS : STR_FAIL) << std::endl; \
-        ++(v ? test_success : test_fail);                                             \
+        ++(v ? test_success : test_fail);                                                   \
     } while (false)
 
 #define test_result()                                                                                \
@@ -51,7 +52,6 @@ size_t test_fail = 0;
     } while (false)
 
 #define defvar(vname) std::shared_ptr<Term> vname = variable(#vname[0])
-
 
 void test_alpha_subst() {
     std::shared_ptr<Term> e1, e2, e3;
@@ -212,7 +212,7 @@ void test_sandbox() {
     btest(appl(C, x, y, z), appl(x, z, y));
 
     // diagonalizer; W(f)(x) = f(x, x)
-    Expr W = appl(S, S, appl(K, I ));
+    Expr W = appl(S, S, appl(K, I));
     btest(appl(W, x, y), appl(x, y, y));
 
     Expr I2 = appl(W, K);
@@ -325,7 +325,7 @@ void test_reduction3(const Environment& delta) {
     std::cerr << "test 1" << std::endl;
     bout(is_convertible(exprB, ansnB, delta));
     std::cerr << "test 2" << std::endl;
-    bout(exprB->kind() == Kind::Constant);
+    bout(exprB->etype() == EpsilonType::Constant);
     show(delta.lookup_index(constant(exprB)));
     bout(is_constant_defined(constant(exprB)->name(), delta));
     bout(is_constant_defined("Rset_fig14.10", delta));

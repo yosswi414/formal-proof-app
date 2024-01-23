@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <map>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -8,7 +9,6 @@
 #include <typeinfo>
 #include <utility>
 #include <vector>
-#include <map>
 
 #include "common.hpp"
 
@@ -31,7 +31,7 @@ V               [a-zA-Z]
 Name            [a-zA-Z][a-zA-Z0-9_-]+
  */
 
-enum class Kind {
+enum class EpsilonType {
     Star,
     Square,
     Variable,
@@ -41,7 +41,7 @@ enum class Kind {
     Constant,
 };
 
-std::string to_string(const Kind& k);
+std::string to_string(const EpsilonType& k);
 
 template <typename PtrType, typename std::enable_if_t<
                                 std::is_pointer<PtrType>::value || std::is_same<PtrType, std::unique_ptr<typename PtrType::element_type>>::value || std::is_same<PtrType, std::shared_ptr<typename PtrType::element_type>>::value,
@@ -50,7 +50,7 @@ std::ostream& operator<<(std::ostream& os, const PtrType& ptr) {
     return os << ptr->string();
 }
 
-std::ostream& operator<<(std::ostream& os, const Kind& k);
+std::ostream& operator<<(std::ostream& os, const EpsilonType& k);
 
 template <typename T, typename = std::void_t<decltype(std::declval<T>().string())>>
 std::ostream& operator<<(std::ostream& os, const T& x) {
@@ -62,7 +62,7 @@ class Term {
   public:
     Term() = delete;
     virtual ~Term() = default;
-    Kind kind() const { return _kind; }
+    EpsilonType etype() const { return _etype; }
     virtual std::string string() const = 0;
     virtual std::string repr() const;
     virtual std::string repr_new() const;
@@ -70,10 +70,10 @@ class Term {
     virtual std::string string_db(std::vector<char> bound = {}) const;
 
   protected:
-    Term(const Kind& k) : _kind(k) {}
+    Term(const EpsilonType& et) : _etype(et) {}
 
   private:
-    Kind _kind;
+    EpsilonType _etype;
 };
 
 class Star : public Term {
@@ -188,7 +188,7 @@ class Constant : public Term {
   public:
     Constant(const std::string& name, std::vector<std::shared_ptr<Term>> list);
     template <class... Ts>
-    Constant(const std::string& name, Ts... ptrs) : Term(Kind::Constant), _name(name), _args{ptrs...} {}
+    Constant(const std::string& name, Ts... ptrs) : Term(EpsilonType::Constant), _name(name), _args{ptrs...} {}
 
     const std::vector<std::shared_ptr<Term>>& args() const;
     std::vector<std::shared_ptr<Term>>& args();
@@ -214,7 +214,16 @@ std::set<char> free_var(const std::shared_ptr<Term>& term, Ts... data) {
     return set_union(free_var(term), free_var(data...));
 }
 
+class Context;
+
+std::set<char> free_var(const Context& con);
+template <class... Ts>
+std::set<char> free_var(const Context& con, Ts... data) {
+    return set_union(free_var(con), free_var(data...));
+}
+
 bool is_free_var(const std::shared_ptr<Term>& term, const std::shared_ptr<Variable>& var);
+bool is_free_var(const Context& con, const std::shared_ptr<Variable>& var);
 
 std::shared_ptr<Variable> get_fresh_var(const std::shared_ptr<Term>& term);
 template <class... Ts>
@@ -229,6 +238,7 @@ std::shared_ptr<Variable> get_fresh_var(const std::shared_ptr<Term>& term, Ts...
 }
 
 std::shared_ptr<Variable> get_fresh_var(const std::vector<std::shared_ptr<Term>>& terms);
+std::shared_ptr<Variable> get_fresh_var(const Context& con);
 
 std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::shared_ptr<Variable>& var_bind, const std::shared_ptr<Term>& expr);
 std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::shared_ptr<Term>& var_bind, const std::shared_ptr<Term>& expr);
@@ -395,6 +405,7 @@ std::shared_ptr<Term> delta_nf(const std::shared_ptr<Term>& term, const Environm
 std::shared_ptr<Term> beta_nf(const std::shared_ptr<Term>& term);
 
 std::shared_ptr<Term> NF(const std::shared_ptr<Term>& term, const Environment& delta);
+std::shared_ptr<Term> NF(const std::shared_ptr<Term>& term, const std::shared_ptr<Environment>& delta);
 
 bool is_beta_reducible(const std::shared_ptr<Term>& term);
 bool is_delta_reducible(const std::shared_ptr<Term>& term, const Environment& delta);

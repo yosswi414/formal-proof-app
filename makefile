@@ -22,10 +22,10 @@ bin/def_conv.out: bin/def_conv.obj bin/common.obj bin/lambda.obj bin/parser.obj
 bin/def_conv_leak.out: bin/def_conv_leak.obj bin/common_leak.obj bin/lambda_leak.obj bin/parser_leak.obj
 	g++ ${CPPFLAGS} ${DEBUGFLAGS} $^ -o $@
 
-bin/test.out: bin/test.obj bin/common.obj bin/lambda.obj bin/parser.obj
+bin/test.out: bin/test.obj bin/common.obj bin/lambda.obj bin/parser.obj bin/inference.obj
 	g++ ${CPPFLAGS} ${OPTFLAG} $^ -o $@
 
-bin/test_leak.out: bin/test_leak.obj bin/common_leak.obj bin/lambda_leak.obj bin/parser_leak.obj
+bin/test_leak.out: bin/test_leak.obj bin/common_leak.obj bin/lambda_leak.obj bin/parser_leak.obj bin/inference_leak.obj
 	g++ ${CPPFLAGS} ${DEBUGFLAGS} $^ -o $@
 
 src/def_file_nocomm: src/def_file bin/def_conv.out
