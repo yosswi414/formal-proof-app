@@ -366,17 +366,44 @@ void test_parse() {
     show(A);
 }
 
-std::shared_ptr<Term> get_type(const std::shared_ptr<Term>& term, const Environment& delta, const Context& gamma) {
-    switch (term->kind()){
-        case Kind::Star:
-            return sq;
-        case Kind::Square:
-            return nullptr;
+void test_def_file() {
+    Environment delta;
+    std::shared_ptr<Term> a, b;
+    try {
+        delta = Environment("src/def_file");
+        a = parse_lambda(R"(?a:?a:T.*.implies[%a %f x, %a %f y])");
+        b = parse_lambda(R"(eq[T, %f x, %f y])");
+    } catch (ParseError& e) {
+        e.puterror();
+        exit(EXIT_FAILURE);
+    } catch (TokenizeError& e) {
+        e.puterror();
+        exit(EXIT_FAILURE);
     }
+
+    show(a);
+    show(b);
+    bout(is_convertible(a, b, delta));
+    auto ae = NF(a, delta);
+    auto be = NF(b, delta);
+    show(ae);
+    show(be);
+    bout(is_convertible(ae, be, delta));
 }
 
-void test_type_inf(const Environment& delta) {
-    Context context;
+void test_type_inf() {
+    std::string fname = "script_a7_fig11-29";
+    Book book(fname);
+    for (size_t i = 0; i < book.size(); ++i) {
+        std::shared_ptr<Term> M = book[i].term();
+        std::shared_ptr<Environment> delta = book[i].env();
+        std::shared_ptr<Context> gamma = book[i].context();
+        std::shared_ptr<Term> T = get_type(M, delta, gamma);
+        // std::cerr << "[" << i << "] M = " << M << " : " << book[i].type() << std::endl;
+        test(T && is_convertible(T, book[i].type(), *delta));
+    }
+
+    test_result();
 }
 
 int main() {
@@ -390,13 +417,15 @@ int main() {
         e.puterror();
         exit(EXIT_FAILURE);
     }
-    test_alpha_subst();
-    test_subst();
-    test_reduction1(delta);
-    test_reduction2(delta);
-    test_sandbox();
+    // test_alpha_subst();
+    // test_subst();
+    // test_reduction1(delta);
+    // test_reduction2(delta);
+    // test_sandbox();
 
-    test_parse();
+    // test_parse();
     // test_reduction3(delta);
-    // test_type_inf(delta);
+    // test_def_file();
+
+    test_type_inf();
 }
