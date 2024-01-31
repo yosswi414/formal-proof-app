@@ -2,8 +2,9 @@
 #include <string>
 
 #include "common.hpp"
-#include "lambda.hpp"
 #include "parser.hpp"
+#include "lambda.hpp"
+#include "environment.hpp"
 
 [[noreturn]] void usage(const std::string& execname, bool is_err = true) {
     std::cerr << "usage: " << execname << " [FILE] [OPTION]...\n"

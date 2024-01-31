@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "common.hpp"
+#include "environment.hpp"
 #include "lambda.hpp"
 
 enum class TokenType {
@@ -34,16 +35,16 @@ enum class TokenType {
     Underscore,
     Hyphen,
     Verticalbar,
-    Leftarrow,              // <-
-    Rightarrow,             // ->
-    Leftrightarrow,         // <->
-    Leftdoublearrow,        // <=
-    Rightdoublearrow,       // =>
-    Leftrightdoublearrow,   // <=>
-    DefinedBy,  // ":="
-    DefBegin,   // "def2"
-    DefEnd,     // "edef2"
-    EndOfFile,  // "END"
+    Leftarrow,             // <-
+    Rightarrow,            // ->
+    Leftrightarrow,        // <->
+    Leftdoublearrow,       // <=
+    Rightdoublearrow,      // =>
+    Leftrightdoublearrow,  // <=>
+    DefinedBy,             // ":="
+    DefBegin,              // "def2"
+    DefEnd,                // "edef2"
+    EndOfFile,             // "END"
     Unknown
 };
 

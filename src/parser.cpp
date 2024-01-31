@@ -8,6 +8,9 @@
 #include <vector>
 
 #include "common.hpp"
+#include "context.hpp"
+#include "definition.hpp"
+#include "environment.hpp"
 
 std::string to_string(const TokenType& t) {
     switch (t) {

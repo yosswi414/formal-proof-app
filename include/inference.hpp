@@ -5,6 +5,8 @@
 #include <iostream>
 #include "common.hpp"
 #include "lambda.hpp"
+#include "context.hpp"
+#include "environment.hpp"
 
 class TypeError {
   public:

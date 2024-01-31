@@ -1,45 +1,55 @@
 CPPFLAGS = -std=c++17 -Wall -Wextra
 DEBUGFLAGS = -fsanitize=address -fno-omit-frame-pointer -g
-INCDIR = -I./include
+INCDIR = include
+INCFLAG = -I$(INCDIR)
 OPTFLAG = -O3
 
 DEF_FILE = def_file_bez
 
-bin/%.obj: src/%.cpp include/*
-	g++ ${CPPFLAGS} ${OPTFLAG} ${INCDIR} -c -o $@ $<
-bin/%_leak.obj: src/%.cpp include/*
-	g++ ${CPPFLAGS} ${DEBUGFLAGS} ${INCDIR} -c -o $@ $<
+SRCS_LAMBDA_BASE = lambda.cpp context.cpp definition.cpp environment.cpp judgement.cpp book.cpp
+SRCS_DEPEND_BASE = common.cpp parser.cpp inference.cpp
 
-bin/verifier.out: bin/verifier.obj bin/common.obj bin/lambda.obj bin/parser.obj
+INCLUDES = $(INCDIR)/*
+OBJS_LAMBDA = $(addprefix bin/,$(SRCS_LAMBDA_BASE:.cpp=.obj))
+OBJS_DEPEND = $(addprefix bin/,$(SRCS_DEPEND_BASE:.cpp=.obj))
+OBJS_LAMBDA_DEBUG = $(addprefix bin/,$(SRCS_LAMBDA_BASE:.cpp=_leak.obj))
+OBJS_DEPEND_DEBUG = $(addprefix bin/,$(SRCS_DEPEND_BASE:.cpp=_leak.obj))
+
+bin/%.obj: src/%.cpp $(INCLUDES)
+	g++ ${CPPFLAGS} ${OPTFLAG} ${INCFLAG} -c -o $@ $<
+bin/%_leak.obj: src/%.cpp $(INCLUDES)
+	g++ ${CPPFLAGS} ${DEBUGFLAGS} ${INCFLAG} -c -o $@ $<
+
+bin/verifier.out: bin/verifier.obj bin/common.obj bin/parser.obj $(OBJS_LAMBDA)
 	g++ ${CPPFLAGS} ${OPTFLAG} $^ -o $@
 
-bin/verifier_leak.out: bin/verifier_leak.obj bin/common_leak.obj bin/lambda_leak.obj bin/parser_leak.obj
+bin/verifier_leak.out: bin/verifier_leak.obj bin/common_leak.obj bin/parser_leak.obj $(OBJS_LAMBDA_DEBUG)
 	g++ ${CPPFLAGS} ${DEBUGFLAGS} $^ -o $@
 
-bin/def_conv.out: bin/def_conv.obj bin/common.obj bin/lambda.obj bin/parser.obj
+bin/def_conv.out: bin/def_conv.obj bin/common.obj bin/parser.obj $(OBJS_LAMBDA)
 	g++ ${CPPFLAGS} ${OPTFLAG} $^ -o $@
 
-bin/def_conv_leak.out: bin/def_conv_leak.obj bin/common_leak.obj bin/lambda_leak.obj bin/parser_leak.obj
+bin/def_conv_leak.out: bin/def_conv_leak.obj bin/common_leak.obj bin/parser_leak.obj $(OBJS_LAMBDA_DEBUG)
 	g++ ${CPPFLAGS} ${DEBUGFLAGS} $^ -o $@
 
-bin/test.out: bin/test.obj bin/common.obj bin/lambda.obj bin/parser.obj bin/inference.obj
+bin/test.out: bin/test.obj $(OBJS_LAMBDA) $(OBJS_DEPEND)
 	g++ ${CPPFLAGS} ${OPTFLAG} $^ -o $@
 
-bin/test_leak.out: bin/test_leak.obj bin/common_leak.obj bin/lambda_leak.obj bin/parser_leak.obj bin/inference_leak.obj
+bin/test_leak.out: bin/test_leak.obj $(OBJS_LAMBDA_DEBUG) $(OBJS_DEPEND_DEBUG)
 	g++ ${CPPFLAGS} ${DEBUGFLAGS} $^ -o $@
 
 src/def_file_nocomm: src/def_file bin/def_conv.out
 	bin/def_conv.out -f $< -c > $@
 
-.PHONY: test book parse clean test_read lambda conv test_leak book_leak conv_leak nocomm compile
+.PHONY: test book parse clean test_read lambda conv test_leak book_leak conv_leak nocomm compile-%
 
 nocomm: src/def_file_nocomm
 
-# usage: $ makefile compile "DEF=implies"
-compile: bin/verifier.out
+# usage: $ make compile-<def_name>
+compile-%: bin/verifier.out
 	rm -f src/def_file_nocomm
 	make nocomm
-	./test_automake3 src/def_file_nocomm ${DEF} script_autotest > /dev/null
+	./test_automake3 src/def_file_nocomm $(@:compile-%=%) script_autotest > /dev/null
 	bin/verifier.out -f script_autotest -d src/def_file_nocomm -s
 
 test_read: bin/def_conv.out src/def_file

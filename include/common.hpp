@@ -118,4 +118,9 @@ std::string to_string(const std::vector<T>& v) {
     return ss.str();
 }
 
-
+const std::string SYMBOL_EMPTY = (OnlyAscii ? "{}" : "∅");
+const std::string HEADER_CONTEXT = (OnlyAscii ? "Context" : "Γ");
+const std::string DEFINITION_SEPARATOR = (OnlyAscii ? "|>" : "▷");
+const std::string EMPTY_DEFINIENS = (OnlyAscii ? "#" : "⫫");
+const std::string HEADER_ENV = (OnlyAscii ? "Env" : "Δ");
+const std::string TURNSTILE = (OnlyAscii ? "|-" : "⊢");

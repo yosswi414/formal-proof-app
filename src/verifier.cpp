@@ -11,6 +11,7 @@
 
 #include "common.hpp"
 #include "lambda.hpp"
+#include "book.hpp"
 
 [[noreturn]] void usage(const std::string& execname, bool is_err = true) {
     std::cerr << "usage: " << execname << " [FILE] [OPTION]...\n"

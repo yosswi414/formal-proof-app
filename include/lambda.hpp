@@ -214,16 +214,9 @@ std::set<char> free_var(const std::shared_ptr<Term>& term, Ts... data) {
     return set_union(free_var(term), free_var(data...));
 }
 
-class Context;
 
-std::set<char> free_var(const Context& con);
-template <class... Ts>
-std::set<char> free_var(const Context& con, Ts... data) {
-    return set_union(free_var(con), free_var(data...));
-}
 
 bool is_free_var(const std::shared_ptr<Term>& term, const std::shared_ptr<Variable>& var);
-bool is_free_var(const Context& con, const std::shared_ptr<Variable>& var);
 
 std::shared_ptr<Variable> get_fresh_var(const std::shared_ptr<Term>& term);
 template <class... Ts>
@@ -238,7 +231,6 @@ std::shared_ptr<Variable> get_fresh_var(const std::shared_ptr<Term>& term, Ts...
 }
 
 std::shared_ptr<Variable> get_fresh_var(const std::vector<std::shared_ptr<Term>>& terms);
-std::shared_ptr<Variable> get_fresh_var(const Context& con);
 
 std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::shared_ptr<Variable>& var_bind, const std::shared_ptr<Term>& expr);
 std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::shared_ptr<Term>& var_bind, const std::shared_ptr<Term>& expr);
@@ -271,155 +263,12 @@ bool alpha_comp(const std::shared_ptr<T>& a, const std::shared_ptr<U>& b) {
     return alpha_comp(std::static_pointer_cast<Term>(a), std::static_pointer_cast<Term>(b));
 }
 
-class Context : public std::vector<Typed<Variable>> {
-  public:
-    Context();
-    Context(const std::vector<Typed<Variable>>& tvars);
-    std::string string() const;
-    std::string repr() const;
-    std::string repr_new() const;
-    std::string repr_book() const;
-
-    Context& operator+=(const Typed<Variable>& tv);
-    Context operator+(const Typed<Variable>& tv) const;
-    Context& operator+=(const Context& c);
-    Context operator+(const Context& c) const;
-};
-
-class Definition {
-  public:
-    Definition(const std::shared_ptr<Context>& context,
-               const std::string& cname,
-               const std::shared_ptr<Term>& prop);
-
-    Definition(const std::shared_ptr<Context>& context,
-               const std::string& cname,
-               const std::shared_ptr<Term>& proof,
-               const std::shared_ptr<Term>& prop);
-
-    Definition(const std::shared_ptr<Context>& context,
-               const std::shared_ptr<Constant>& constant,
-               const std::shared_ptr<Term>& prop);
-
-    Definition(const std::shared_ptr<Context>& context,
-               const std::shared_ptr<Constant>& constant,
-               const std::shared_ptr<Term>& proof,
-               const std::shared_ptr<Term>& prop);
-
-    std::string string() const;
-    std::string repr() const;
-    std::string repr_new() const;
-    std::string repr_book() const;
-
-    bool is_prim() const;
-    const std::shared_ptr<Context>& context() const;
-    const std::string& definiendum() const;
-    const std::shared_ptr<Term>& definiens() const;
-    const std::shared_ptr<Term>& type() const;
-
-    std::shared_ptr<Context>& context();
-    std::string& definiendum();
-    std::shared_ptr<Term>& definiens();
-    std::shared_ptr<Term>& type();
-
-  private:
-    std::shared_ptr<Context> _context;
-    std::string _definiendum;
-    std::shared_ptr<Term> _definiens, _type;
-};
-
-class Environment : public std::vector<std::shared_ptr<Definition>> {
-  public:
-    Environment();
-    Environment(const std::vector<std::shared_ptr<Definition>>& defs);
-    Environment(const std::string& fname);
-    std::string string(bool inSingleLine = true, size_t indentSize = 0) const;
-    std::string string_brief(bool inSingleLine, size_t indentSize) const;
-    std::string repr() const;
-    std::string repr_new() const;
-
-    int lookup_index(const std::string& cname) const;
-    int lookup_index(const std::shared_ptr<Constant>& c) const;
-
-    const std::shared_ptr<Definition> lookup_def(const std::string& cname) const;
-    const std::shared_ptr<Definition> lookup_def(const std::shared_ptr<Constant>& c) const;
-
-    Environment& operator+=(const std::shared_ptr<Definition>& def);
-    Environment operator+(const std::shared_ptr<Definition>& def) const;
-
-  private:
-    mutable std::map<std::string, size_t> _def_index;
-};
-
-class Judgement {
-  public:
-    Judgement(const std::shared_ptr<Environment>& env,
-              const std::shared_ptr<Context>& context,
-              const std::shared_ptr<Term>& proof,
-              const std::shared_ptr<Term>& prop);
-    std::string string(bool inSingleLine = true, size_t indentSize = 0) const;
-    std::string string_brief(bool inSingleLine, size_t indentSize) const;
-
-    const std::shared_ptr<Environment>& env() const;
-    const std::shared_ptr<Context>& context() const;
-    const std::shared_ptr<Term>& term() const;
-    const std::shared_ptr<Term>& type() const;
-
-    std::shared_ptr<Environment>& env();
-    std::shared_ptr<Context>& context();
-    std::shared_ptr<Term>& term();
-    std::shared_ptr<Term>& type();
-
-  private:
-    std::shared_ptr<Environment> _env;
-    std::shared_ptr<Context> _context;
-    std::shared_ptr<Term> _term, _type;
-};
-
-class Book;
-
-bool equiv_context_n(const Context& a, const Context& b, size_t n);
-bool equiv_context_n(const std::shared_ptr<Context>& a, const std::shared_ptr<Context>& b, size_t n);
-bool equiv_context(const Context& a, const Context& b);
-bool equiv_context(const std::shared_ptr<Context>& a, const std::shared_ptr<Context>& b);
-bool equiv_def(const Definition& a, const Definition& b);
-bool equiv_def(const std::shared_ptr<Definition>& a, const std::shared_ptr<Definition>& b);
-bool equiv_env(const Environment& a, const Environment& b);
-bool equiv_env(const std::shared_ptr<Environment>& a, const std::shared_ptr<Environment>& b);
-bool has_variable(const std::shared_ptr<Context>& g, const std::shared_ptr<Variable>& v);
-bool has_variable(const std::shared_ptr<Context>& g, const std::shared_ptr<Term>& v);
-bool has_variable(const std::shared_ptr<Context>& g, char v);
-bool has_constant(const std::shared_ptr<Environment>& env, const std::string& name);
-bool has_definition(const std::shared_ptr<Environment>& env, const Definition& def);
 bool is_sort(const std::shared_ptr<Term>& t);
-bool is_var_applicable(const Book& book, size_t idx, char var);
-bool is_weak_applicable(const Book& book, size_t idx1, size_t idx2, char var);
-bool is_form_applicable(const Book& book, size_t idx1, size_t idx2);
-bool is_appl_applicable(const Book& book, size_t idx1, size_t idx2);
-bool is_abst_applicable(const Book& book, size_t idx1, size_t idx2);
 
 std::shared_ptr<Term> beta_reduce(const std::shared_ptr<Application>& term);
-std::shared_ptr<Term> delta_reduce(const std::shared_ptr<Constant>& term, const Environment& delta);
-
-std::shared_ptr<Term> delta_nf(const std::shared_ptr<Term>& term, const Environment& delta);
 std::shared_ptr<Term> beta_nf(const std::shared_ptr<Term>& term);
 
-std::shared_ptr<Term> NF(const std::shared_ptr<Term>& term, const Environment& delta);
-std::shared_ptr<Term> NF(const std::shared_ptr<Term>& term, const std::shared_ptr<Environment>& delta);
-
 bool is_beta_reducible(const std::shared_ptr<Term>& term);
-bool is_delta_reducible(const std::shared_ptr<Term>& term, const Environment& delta);
-
-bool is_constant_defined(const std::string& cname, const Environment& delta);
-bool is_constant_primitive(const std::string& cname, const Environment& delta);
-
-bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b, const Environment& delta);
-
-bool is_conv_applicable(const Book& book, size_t idx1, size_t idx2);
-bool is_def_applicable(const Book& book, size_t idx1, size_t idx2, const std::string& name);
-bool is_def_prim_applicable(const Book& book, size_t idx1, size_t idx2, const std::string& name);
-bool is_inst_applicable(const Book& book, size_t idx, size_t n, const std::vector<size_t>& k, size_t p);
-bool is_tp_applicable(const Book& book, size_t idx);
 
 class InferenceError {
   public:
@@ -437,44 +286,4 @@ class InferenceError {
 
   private:
     std::string _msg;
-};
-
-class Book : public std::vector<Judgement> {
-  public:
-    Book(bool skip_check = false);
-    Book(const std::vector<Judgement>& list);
-    Book(const std::string& scriptname, size_t limit = -1);
-    Book(const FileData& fdata, size_t limit = -1);
-
-    // inference rules
-    void sort();
-    void var(size_t m, char x);
-    void weak(size_t m, size_t n, char x);
-    void form(size_t m, size_t n);
-    void appl(size_t m, size_t n);
-    void abst(size_t m, size_t n);
-    void conv(size_t m, size_t n);
-    void def(size_t m, size_t n, const std::string& a);
-    void defpr(size_t m, size_t n, const std::string& a);
-    void inst(size_t m, size_t n, const std::vector<size_t>& k, size_t p);
-    // sugar syntax
-    void cp(size_t m);
-    void sp(size_t m, size_t n);
-    void tp(size_t m);
-
-    std::string string() const;
-    std::string repr() const;
-    std::string repr_new() const;
-
-    void read_script(const std::string& scriptname, size_t limit = -1);
-    void read_script(const FileData& fdata, size_t limit = -1);
-
-    void read_def_file(const std::string& fname);
-    const Environment& env() const;
-    int def_num(const std::shared_ptr<Definition>& def) const;
-
-  private:
-    Environment _env;
-    std::map<std::string, int> _def_dict;
-    bool _skip_check = false;
 };

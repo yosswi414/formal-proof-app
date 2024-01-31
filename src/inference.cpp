@@ -1,4 +1,6 @@
 #include "inference.hpp"
+#include "context.hpp"
+#include "environment.hpp"
 
 TypeError::TypeError(const std::string& str, const std::shared_ptr<Term>& term, const std::shared_ptr<Context>& con) : msg(str), term(term), con(con){}
 
