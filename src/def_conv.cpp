@@ -15,7 +15,7 @@
     std::cerr << "\t-c          output def file in conventional notation" << std::endl;
     std::cerr << "\t-n          output def file in new notation" << std::endl;
     std::cerr << "\t-r          output def file in rich notation" << std::endl;
-    std::cerr << "\t-v          verbose output for debugging purpose" << std::endl;
+    // std::cerr << "\t-v          verbose output for debugging purpose" << std::endl;
     std::cerr << "\t-s          suppress output and just verify input (overrides -v)" << std::endl;
     std::cerr << "\t-h          display this help and exit" << std::endl;
     if (is_err) exit(EXIT_FAILURE);
@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
     FileData data;
     std::string fname("");
     int notation = Conventional;
-    bool is_verbose = false;
+    // bool is_verbose = false;
     bool is_quiet = false;
 
     for (int i = 1; i < argc; ++i) {
@@ -44,7 +44,7 @@ int main(int argc, char* argv[]) {
             } else if (arg == "-c") notation = Conventional;
             else if (arg == "-n") notation = New;
             else if (arg == "-r") notation = Rich;
-            else if (arg == "-v") is_verbose = true;
+            // else if (arg == "-v") is_verbose = true;
             else if (arg == "-h") usage(argv[0], false);
             else if (arg == "-s") is_quiet = true;
             else {

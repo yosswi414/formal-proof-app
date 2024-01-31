@@ -28,7 +28,7 @@
     std::cerr << "\t-e log_file             write error output to log_file instead of stderr" << std::endl;
     std::cerr << "\t--out-def out_def_file  write final environment to out_file" << std::endl;
     std::cerr << "\t--skip-check            skip applicability check of inference rules" << std::endl;
-    std::cerr << "\t-v                      verbose output for debugging purpose" << std::endl;
+    // std::cerr << "\t-v                      verbose output for debugging purpose" << std::endl;
     std::cerr << "\t-s                      suppress output and just verify input (overrides -v)" << std::endl;
     std::cerr << "\t-h                      display this help and exit" << std::endl;
     if (is_err) exit(EXIT_FAILURE);
@@ -66,7 +66,7 @@ int main(int argc, char* argv[]) {
     FileData data;
     std::string fname(""), def_file(""), ofname(""), odefname(""), efname("");
     int notation = Conventional;
-    bool is_verbose = false;
+    // bool is_verbose = false;
     bool is_quiet = false;
     bool skip_check = false;
     size_t limit = std::string::npos;
@@ -98,7 +98,7 @@ int main(int argc, char* argv[]) {
             } else if (arg == "-c") notation = Conventional;
             else if (arg == "-n") notation = New;
             else if (arg == "-r") notation = Rich;
-            else if (arg == "-v") is_verbose = true;
+            // else if (arg == "-v") is_verbose = true;
             else if (arg == "-h") usage(argv[0], false);
             else if (arg == "-s") is_quiet = true;
             else {
