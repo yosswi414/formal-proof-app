@@ -419,6 +419,7 @@ bool is_conv_applicable(const Book& book, size_t idx1, size_t idx2);
 bool is_def_applicable(const Book& book, size_t idx1, size_t idx2, const std::string& name);
 bool is_def_prim_applicable(const Book& book, size_t idx1, size_t idx2, const std::string& name);
 bool is_inst_applicable(const Book& book, size_t idx, size_t n, const std::vector<size_t>& k, size_t p);
+bool is_tp_applicable(const Book& book, size_t idx);
 
 class InferenceError {
   public:

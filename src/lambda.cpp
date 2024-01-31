@@ -1273,6 +1273,23 @@ bool is_inst_applicable(const Book& book, size_t idx, size_t n, const std::vecto
     return true;
 }
 
+bool is_tp_applicable(const Book& book, size_t idx) {
+    const auto& judge = book[idx];
+    check_true_or_ret_false_err(
+        judge.term()->etype() == EpsilonType::Star,
+        "term of judgement is not *"
+            << std::endl
+            << "term: " << judge.term(),
+        __FILE__, __LINE__, __func__);
+    check_true_or_ret_false_err(
+        judge.type()->etype() == EpsilonType::Square,
+        "type of judgement is not @"
+            << std::endl
+            << "type: " << judge.type(),
+        __FILE__, __LINE__, __func__);
+    return true;
+}
+
 std::string Term::repr() const { return string(); }
 std::string Term::repr_new() const { return repr(); }
 std::string Term::repr_book() const { return repr(); }
@@ -2056,6 +2073,12 @@ void Book::sp(size_t m, size_t n) {
 }
 
 void Book::tp(size_t m) {
+    if (!_skip_check && !is_tp_applicable(*this, m)) {
+        throw InferenceError()
+            << "tp at line "
+            << this->size() << " not applicable "
+            << "(idx = " << m << ")";
+    }
     const auto& judge = (*this)[m];
     this->emplace_back(
         judge.env(),
