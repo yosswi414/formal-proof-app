@@ -395,8 +395,8 @@ void test_def_file() {
     bout(is_convertible(ae, be, delta));
 }
 
-void test_type_inf() {
-    std::string fname = "script_a7_fig11-29";
+void test_get_type() {
+    std::string fname = "script_autotest";
     Book book(fname);
     for (size_t i = 0; i < book.size(); ++i) {
         std::shared_ptr<Term> M = book[i].term();
@@ -431,5 +431,5 @@ int main() {
     // test_reduction3(delta);
     // test_def_file();
 
-    test_type_inf();
+    test_get_type();
 }
