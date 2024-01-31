@@ -1,12 +1,12 @@
 #pragma once
 
-#include <vector>
+#include <map>
 #include <memory>
 #include <string>
-#include <map>
+#include <vector>
 
-#include "lambda.hpp"
 #include "definition.hpp"
+#include "lambda.hpp"
 
 class Environment : public std::vector<std::shared_ptr<Definition>> {
   public:

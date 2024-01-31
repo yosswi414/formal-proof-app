@@ -1,12 +1,13 @@
 #pragma once
 
-#include <string>
-#include <memory>
 #include <iostream>
+#include <memory>
+#include <string>
+
 #include "common.hpp"
-#include "lambda.hpp"
 #include "context.hpp"
 #include "environment.hpp"
+#include "lambda.hpp"
 
 class TypeError {
   public:

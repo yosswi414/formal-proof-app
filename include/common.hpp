@@ -81,13 +81,16 @@ std::set<T>& set_minus_inplace(std::set<T>& a, const std::set<T>& b) {
 #define CYAN(str) "\033[36m" str "\033[m"
 
 #define check_true_or_exec(expr, msg, exec, file, line, func, quiet)                       \
-    do {                                                                            \
-        if (!(expr)) {                                                              \
-            if (!(quiet) || DEBUG_CERR) std::cerr << BOLD(RED("error")) ": assertion \"" #expr "\" failed." << std::endl      \
-                      << (file) << ": In function `" << (func) << "()`:" << std::endl \
-                      << (file) << ":" << (line) << ": " << msg << std::endl;       \
-            exec;                                                                   \
-        }                                                                           \
+    do {                                                                                   \
+        if (!(expr)) {                                                                     \
+            if (!(quiet) || DEBUG_CERR) {                                                  \
+                std::cerr                                                                  \
+                    << BOLD(RED("error")) ": assertion \"" #expr "\" failed." << std::endl \
+                    << (file) << ": In function `" << (func) << "()`:" << std::endl        \
+                    << (file) << ":" << (line) << ": " << msg << std::endl;                \
+            }                                                                              \
+            exec;                                                                          \
+        }                                                                                  \
     } while (false)
 
 #define check_true_or_ret(expr, msg, ret, file, line, func) check_true_or_exec(expr, msg, return (ret), file, line, func, true)

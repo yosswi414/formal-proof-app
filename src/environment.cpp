@@ -1,10 +1,11 @@
-#include <vector>
-#include <string>
-#include <memory>
-
-#include "parser.hpp"
 #include "environment.hpp"
+
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "common.hpp"
+#include "parser.hpp"
 
 Environment::Environment() {}
 Environment::Environment(const std::vector<std::shared_ptr<Definition>>& defs) : std::vector<std::shared_ptr<Definition>>(defs) {
@@ -433,4 +434,3 @@ bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>&
         "reached end of function, supposed to be unreachable",
         __FILE__, __LINE__, __func__);
 }
-

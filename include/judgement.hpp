@@ -1,10 +1,10 @@
 #pragma once
 
-#include <string>
 #include <memory>
+#include <string>
 
-#include "lambda.hpp"
 #include "environment.hpp"
+#include "lambda.hpp"
 
 class Judgement {
   public:

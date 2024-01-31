@@ -214,8 +214,6 @@ std::set<char> free_var(const std::shared_ptr<Term>& term, Ts... data) {
     return set_union(free_var(term), free_var(data...));
 }
 
-
-
 bool is_free_var(const std::shared_ptr<Term>& term, const std::shared_ptr<Variable>& var);
 
 std::shared_ptr<Variable> get_fresh_var(const std::shared_ptr<Term>& term);

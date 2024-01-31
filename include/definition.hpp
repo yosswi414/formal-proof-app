@@ -1,10 +1,10 @@
 #pragma once
 
-#include <string>
 #include <memory>
+#include <string>
 
-#include "lambda.hpp"
 #include "context.hpp"
+#include "lambda.hpp"
 
 class Definition {
   public:

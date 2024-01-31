@@ -1,11 +1,10 @@
+#include "context.hpp"
 
-
-#include <set>
 #include <memory>
+#include <set>
 
 #include "common.hpp"
 #include "lambda.hpp"
-#include "context.hpp"
 
 Context::Context() {}
 Context::Context(const std::vector<Typed<Variable>>& tvars) : std::vector<Typed<Variable>>(tvars) {}
@@ -136,5 +135,3 @@ bool has_variable(const std::shared_ptr<Context>& g, const std::shared_ptr<Term>
 bool has_variable(const std::shared_ptr<Context>& g, char v) {
     return has_variable(g, std::make_shared<Variable>(v));
 }
-
-

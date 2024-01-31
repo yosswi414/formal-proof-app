@@ -1,9 +1,10 @@
-#include <string>
-#include <memory>
-
-#include "lambda.hpp"
-#include "context.hpp"
 #include "definition.hpp"
+
+#include <memory>
+#include <string>
+
+#include "context.hpp"
+#include "lambda.hpp"
 
 Definition::Definition(const std::shared_ptr<Context>& context,
                        const std::string& cname,

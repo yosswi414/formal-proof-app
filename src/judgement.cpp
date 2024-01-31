@@ -1,11 +1,12 @@
-#include <string>
-#include <memory>
+#include "judgement.hpp"
 
-#include "lambda.hpp"
+#include <memory>
+#include <string>
+
+#include "common.hpp"
 #include "context.hpp"
 #include "environment.hpp"
-#include "common.hpp"
-#include "judgement.hpp"
+#include "lambda.hpp"
 
 Judgement::Judgement(const std::shared_ptr<Environment>& env,
                      const std::shared_ptr<Context>& context,

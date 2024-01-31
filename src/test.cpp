@@ -3,13 +3,12 @@
 #include <memory>
 #include <vector>
 
-#include "lambda.hpp"
-#include "parser.hpp"
-#include "inference.hpp"
+#include "book.hpp"
 #include "context.hpp"
 #include "environment.hpp"
-#include "book.hpp"
-
+#include "inference.hpp"
+#include "lambda.hpp"
+#include "parser.hpp"
 
 #define bout(expr) \
     do { std::cerr << #expr " --> " << (expr ? "true" : "false") << std::endl; } while (false)

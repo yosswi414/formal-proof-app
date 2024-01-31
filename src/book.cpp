@@ -1,9 +1,10 @@
-#include <vector>
-#include <string>
+#include "book.hpp"
+
 #include <sstream>
+#include <string>
+#include <vector>
 
 #include "judgement.hpp"
-#include "book.hpp"
 
 Book::Book(bool skip_check) : std::vector<Judgement>{}, _skip_check{skip_check} {}
 Book::Book(const std::vector<Judgement>& list) : std::vector<Judgement>(list) {}
