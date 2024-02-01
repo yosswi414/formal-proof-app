@@ -43,9 +43,7 @@ enum class EpsilonType {
 
 std::string to_string(const EpsilonType& k);
 
-template <typename PtrType, typename std::enable_if_t<
-                                std::is_pointer<PtrType>::value || std::is_same<PtrType, std::unique_ptr<typename PtrType::element_type>>::value || std::is_same<PtrType, std::shared_ptr<typename PtrType::element_type>>::value,
-                                int> = 0>
+template <typename PtrType, typename std::enable_if_t<std::is_pointer<PtrType>::value || std::is_same<PtrType, std::unique_ptr<typename PtrType::element_type>>::value || std::is_same<PtrType, std::shared_ptr<typename PtrType::element_type>>::value, int> = 0>
 std::ostream& operator<<(std::ostream& os, const PtrType& ptr) {
     return os << ptr->string();
 }

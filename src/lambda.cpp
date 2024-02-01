@@ -24,17 +24,22 @@
  * - [done] beta reduction
  *      essential for conv
  * - [done] delta reduction
+ * - [done] get_type()
+ * - get_script()
  * [IDEA]
  * - rename: AbstLambda -> Lambda, AbstPi -> Pi
- * - flag: environment variable for definition
+ * - [done] flag: environment variable for definition
  *      flag A:* | B:* | P:S->* {
  *          def2
  *          ...
  *      }
- * - (hard?) macro: user-defined operator
+ * - [partially done] (hard?) macro: user-defined operator
  *      - arity? associativity?
  *      #define ! * := not[*]
  *      #define x -> y := ?z:x.y
+ * - variable as an index (to prevent variable name depletion)
+ *      - string() |-> #123 (non-negative)
+ * - variable as a string (to allow variable names such as m_1, m_2)
  */
 
 std::string to_string(const EpsilonType& k) {
