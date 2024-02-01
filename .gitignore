@@ -45,6 +45,10 @@ def_file_bez*
 test_book3_out*
 test_automake3_out*
 
+# exclude given binaries
+test_automake3
+test_book3
+
 # test_automake3
 # test_book3
 .vscode/
