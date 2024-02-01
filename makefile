@@ -47,10 +47,12 @@ nocomm: src/def_file_nocomm
 
 # usage: $ make compile-<def_name>
 compile-%: bin/verifier.out
-	rm -f src/def_file_nocomm
-	make nocomm
-	./test_automake3 src/def_file_nocomm $(@:compile-%=%) script_autotest > /dev/null
-	bin/verifier.out -f script_autotest -d src/def_file_nocomm -s
+	@rm -f src/def_file_nocomm
+	@make nocomm
+	@./test_automake3 src/def_file_nocomm $(@:compile-%=%) script_autotest > /dev/null
+	@bin/verifier.out -f script_autotest -d src/def_file_nocomm -s || (echo "\033[1m\033[31mcheck #1 failed.\033[m"; exit 1)
+	@./test_book3 src/def_file_nocomm script_autotest > /dev/null || (echo "\033[1m\033[31mcheck #2 failed.\033[m"; exit 1)
+	@echo "\033[1m\033[32mDefinition \""$(@:compile-%=%)"\" has been verified successfully\033[m"
 
 test_read: bin/def_conv.out src/def_file
 	$^ -r
