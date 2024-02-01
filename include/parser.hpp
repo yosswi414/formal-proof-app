@@ -35,6 +35,7 @@ enum class TokenType {
     Underscore,
     Hyphen,
     Verticalbar,
+    Plus,
     Leftarrow,             // <-
     Rightarrow,            // ->
     Leftrightarrow,        // <->
@@ -207,7 +208,7 @@ class ParseLambdaToken {
     std::shared_ptr<Term> _term;
 };
 
-std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens, size_t& idx, bool no_chainer = false);
+std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens, size_t& idx, const std::shared_ptr<std::vector<std::shared_ptr<Context>>>& flag_context, bool no_chainer = false);
 
 std::shared_ptr<Term> parse_lambda(const std::string& str);
 
