@@ -1818,19 +1818,33 @@ edef2
 
 
 // p.276 Exercises 12.2
-[S: *, x: S]
-| [y: S]
-| | eq_alt := ?P: S->* . (%P x => %P y) : *
+[S: *]
+| [x: S]
+| | [y: S]
+| | | eq_alt := ?P: S->* . (%P x => %P y) : *
+| | // Exercise 12.2 (a): Prove that eq_alt is a reflexive relation.
+| | [P: S->*]
+| | | Exer12.2.a.1 := implies_in[%P x, %P x, $u:%P x.u] : %P x => %P x
+| | eq_alt_refl := $P: S->* . Exer12.2.a.1[S, x, P] : eq_alt[S, x, x]
+| | // Exercise 12.2 (b): Prove that eq_alt is a symmetric relation.
+| | // Hint: consider, given x: S and y: S, the predicate $z:S.eq_alt[S, z, x]
+| | [y: S]
+| | | [u: eq_alt[S, x, y]]
+| | | | [P: S->*]
+| | | | | Exer12.2.b.1 := %u P : %P x => %P y
+| | | | Exer12.2.b.2 := Exer12.2.b.1[+, $z:S.eq_alt[S, z, x]] : eq_alt[S, x, x] => eq_alt[S, y, x]
+| | | | eq_alt_sym := % Exer12.2.b.2[+] eq_alt_refl[S, x] : eq_alt[S, y, x]
+| | | // Exercise 12.2 (c): Prove that eq_alt is a transitive relation.
+| | | [z: S]
+| | | | [u: eq_alt[S, x, y], v: eq_alt[S, y, z]]
+| | | | | Exer12.2.c.1 := Exer12.2.b.1[S, y, x, eq_alt_sym[S, x, y, u], $w:S.eq_alt[S, w, z]] : eq_alt[S, y, z] => eq_alt[S, x, z]
+| | | | | eq_alt_trans := % Exer12.2.c.1[+] v : eq_alt[S, x, z]
+| // Exercise 12.2 (d): Check the substitutivity property for eq_alt. What can you conclude about the predicate eq_alt?
 | [P: S->*]
-| | Exer12.2.1 := implies_in[%P x, %P x, $u:%P x.u] : %P x => %P x
-| // Exercise 12.2 (a)
-| eq_alt_refl := $P: S->* . Exer12.2.1[S, x, P] : eq_alt[S, x, x]
-| // Exercise 12.2 (b)
-| [y: S]
-| | [u: eq_alt[S, x, y]]
-| | | [P: S->*]
-| | | | Exer12.2.2 := implies_in[%P y, %P x, ] : %P y => %P x
-| | | eq_alt_sym := $P: S->*. Exer12.2.2[+, P] : eq_alt[S, y, x]
+| | [x, y: S]
+| | | [u: eq_alt[S, x, y]]
+| | | | [v: %P x]
+| | | | | eq_alt_subs := % Exer12.2.b.1[S, x, y, u, P] v : %P y
 
 // p.262 Figure 12.4; Substitutivity as property of equality
 [S: *]
@@ -1881,15 +1895,16 @@ edef2
 | | [r: part_ord[S, L]]
 | | | [M, m: S]
 | | | | [u: forall[S, $n:S.%%L M n], v: forall[S, $n:S.%%L m n]]
-| | | | | a1_fig12.8 := %u m : %%L M m
-| | | | | a2_fig12.8 := %v M : %%L m M
-| | | | | a3_fig12.8 := r : and[pre_ord[S, L], antisymm[S, L]]
-| | | | | a4_fig12.8 := and_el2[pre_ord[S, L], antisymm[S, L], a3_fig12.8[+]] : antisymm[S, L]
-| | | | | a5_fig12.8 := a4_fig12.8[+] : forall[S, $x:S.forall[S, $y:S.(%%L x y => %%L y x => eq[S, x, y])]]
-| | | | | a6_fig12.8 := %%a5_fig12.8[+] M m  : %%L M m => %%L m M => eq[S, M, m]
-| | | | | a7_fig12.8 := %a6_fig12.8[+] a1_fig12.8[+] : %%L m M => eq[S, M, m]
-| | | | | a8_fig12.8 := %a7_fig12.8[+] a2_fig12.8[+] : eq[S, M, m]
-| | | a9_fig12.8 := $M:S.$m:S.$u:forall[S, $n:S.%%L M n].$v:forall[S, $n:S.%%L m n].a8_fig12.8[+, M, m, u, v] : forall[S, $M:S.forall[S, $m:S.(forall[S, $n:S.%%L M n] => forall[S, $n:S.%%L m n] => eq[S, M, m])]]
+| | | | | a1_fig12.9 := %u m : %%L M m
+| | | | | a2_fig12.9 := %v M : %%L m M
+| | | | | a3_fig12.9 := r : and[pre_ord[S, L], antisymm[S, L]]
+| | | | | a4_fig12.9 := and_el2[pre_ord[S, L], antisymm[S, L], a3_fig12.9[+]] : antisymm[S, L]
+| | | | | a5_fig12.9 := a4_fig12.9[+] : forall[S, $x:S.forall[S, $y:S.(%%L x y => %%L y x => eq[S, x, y])]]
+| | | | | a6_fig12.9 := %%a5_fig12.9[+] M m  : %%L M m => %%L m M => eq[S, M, m]
+| | | | | a7_fig12.9 := %a6_fig12.9[+] a1_fig12.9[+] : %%L m M => eq[S, M, m]
+| | | | | a8_fig12.9 := %a7_fig12.9[+] a2_fig12.9[+] : eq[S, M, m]
+| | | a9_fig12.9 := $M:S.$m:S.$u:forall[S, $n:S.%%L M n].$v:forall[S, $n:S.%%L m n].a8_fig12.9[+, M, m, u, v] : forall[S, $M:S.forall[S, $m:S.(forall[S, $n:S.%%L M n] => forall[S, $n:S.%%L m n] => eq[S, M, m])]]
+
 
 // p.267 Figure 12.10; Symmetry of equality follows from reflexivity and substitutivity
 [S: *]
@@ -1919,12 +1934,47 @@ edef2
 [S: *, L: S->S->*, m: S]
 | Least := forall[S, $n:S.%%L m n] : *
 
+// p.270 Figure 12.14; Various existential quantifiers
+[S: *]
+| [P: S->*]
+| | exists_revisit := ?A:*.(forall[S, $x:S.(%P x => A)] => A) : *
+| | exists_at_least := exists[S, P] : *
+| | exists_at_most := forall[S, $y:S.forall[S, $z:S.(%P y => %P z => eq[S, y, z])]] : *
+| | exists1 := and[exists_at_least[S, P], exists_at_most[S, P]] : *
+
+// p. 270 Figure 12.15; A completed formal version of Lemma 12.1.2 and its proof
+[S: *]
+| [L: S->S->*]
+| | [r: part_ord[S, L]]
+| | | a10_fig12.15 := a9_fig12.9[+] : exists_at_most[S, $x:S.Least[S, L, x]]
+| | | [w: exists_at_least[S, $x:S.Least[S, L, x]]]
+| | | | a11_fig12.15 := and_in[exists_at_least[S, $x:S.Least[S, L, x]], exists_at_most[S, $x:S.Least[S, L, x]], w, a10_fig12.15[S, L, r]] : exists1[S, $x:S.Least[S, L, x]]
+
+// p.272 Figure 12.16; The descriptor ι
+[S: *]
+| [P: S->*]
+| | [u: exists1[S, P]]
+| | | iota := # : S
+| | | iota_prop := # : % P iota[S, P, u]
+
+// p.273 Figure 12.17; Lemma 12.7.1 and its proof
+[S: *, P: S->*, u: exists1[S, P]]
+| a1_fig12.17 := u : and[exists_at_least[S, P], exists_at_most[S, P]]
+| a2_fig12.17 := and_el2[exists_at_least[S, P], exists_at_most[S, P], u] : exists_at_most[S, P]
+| a3_fig12.17 := a2_fig12.17[+] : forall[S, $x:S.forall[S, $y:S.(%P x => %P y => eq[S, x, y])]]
+| [z: S, v: %P z]
+| | a4_fig12.17 := %%%% a3_fig12.17[S, P, u] z iota[S, P, u] v iota_prop[S, P, u] : eq[S, z, iota[S, P, u]]
+| a5_fig12.17 := $z:S.$v:%P z.a4_fig12.17[+, z, v] : forall[S, $z:S.(%P z => eq[S, z, iota[S, P, u]])]
+
+// p.274 Figure 12.18; The minimum-operator, and a lemma with proof
+[S: *, L: S->S->*, r: part_ord[S, L]]
+| [w: exists_at_least[S, $x:S.Least[S, L, x]]]
+| | Min := iota[S, $m:S.Least[S, L, m], a11_fig12.15[+]] : S
+| | a2_fig12.18 := a5_fig12.17[S, $m:S.Least[S, L, m], a11_fig12.15[+]] : forall[S, $x:S.(Least[S, L, x] => eq[S, x, Min[+]])]
 
 
 /*
 List of definitions yet to be defined
-[Jan 11]
-exists_at_least, exists_at_most, exists1, iota, iota_prop, a1_fig12.9, a2_fig12.9, a3_fig12.9, a4_fig12.9, a6_fig12.9, a7_fig12.9, a8_fig12.9, a9_fig12.9, a10_fig12.9, a11_fig12.9, a1_fig12.17, a2_fig12.17, a3_fig12.17, a4_fig12.17, a5_fig12.17, Min, a2_fig12.18
 [Jan 15]
 ps, element, subseteq, cup, IS, cap, setminus, complement, element_in, element_el, a1_fig13.4, a2_fig13.4, a3_fig13.4, a4_fig13.4, a5_fig13.4, a6_fig13.4, a7_fig13.4, a8_fig13.4, a9_fig13.4, a10_fig13.4, a11_fig13.4, a12_fig13.4, eq_subset, IS_prop
 [Jan 18]
