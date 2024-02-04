@@ -177,7 +177,7 @@ void test_subst() {
     test_result();
 }
 
-void test_sandbox() {
+void test_sandbox_combinators() {
     std::cerr << "[combinator test]" << std::endl;
 
     defvar(x);
@@ -424,7 +424,7 @@ int main() {
     // test_subst();
     // test_reduction1(delta);
     // test_reduction2(delta);
-    // test_sandbox();
+    // test_sandbox_combinators();
 
     // test_parse();
     // test_reduction3(delta);
