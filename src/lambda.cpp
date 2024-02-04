@@ -106,8 +106,8 @@ std::shared_ptr<Term> copy(const std::shared_ptr<Term>& term) {
     }
 }
 
-std::set<char> free_var(const std::shared_ptr<Term>& term) {
-    std::set<char> FV;
+std::set<std::string> free_var(const std::shared_ptr<Term>& term) {
+    std::set<std::string> FV;
     switch (term->etype()) {
         case EpsilonType::Star:
         case EpsilonType::Square:
@@ -152,24 +152,108 @@ bool is_free_var(const std::shared_ptr<Term>& term, const std::shared_ptr<Variab
     return fv.find(var->name()) != fv.end();
 }
 
+int _fresh_var_id = 0;
+std::set<std::string> _char_vars_set;
+const std::string _preferred_names = "XYZWUVxyzwpqrst";
+
+const std::set<std::string>& char_vars_set() {
+    if (_char_vars_set.empty()) {
+        for (char ch = 'A'; ch <= 'Z'; ++ch) _char_vars_set.insert({ch});
+        for (char ch = 'a'; ch <= 'z'; ++ch) _char_vars_set.insert({ch});
+    }
+    return _char_vars_set;
+}
+
+std::shared_ptr<Variable> get_fresh_var_depleted() {
+    return variable("v_" + std::to_string(_fresh_var_id++));
+}
+
 std::shared_ptr<Variable> get_fresh_var(const std::shared_ptr<Term>& term) {
-    std::set<char> univ;
-    for (char ch = 'A'; ch <= 'Z'; ++ch) univ.insert(ch);
-    for (char ch = 'a'; ch <= 'z'; ++ch) univ.insert(ch);
+    // std::set<char> univ;
+    // for (char ch = 'A'; ch <= 'Z'; ++ch) univ.insert(ch);
+    // for (char ch = 'a'; ch <= 'z'; ++ch) univ.insert(ch);
+    // set_minus_inplace(univ, free_var(term));
+    // if (!univ.empty()) return variable(*univ.begin());
+    // check_true_or_exit(false, "out of fresh variable",
+    //                    __FILE__, __LINE__, __func__);
+    auto univ = char_vars_set();
     set_minus_inplace(univ, free_var(term));
-    if (!univ.empty()) return variable(*univ.begin());
-    check_true_or_exit(false, "out of fresh variable",
-                       __FILE__, __LINE__, __func__);
+    if (!univ.empty()) {
+        for(auto&& ch : _preferred_names) {
+            auto itr = univ.find({ch});
+            if (itr != univ.end()) return variable({ch});
+        }
+        return variable(*univ.begin());
+    }
+    return get_fresh_var_depleted();
 }
 
 std::shared_ptr<Variable> get_fresh_var(const std::vector<std::shared_ptr<Term>>& terms) {
-    std::set<char> univ;
-    for (char ch = 'A'; ch <= 'Z'; ++ch) univ.insert(ch);
-    for (char ch = 'a'; ch <= 'z'; ++ch) univ.insert(ch);
+    // std::set<char> univ;
+    // for (char ch = 'A'; ch <= 'Z'; ++ch) univ.insert(ch);
+    // for (char ch = 'a'; ch <= 'z'; ++ch) univ.insert(ch);
+    // for (auto&& t : terms) set_minus_inplace(univ, free_var(t));
+    // if (!univ.empty()) return variable(*univ.begin());
+    // check_true_or_exit(false, "out of fresh variable",
+    //                    __FILE__, __LINE__, __func__);
+    auto univ = char_vars_set();
     for (auto&& t : terms) set_minus_inplace(univ, free_var(t));
-    if (!univ.empty()) return variable(*univ.begin());
-    check_true_or_exit(false, "out of fresh variable",
-                       __FILE__, __LINE__, __func__);
+    if (!univ.empty()) {
+        for (auto&& ch : _preferred_names) {
+            auto itr = univ.find({ch});
+            if (itr != univ.end()) return variable({ch});
+        }
+        return variable(*univ.begin());
+    }
+    return get_fresh_var_depleted();
+}
+
+std::shared_ptr<Term> rename_var_short(std::shared_ptr<Term> term) {
+    if (!term) return nullptr;
+    switch (term->etype()) {
+        case EpsilonType::Star:
+        case EpsilonType::Square:
+        // free variable with long name shall be processed at Environment::repr()
+        case EpsilonType::Variable:
+            return term;
+        case EpsilonType::AbstLambda: {
+            auto L = lambda(term);
+            auto x = L->var().value();
+            auto A = L->var().type();
+            auto M = L->expr();
+            if (x->name().size() == 1) {
+                return lambda(x, rename_var_short(A), rename_var_short(M));
+            }
+            auto z = get_fresh_var(M);
+            M = substitute(M, x, z);
+            return lambda(z, rename_var_short(A), rename_var_short(M));
+        }
+        case EpsilonType::AbstPi: {
+            auto L = pi(term);
+            auto x = L->var().value();
+            auto A = L->var().type();
+            auto B = L->expr();
+            if (x->name().size() == 1) {
+                return pi(x, rename_var_short(A), rename_var_short(B));
+            }
+            auto z = get_fresh_var(B);
+            B = substitute(B, x, z);
+            return pi(z, rename_var_short(A), rename_var_short(B));
+        }
+        case EpsilonType::Application: {
+            auto L = appl(term);
+            auto M = L->M();
+            auto N = L->N();
+            return appl(rename_var_short(M), rename_var_short(N));
+        }
+        case EpsilonType::Constant: {
+            auto L = constant(term);
+            auto args = L->args();
+            for (auto&& arg : args) arg = rename_var_short(arg);
+            return constant(L->name(), args);
+        }
+    }
+    return nullptr;
 }
 
 std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::shared_ptr<Variable>& bind, const std::shared_ptr<Term>& expr) {
@@ -259,19 +343,20 @@ std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::v
      * z1: a variable absent in {x2,...,xn}
      * zi: a variable absent in {U1,...,U{i-1},z1,...,z{i-1},x{i+1},...,xn}
      */
-    std::set<char> freshV;
-    for (char ch = 'A'; ch <= 'Z'; ++ch) freshV.insert(ch);
-    for (char ch = 'a'; ch <= 'z'; ++ch) freshV.insert(ch);
-    for (auto&& v : vars) set_minus_inplace(freshV, free_var(v));
-    for (auto&& e : exprs) set_minus_inplace(freshV, free_var(e));
-    check_true_or_exit(
-        freshV.size() >= n,
-        "out of fresh variable",
-        __FILE__, __LINE__, __func__);
+    // std::set<char> freshV;
+    // for (char ch = 'A'; ch <= 'Z'; ++ch) freshV.insert(ch);
+    // for (char ch = 'a'; ch <= 'z'; ++ch) freshV.insert(ch);
+    // for (auto&& v : vars) set_minus_inplace(freshV, free_var(v));
+    // for (auto&& e : exprs) set_minus_inplace(freshV, free_var(e));
+    // check_true_or_exit(
+    //     freshV.size() >= n,
+    //     "out of fresh variable",
+    //     __FILE__, __LINE__, __func__);
     std::vector<std::shared_ptr<Variable>> zs;
     for (size_t i = 0; i < n; ++i) {
-        zs.push_back(variable(*freshV.begin()));
-        freshV.erase(freshV.begin());
+        // zs.push_back(variable(*freshV.begin()));
+        // freshV.erase(freshV.begin());
+        zs.push_back(get_fresh_var_depleted());
     }
 
     auto t = term;
@@ -282,6 +367,7 @@ std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::v
 }
 
 std::shared_ptr<Variable> variable(const char& ch) { return std::make_shared<Variable>(ch); }
+std::shared_ptr<Variable> variable(const std::string& name) { return std::make_shared<Variable>(name); }
 std::shared_ptr<Variable> variable(const std::shared_ptr<Term>& t) {
     return std::dynamic_pointer_cast<Variable>(t);
 }
@@ -480,10 +566,10 @@ bool is_beta_reducible(const std::shared_ptr<Term>& term) {
 std::string Term::repr() const { return string(); }
 std::string Term::repr_new() const { return repr(); }
 std::string Term::repr_book() const { return repr(); }
-std::string Term::string_db(std::vector<char> bound) const {
-    unused(bound);
-    return string();
-}
+// std::string Term::string_db(std::vector<char> bound) const {
+//     unused(bound);
+//     return string();
+// }
 
 Star::Star() : Term(EpsilonType::Star) {}
 std::string Star::string() const { return "*"; }
@@ -493,16 +579,21 @@ const std::string SYMBOL_SQUARE = (OnlyAscii ? "@" : "□");
 std::string Square::string() const { return SYMBOL_SQUARE; }
 std::string Square::repr() const { return "@"; }
 
-Variable::Variable(char ch) : Term(EpsilonType::Variable), _var_name(ch) {}
-std::string Variable::string() const { return std::string(1, _var_name); }
-std::string Variable::string_db(std::vector<char> bound) const {
-    for (int i = bound.size() - 1; i >= 0; --i) {
-        if (bound[i] == _var_name) return std::to_string(i);
-    }
-    return this->string();
-}
-const char& Variable::name() const { return _var_name; }
-char& Variable::name() { return _var_name; }
+// Variable::Variable(char ch) : Term(EpsilonType::Variable), _var_name(ch) {}
+Variable::Variable(char ch) : Term(EpsilonType::Variable), _var_name{ch} {}
+Variable::Variable(const std::string& name) : Term(EpsilonType::Variable), _var_name(name) {}
+// std::string Variable::string() const { return std::string(1, _var_name); }
+std::string Variable::string() const { return _var_name; }
+// std::string Variable::string_db(std::vector<char> bound) const {
+//     for (int i = bound.size() - 1; i >= 0; --i) {
+//         if (bound[i] == _var_name) return std::to_string(i);
+//     }
+//     return this->string();
+// }
+// const char& Variable::name() const { return _var_name; }
+// char& Variable::name() { return _var_name; }
+const std::string& Variable::name() const { return _var_name; }
+std::string& Variable::name() { return _var_name; }
 
 Application::Application(std::shared_ptr<Term> m, std::shared_ptr<Term> n) : Term(EpsilonType::Application), _M(m), _N(n) {}
 
@@ -523,9 +614,9 @@ std::string Application::repr_new() const {
 std::string Application::repr_book() const {
     return "(" + _M->repr_book() + ")|(" + _N->repr_book() + ")";
 }
-std::string Application::string_db(std::vector<char> bound) const {
-    return std::string("%") + _M->string_db(bound) + " " + _N->string_db(bound);
-}
+// std::string Application::string_db(std::vector<char> bound) const {
+//     return std::string("%") + _M->string_db(bound) + " " + _N->string_db(bound);
+// }
 
 const std::string SYMBOL_LAMBDA = (OnlyAscii ? "$" : "λ");
 AbstLambda::AbstLambda(const Typed<Variable>& v, std::shared_ptr<Term> e) : Term(EpsilonType::AbstLambda), _var(v), _expr(e) {}
@@ -551,12 +642,12 @@ std::string AbstLambda::repr_new() const {
 std::string AbstLambda::repr_book() const {
     return "Lam " + _var.value()->repr_book() + ":(" + _var.type()->repr_book() + ").(" + _expr->repr_book() + ")";
 }
-std::string AbstLambda::string_db(std::vector<char> bound) const {
-    std::string type = _var.type()->string_db(bound);
-    bound.push_back(_var.value()->name());
-    std::string expr = _expr->string_db(bound);
-    return SYMBOL_LAMBDA + _var.value()->string_db(bound) + ":" + type + "." + expr;
-}
+// std::string AbstLambda::string_db(std::vector<char> bound) const {
+//     std::string type = _var.type()->string_db(bound);
+//     bound.push_back(_var.value()->name());
+//     std::string expr = _expr->string_db(bound);
+//     return SYMBOL_LAMBDA + _var.value()->string_db(bound) + ":" + type + "." + expr;
+// }
 
 const std::string SYMBOL_PI = (OnlyAscii ? "?" : "Π");
 AbstPi::AbstPi(const Typed<Variable>& v, std::shared_ptr<Term> e) : Term(EpsilonType::AbstPi), _var(v), _expr(e) {}
@@ -582,12 +673,12 @@ std::string AbstPi::repr_new() const {
 std::string AbstPi::repr_book() const {
     return "Pai " + _var.value()->repr_book() + ":(" + _var.type()->repr_book() + ").(" + _expr->repr_book() + ")";
 }
-std::string AbstPi::string_db(std::vector<char> bound) const {
-    std::string type = _var.type()->string_db(bound);
-    bound.push_back(_var.value()->name());
-    std::string expr = _expr->string_db(bound);
-    return SYMBOL_PI + _var.value()->string_db(bound) + ":" + type + "." + expr;
-}
+// std::string AbstPi::string_db(std::vector<char> bound) const {
+//     std::string type = _var.type()->string_db(bound);
+//     bound.push_back(_var.value()->name());
+//     std::string expr = _expr->string_db(bound);
+//     return SYMBOL_PI + _var.value()->string_db(bound) + ":" + type + "." + expr;
+// }
 
 Constant::Constant(const std::string& name, std::vector<std::shared_ptr<Term>> list) : Term(EpsilonType::Constant), _name(name), _args(list) {}
 
@@ -628,14 +719,14 @@ std::string Constant::repr_book() const {
     res += "]";
     return res;
 }
-std::string Constant::string_db(std::vector<char> bound) const {
-    std::string res(_name);
-    res += "[";
-    if (_args.size() > 0) res += _args[0]->string_db(bound);
-    for (size_t i = 1; i < _args.size(); ++i) res += ", " + _args[i]->string_db(bound);
-    res += "]";
-    return res;
-}
+// std::string Constant::string_db(std::vector<char> bound) const {
+//     std::string res(_name);
+//     res += "[";
+//     if (_args.size() > 0) res += _args[0]->string_db(bound);
+//     for (size_t i = 1; i < _args.size(); ++i) res += ", " + _args[i]->string_db(bound);
+//     res += "]";
+//     return res;
+// }
 
 InferenceError::InferenceError() : _msg(BOLD(RED("InferenceError")) ": ") {}
 InferenceError::InferenceError(const std::string& str) : _msg(str) {}

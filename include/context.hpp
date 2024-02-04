@@ -31,9 +31,14 @@ bool has_variable(const std::shared_ptr<Context>& g, const std::shared_ptr<Varia
 bool has_variable(const std::shared_ptr<Context>& g, const std::shared_ptr<Term>& v);
 bool has_variable(const std::shared_ptr<Context>& g, char v);
 
-std::set<char> free_var(const Context& con);
+// std::set<char> free_var(const Context& con);
+std::set<std::string> free_var(const Context& con);
+// template <class... Ts>
+// std::set<char> free_var(const Context& con, Ts... data) {
+//     return set_union(free_var(con), free_var(data...));
+// }
 template <class... Ts>
-std::set<char> free_var(const Context& con, Ts... data) {
+std::set<std::string> free_var(const Context& con, Ts... data) {
     return set_union(free_var(con), free_var(data...));
 }
 

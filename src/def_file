@@ -1881,29 +1881,29 @@ edef2
 
 // p.264 Figure 12.7; Definitions regarding partial orders
 [S: *]
-| [L: S->S->*]
-| | refl := forall[S, $x:S.%%L x x] : *
-| | trans := forall[S, $x:S.forall[S, $y:S.forall[S, $z:S.(%%L x y => %%L y z => %%L x z)]]] : *
-| | pre_ord := and[refl[S, L], trans[S, L]] : *
-| | antisymm := forall[S, $x:S.forall[S, $y:S.(%%L x y => %%L y x => eq[S, x, y])]] : *
-| | part_ord := and[pre_ord[S, L], antisymm[S, L]] : *
+| [Leq: S->S->*]
+| | refl := forall[S, $x:S.%%Leq x x] : *
+| | trans := forall[S, $x:S.forall[S, $y:S.forall[S, $z:S.(%%Leq x y => %%Leq y z => %%Leq x z)]]] : *
+| | pre_ord := and[refl[S, Leq], trans[S, Leq]] : *
+| | antisymm := forall[S, $x:S.forall[S, $y:S.(%%Leq x y => %%Leq y x => eq[S, x, y])]] : *
+| | part_ord := and[pre_ord[S, Leq], antisymm[S, Leq]] : *
 
 // p.265 Figure 12.8; A skeleton proof for the first part of Lemma 12.1.2
 // p.266 Figure 12.9; A formal proof of the first part of Lemma 12.1.2 in λD
 [S: *]
-| [L: S->S->*]
-| | [r: part_ord[S, L]]
-| | | [M, m: S]
-| | | | [u: forall[S, $n:S.%%L M n], v: forall[S, $n:S.%%L m n]]
-| | | | | a1_fig12.9 := %u m : %%L M m
-| | | | | a2_fig12.9 := %v M : %%L m M
-| | | | | a3_fig12.9 := r : and[pre_ord[S, L], antisymm[S, L]]
-| | | | | a4_fig12.9 := and_el2[pre_ord[S, L], antisymm[S, L], a3_fig12.9[+]] : antisymm[S, L]
-| | | | | a5_fig12.9 := a4_fig12.9[+] : forall[S, $x:S.forall[S, $y:S.(%%L x y => %%L y x => eq[S, x, y])]]
-| | | | | a6_fig12.9 := %%a5_fig12.9[+] M m  : %%L M m => %%L m M => eq[S, M, m]
-| | | | | a7_fig12.9 := %a6_fig12.9[+] a1_fig12.9[+] : %%L m M => eq[S, M, m]
-| | | | | a8_fig12.9 := %a7_fig12.9[+] a2_fig12.9[+] : eq[S, M, m]
-| | | a9_fig12.9 := $M:S.$m:S.$u:forall[S, $n:S.%%L M n].$v:forall[S, $n:S.%%L m n].a8_fig12.9[+, M, m, u, v] : forall[S, $M:S.forall[S, $m:S.(forall[S, $n:S.%%L M n] => forall[S, $n:S.%%L m n] => eq[S, M, m])]]
+| [Leq: S->S->*]
+| | [r: part_ord[S, Leq]]
+| | | [m_1, m_2: S]
+| | | | [u: forall[S, $n:S.%%Leq m_1 n], v: forall[S, $n:S.%%Leq m_2 n]]
+| | | | | a1_fig12.9 := %u m_2 : %%Leq m_1 m_2
+| | | | | a2_fig12.9 := %v m_1 : %%Leq m_2 m_1
+| | | | | a3_fig12.9 := r : and[pre_ord[S, Leq], antisymm[S, Leq]]
+| | | | | a4_fig12.9 := and_el2[pre_ord[S, Leq], antisymm[S, Leq], a3_fig12.9[+]] : antisymm[S, Leq]
+| | | | | a5_fig12.9 := a4_fig12.9[+] : forall[S, $x:S.forall[S, $y:S.(%%Leq x y => %%Leq y x => eq[S, x, y])]]
+| | | | | a6_fig12.9 := %%a5_fig12.9[+] m_1 m_2  : %%Leq m_1 m_2 => %%Leq m_2 m_1 => eq[S, m_1, m_2]
+| | | | | a7_fig12.9 := %a6_fig12.9[+] a1_fig12.9[+] : %%Leq m_2 m_1 => eq[S, m_1, m_2]
+| | | | | a8_fig12.9 := %a7_fig12.9[+] a2_fig12.9[+] : eq[S, m_1, m_2]
+| | | a9_fig12.9 := $m_1:S.$m_2:S.$u:forall[S, $n:S.%%Leq m_1 n].$v:forall[S, $n:S.%%Leq m_2 n].a8_fig12.9[+, m_1, m_2, u, v] : forall[S, $m_1:S.forall[S, $m_2:S.(forall[S, $n:S.%%Leq m_1 n] => forall[S, $n:S.%%Leq m_2 n] => eq[S, m_1, m_2])]]
 
 
 // p.267 Figure 12.10; Symmetry of equality follows from reflexivity and substitutivity
@@ -1931,8 +1931,8 @@ edef2
 | a3_fig12.12 := $x:S.$y:S.$z:S.$u:eq[S, x, y].$v:eq[S, y, z].eq_trans[S, x, y, z, u, v] : forall[S, $x:S.forall[S, $y:S.forall[S, $z:S.(eq[S, x, y] => eq[S, y, z] => eq[S, x, z])]]]
 
 // p.269 Figure 12.13; A formal version of Definition 12.1.1
-[S: *, L: S->S->*, m: S]
-| Least := forall[S, $n:S.%%L m n] : *
+[S: *, Leq: S->S->*, m: S]
+| Least := forall[S, $n:S.%%Leq m n] : *
 
 // p.270 Figure 12.14; Various existential quantifiers
 [S: *]
@@ -1944,11 +1944,11 @@ edef2
 
 // p. 270 Figure 12.15; A completed formal version of Lemma 12.1.2 and its proof
 [S: *]
-| [L: S->S->*]
-| | [r: part_ord[S, L]]
-| | | a10_fig12.15 := a9_fig12.9[+] : exists_at_most[S, $x:S.Least[S, L, x]]
-| | | [w: exists_at_least[S, $x:S.Least[S, L, x]]]
-| | | | a11_fig12.15 := and_in[exists_at_least[S, $x:S.Least[S, L, x]], exists_at_most[S, $x:S.Least[S, L, x]], w, a10_fig12.15[S, L, r]] : exists1[S, $x:S.Least[S, L, x]]
+| [Leq: S->S->*]
+| | [r: part_ord[S, Leq]]
+| | | a10_fig12.15 := a9_fig12.9[+] : exists_at_most[S, $x:S.Least[S, Leq, x]]
+| | | [w: exists_at_least[S, $x:S.Least[S, Leq, x]]]
+| | | | a11_fig12.15 := and_in[exists_at_least[S, $x:S.Least[S, Leq, x]], exists_at_most[S, $x:S.Least[S, Leq, x]], w, a10_fig12.15[S, Leq, r]] : exists1[S, $x:S.Least[S, Leq, x]]
 
 // p.272 Figure 12.16; The descriptor ι
 [S: *]
@@ -1967,10 +1967,10 @@ edef2
 | a5_fig12.17 := $z:S.$v:%P z.a4_fig12.17[+, z, v] : forall[S, $z:S.(%P z => eq[S, z, iota[S, P, u]])]
 
 // p.274 Figure 12.18; The minimum-operator, and a lemma with proof
-[S: *, L: S->S->*, r: part_ord[S, L]]
-| [w: exists_at_least[S, $x:S.Least[S, L, x]]]
-| | Min := iota[S, $m:S.Least[S, L, m], a11_fig12.15[+]] : S
-| | a2_fig12.18 := a5_fig12.17[S, $m:S.Least[S, L, m], a11_fig12.15[+]] : forall[S, $x:S.(Least[S, L, x] => eq[S, x, Min[+]])]
+[S: *, Leq: S->S->*, r: part_ord[S, Leq]]
+| [w: exists_at_least[S, $x:S.Least[S, Leq, x]]]
+| | Min := iota[S, $m:S.Least[S, Leq, m], a11_fig12.15[+]] : S
+| | a2_fig12.18 := a5_fig12.17[S, $m:S.Least[S, Leq, m], a11_fig12.15[+]] : forall[S, $x:S.(Least[S, Leq, x] => eq[S, x, Min[+]])]
 
 
 /*

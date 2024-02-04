@@ -40,6 +40,7 @@ std::string to_string(const TokenType& t) {
         case TokenType::Hyphen: return "TokenType::Hyphen";
         case TokenType::Verticalbar: return "TokenType::Verticalbar";
         case TokenType::Plus: return "TokenType::Plus";
+        case TokenType::Spaces: return "TokenType::Spaces";
         case TokenType::Leftarrow: return "TokenType::Leftarrow";
         case TokenType::Rightarrow: return "TokenType::Rightarrow";
         case TokenType::Leftrightarrow: return "TokenType::Leftrightarrow";
@@ -115,6 +116,10 @@ std::string pos_info_str(const Token& t) { return pos_info_str(t, t); }
 
 std::string to_string(const Token& t) {
     return "Token[" + pos_info_str(t) + ": \"" + t.string() + "\"; " + to_string(t.type()) + "]";
+}
+
+std::string to_string(const ParseLambdaToken& plt) {
+    return "ParseLambdaToken[term = " + plt.term()->string() + ", pos info: " + pos_info_str(plt.begin(), plt.end()) + "]";
 }
 
 std::ostream& operator<<(std::ostream& os, const Token& t) {
@@ -213,7 +218,10 @@ std::vector<Token> tokenize(const FileData& lines) {
                 continue;
             }
             if (ch == ' ' || ch == '\t') {
-                ++pos;
+                size_t eos = pos;
+                while (eos < lines[lno].size() && (lines[lno][eos] == ' ' || lines[lno][eos] == '\t')) ++eos;
+                tokens.emplace_back(lines, lno, pos, eos - pos, TokenType::Spaces);
+                pos = eos;
                 continue;
             }
             tokens.emplace_back(lines, lno, pos, 1, sym2tokentype(ch));
@@ -226,23 +234,36 @@ std::vector<Token> tokenize(const FileData& lines) {
     return tokens;
 }
 
-std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens, size_t& idx, const std::shared_ptr<std::vector<std::shared_ptr<Context>>>& flag_context, bool no_chainer) {
+std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens, size_t& idx, size_t end_of_token, const std::shared_ptr<std::vector<std::shared_ptr<Context>>>& flag_context, bool no_chainer) {
+    bool reached_end = false;
+    auto skip_spaces = [&]() {
+        size_t idx0 = idx;
+        while (idx < end_of_token && tokens[idx].type() == TokenType::Spaces) ++idx;
+        if (idx == end_of_token) reached_end = true;
+        return idx - idx0;
+    };
     auto incr_idx = [&](std::string expect, std::string parsing, int hdr, int ofs = -1) {
-        if (idx + 1 >= tokens.size()) throw ExprError(
+        if (skip_spaces() > 0) {
+            if (reached_end) throw ExprError(
+                "expected " + expect + ", reached end of tokens", tokens[idx],
+                "during parsing " + parsing, tokens[hdr], tokens[idx + ofs]);
+            return;
+        }
+        if (idx + 1 >= end_of_token) throw ExprError(
             "expected " + expect + ", reached end of tokens", tokens[idx],
             "during parsing " + parsing, tokens[hdr], tokens[idx + ofs]);
         ++idx;
+        skip_spaces();
+        if (reached_end) throw ExprError(
+            "expected " + expect + ", reached end of tokens", tokens[idx],
+            "during parsing " + parsing, tokens[hdr], tokens[idx + ofs]);
     };
 
     std::shared_ptr<Term> res_ptr = nullptr;
     int res_from = -1, res_to = -1;
 
+    skip_spaces();  // guarantees we have something other than spaces
     switch (tokens[idx].type()) {
-        case TokenType::Character: {
-            res_from = idx;
-            res_ptr = variable(tokens[idx].string()[0]);
-            break;
-        }
         case TokenType::Asterisk: {
             res_from = idx;
             res_ptr = star;
@@ -255,11 +276,15 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
         }
         case TokenType::ParenLeft: {
             size_t parleft = idx;
-            auto content = parse_lambda(tokens, ++idx, flag_context, false);
-            if (idx + 1 >= tokens.size() || tokens[idx + 1].type() != TokenType::ParenRight) throw ExprError(
-                "parenthesis not closed", tokens[idx],
-                "opens here", tokens[parleft]);
-            ++idx;
+            auto content = parse_lambda(tokens, ++idx, end_of_token, flag_context, false);
+
+            incr_idx("a closing parenthesis", "inside a parentheses", parleft);
+
+            if (idx >= end_of_token || tokens[idx].type() != TokenType::ParenRight) {
+                throw ExprError(
+                    "parenthesis not closed (last expr: " + to_string(*content) + ")", tokens[idx],
+                    "last parenthesis opens here", tokens[parleft]);
+            }
             res_from = parleft;
             res_to = idx;
             res_ptr = content->term();
@@ -268,28 +293,27 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
         case TokenType::Percent: {
             size_t appl_hdr = idx;
             std::shared_ptr<ParseLambdaToken> expr1, expr2;
-
-            // if (idx + 1 >= tokens.size()) throw ExprError(
-            //     "expected an expr, reached end of tokens", tokens[idx],
-            //     "during parsing an application", tokens[appl_hdr], tokens[idx]);
             incr_idx("an expr", "an application", appl_hdr, 0);
             try {
-                expr1 = parse_lambda(tokens, idx, flag_context);
+                expr1 = parse_lambda(tokens, idx, end_of_token, flag_context);
             } catch (ExprError& e) {
-                e.puterror();
-                throw ExprError(
+                ExprError newe(
                     "above error raised during parsing 1st expr of application", tokens[idx],
                     "application starts here", tokens[appl_hdr]);
+                newe.chain(e);
+                throw newe;
             }
             incr_idx("an expr", "an application", appl_hdr);
             try {
-                expr2 = parse_lambda(tokens, idx, flag_context, true);
+                expr2 = parse_lambda(tokens, idx, end_of_token, flag_context, true);
             } catch (ExprError& e) {
-                e.puterror();
-                throw ExprError(
-                    "above error raised during parsing 2nd expr of application", tokens[idx],
+                ExprError newe(
+                    "above error raised during parsing 2nd expr of application (1st expr = " + expr1->term()->string() + ")", tokens[idx],
                     "application starts here", tokens[appl_hdr]);
+                newe.chain(e);
+                throw newe;
             }
+            // std::cerr << "[debug] parsing appl: token at the end: " << tokens[idx] << std::endl;
             res_from = appl_hdr;
             res_to = idx;
             res_ptr = appl(expr1->term(), expr2->term());
@@ -300,91 +324,173 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
             size_t abst_hdr = idx;
             bool is_lambda = (tokens[idx].type() == TokenType::DollarSign ? true : false);
             std::shared_ptr<ParseLambdaToken> var, expr1, expr2;
-            incr_idx("a variable", "an abstraction", abst_hdr, 0);
+            incr_idx("a bound variable name", "an abstraction", abst_hdr, 0);
+            // std::cerr << "[debug] parsing abst: token before parsing bv: " << tokens[idx] << std::endl;
             try {
-                var = parse_lambda(tokens, idx, flag_context);
+                var = parse_lambda(tokens, idx, end_of_token, flag_context);
             } catch (ExprError& e) {
-                e.puterror();
-                throw ExprError(
+                ExprError newe(
                     "above error raised during parsing bind variable of abstraction", tokens[idx],
                     "abstraction starts here", tokens[abst_hdr]);
+                newe.chain(e);
+                throw newe;
             }
+            // std::cerr << "[debug] parsing abst: token after parsing bv: " << tokens[idx] << std::endl;
             if (var->term()->etype() != EpsilonType::Variable) throw ExprError("expected a variable", tokens[idx]);
             incr_idx("a colon", "an abstraction", abst_hdr);
+            // std::cerr << "[debug] parsing abst: token after colon: " << tokens[idx] << std::endl;
             if (tokens[idx].type() != TokenType::Colon) throw ExprError(
-                "expected colon, got an invalid token", tokens[idx],
+                "expected colon, got an invalid token (bound variable: " + to_string(*var) + ")", tokens[idx],
                 "during parsing an abstraction", tokens[abst_hdr], tokens[idx - 1]);
-            if (idx + 1 >= tokens.size()) throw ExprError("reached end of tokens during parsing expr", tokens[idx]);
-            ++idx;
-            try {
-                expr1 = parse_lambda(tokens, idx, flag_context);
-            } catch (ExprError& e) {
-                e.puterror();
-                throw ExprError(
-                    "above error raised during parsing 1st expr of an abstraction", tokens[idx],
-                    "abstraction starts here", tokens[abst_hdr]);
+            // if (idx + 1 >= end_of_token) throw ExprError("reached end of tokens during parsing expr", tokens[idx]);
+            // ++idx;
+            incr_idx("a type expr of bound variable", "an abstraction", abst_hdr);
+            size_t expr_hdr = idx;
+            // std::cerr << "[debug] parsing abst: expr_hdr: " << tokens[expr_hdr] << std::endl;
+            size_t pos_period = idx;
+            int pos_period_last_valid = -1;
+            while (!expr1 && tokens[pos_period].type() != TokenType::NewLine) {
+                while (pos_period + 1 < end_of_token &&
+                    tokens[pos_period].type() != TokenType::Period &&
+                    tokens[pos_period].type() != TokenType::NewLine) ++pos_period;
+                if (tokens[pos_period].type() != TokenType::Period) break;
+                pos_period_last_valid = pos_period;
+                // std::cerr << "[debug] parsing abst: first token of 1st expr: " << tokens[idx] << "\tperiod_pos: " << tokens[pos_period] << std::endl;
+                try {
+                    expr1 = parse_lambda(tokens, idx, pos_period, flag_context);
+                } catch (ExprError& e) {
+                    // e.puterror();
+                    // throw ExprError(
+                    //     "above error raised during parsing 1st expr of an abstraction (bound var: " + to_string(*var) + ")", tokens[idx],
+                    //     "abstraction starts here", tokens[abst_hdr]);
+                    ++pos_period;
+                    idx = expr_hdr;
+                    expr1.reset();
+                    continue;
+                }
+                idx = pos_period + 1;
+                // std::cerr << "[debug] parsing abst: first token of 2nd expr: " << tokens[idx] << "\tperiod_pos: " << tokens[pos_period] << std::endl;
+                try {
+                    expr2 = parse_lambda(tokens, idx, end_of_token, flag_context, true);
+                } catch (ExprError& e) {
+                    ++pos_period;
+                    idx = expr_hdr;
+                    expr1.reset();
+                    expr2.reset();
+                    continue;
+                }
             }
-            incr_idx("a period", "an abstraction", abst_hdr);
-            if (tokens[idx].type() != TokenType::Period) throw ExprError(
-                "expected period, got an invalid token", tokens[idx],
-                "during parsing an abstraction", tokens[abst_hdr], tokens[idx - 1]);
-            if (idx + 1 >= tokens.size()) throw ExprError("reached end of tokens during parsing expr", tokens[idx]);
-            ++idx;
-            try {
-                expr2 = parse_lambda(tokens, idx, flag_context, true);
-            } catch (ExprError& e) {
-                e.puterror();
+            if (tokens[pos_period].type() != TokenType::Period || !expr1 || !expr2) {
+                if (pos_period_last_valid < 0) throw ExprError(
+                    "failed to parse an abstraction (period not found)", tokens[idx]);
                 throw ExprError(
-                    "above error raised during parsing 2nd expr of abstraction", tokens[idx],
-                    "abstraction starts here", tokens[abst_hdr]);
+                    "failed to parse an abstraction", tokens[idx],
+                    "last assumed period symbol (var-expr separation)", tokens[pos_period_last_valid]);
             }
+            // incr_idx("a period", "an abstraction", abst_hdr);
+            // if (tokens[idx].type() != TokenType::Period) throw ExprError(
+            //     "expected period, got an invalid token", tokens[idx],
+            //     "during parsing an abstraction", tokens[abst_hdr], tokens[idx - 1]);
+            // // if (idx + 1 >= end_of_token) throw ExprError("reached end of tokens during parsing expr", tokens[idx]);
+            // // ++idx;
+            // incr_idx("an expr", "an abstraction", abst_hdr);
+            // try {
+            //     expr2 = parse_lambda(tokens, idx, end_of_token, flag_context, true);
+            // } catch (ExprError& e) {
+            //     e.puterror();
+            //     throw ExprError(
+            //         "above error raised during parsing 2nd expr of abstraction (bound var: " + to_string(*var) + ", 1st expr: " + to_string(*expr1) + ")", tokens[idx],
+            //         "abstraction starts here", tokens[abst_hdr]);
+            // }
             res_from = abst_hdr;
             res_to = idx;
             if (is_lambda) res_ptr = lambda(var->term(), expr1->term(), expr2->term());
             else res_ptr = pi(var->term(), expr1->term(), expr2->term());
             break;
         }
+        case TokenType::Character:
+        // {
+        //     res_from = idx;
+        //     // res_ptr = variable(tokens[idx].string()[0]);
+        //     res_ptr = variable(tokens[idx].string());
+        //     break;
+        // }
         case TokenType::String: {
-            size_t const_hdr = idx;
-            std::string cname = tokens[const_hdr].string();
+            size_t identifier_hdr = idx;
+            std::string name = tokens[identifier_hdr].string();
             bool reach_left = false;
+            bool name_confirmed = false;
+            // std::cerr << "[debug] parsing identifier: token at beginning: " << tokens[idx] << std::endl;
             while (!reach_left) {
-                incr_idx("an open square bracket", "a constant", const_hdr, 0);
+                if (idx + 1 >= end_of_token) {
+                    res_from = identifier_hdr;
+                    res_to = idx;
+                    res_ptr = variable(name);
+                    break;
+                }
+                ++idx;
+                // incr_idx("an open square bracket", "a constant", identifier_hdr, 0);
                 switch (tokens[idx].type()) {
                     case TokenType::SquareBracketLeft:
                         reach_left = true;
+                        name_confirmed = true;
                         break;
+                    case TokenType::Period:
                     case TokenType::Number:
                     case TokenType::Underscore:
                     case TokenType::String:
-                    case TokenType::Period:
                     case TokenType::Character:
-                        cname += tokens[idx].string();
+                        if (name_confirmed) {
+                            idx = res_to;
+                            res_ptr = variable(name);
+                            break;
+                            // throw ExprError(
+                            //     "invalid token", tokens[idx],
+                            //     "identifiers are treated as either a variable, or a constant name with following square brackets", tokens[identifier_hdr], tokens[idx - 1]);
+                        }
+                        name += tokens[idx].string();
+                        break;
+                    case TokenType::Spaces:
+                        res_from = identifier_hdr;
+                        res_to = idx - 1;
+                        name_confirmed = true;
                         break;
                     default:
-                        throw ExprError(
-                            "expected an open square bracket, got an invalid token", tokens[idx],
-                            "during parsing a constant", tokens[const_hdr], tokens[idx - 1]);
+                        --idx;
+                        if (!name_confirmed) {
+                            res_from = identifier_hdr;
+                            res_to = idx;
+                        }
+                        res_ptr = variable(name);
+                        break;
+                        // }
+                        // throw ExprError(
+                        //     "expected an open square bracket, got an invalid token", tokens[idx],
+                        //     "during parsing a constant", tokens[identifier_hdr], tokens[idx - 1]);
                 }
+                if (res_ptr) break;
             }
+            if (res_ptr) break;
 
-            incr_idx("an expr or a closing square bracket", "a constant", const_hdr);
+            // std::cerr << "[debug] cname = \"" << name << "\"" << std::endl;
+
+            incr_idx("an expr or a closing square bracket", "a constant", identifier_hdr);
             std::vector<std::shared_ptr<Term>> parameters;
             bool require_more_args = false;
             if (tokens[idx].type() == TokenType::Plus) {
                 if (!flag_context) {
                     throw ExprError(
                         "got a dagger where no flag is given", tokens[idx],
-                        "during parsing a constant", tokens[const_hdr], tokens[idx - 1]);
+                        "during parsing a constant", tokens[identifier_hdr], tokens[idx - 1]);
                 }
-                incr_idx("a comma or a closing square bracket", "a constant", const_hdr);
+                incr_idx("a comma or a closing square bracket", "a constant", identifier_hdr);
                 if (tokens[idx].type() == TokenType::Comma) {
-                    incr_idx("an expr", "a constant", const_hdr);
+                    incr_idx("an expr", "a constant", identifier_hdr);
                     require_more_args = true;
                 } else if (tokens[idx].type() != TokenType::SquareBracketRight) {
                     throw ExprError(
                         "expected a comma or a closing bracket, got an invalid token", tokens[idx],
-                        "during parsing a constant", tokens[const_hdr], tokens[idx - 1]);
+                        "during parsing a constant", tokens[identifier_hdr], tokens[idx - 1]);
                 }
                 for (auto&& con : *flag_context) {
                     for (auto&& tv : *con) {
@@ -395,34 +501,41 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
             if (require_more_args || tokens[idx].type() != TokenType::SquareBracketRight) {
                 while (true) {
                     try {
-                        parameters.emplace_back(parse_lambda(tokens, idx, flag_context)->term());
+                        parameters.emplace_back(parse_lambda(tokens, idx, end_of_token, flag_context)->term());
                     } catch (ExprError& e) {
-                        e.puterror();
-                        throw ExprError(
+                        ExprError newe(
                             "above error raised during parsing #" + std::to_string(parameters.size() + 1) + " expr of constant", tokens[idx],
-                            "constant starts here", tokens[const_hdr]);
+                            "constant starts here", tokens[identifier_hdr]);
+                        newe.chain(e);
+                        throw newe;
                     }
-                    incr_idx("a comma or a closing square bracket", "a constant", const_hdr);
+                    incr_idx("a comma or a closing square bracket", "a constant", identifier_hdr);
                     if (tokens[idx].type() == TokenType::Comma) {
-                        incr_idx("an expr", "a constant", const_hdr);
+                        incr_idx("an expr", "a constant", identifier_hdr);
                     } else if (tokens[idx].type() == TokenType::SquareBracketRight) break;
                     else throw ExprError(
                         "expected an expr, got an invalid token", tokens[idx],
-                        "during parsing a constant", tokens[const_hdr], tokens[idx - 1]);
+                        "during parsing a constant", tokens[identifier_hdr], tokens[idx - 1]);
                 }
             }
-            res_from = const_hdr;
+            res_from = identifier_hdr;
             res_to = idx;
-            res_ptr = constant(cname, parameters);
+            res_ptr = constant(name, parameters);
             break;
         }
         default:
             throw ExprError("invalid token", tokens[idx]);
     }
 
-    if (idx + 1 < tokens.size() && !no_chainer) {
+    // std::cerr << "[debug] parsing identifier: token after parsing one expr: " << tokens[idx] << "\t";
+    // if (res_ptr) std::cerr << "expr = " << res_ptr;
+    // std::cerr << std::endl;
+
+    if (idx + 1 < end_of_token && !no_chainer) {
         std::string chainer_name;
-        switch (tokens[idx + 1].type()) {
+        size_t chain_hdr = idx + 1;
+        incr_idx("a chainer", "an expr", chain_hdr, 1);
+        switch (tokens[idx].type()) {
             case TokenType::Rightarrow:
                 chainer_name = "right arrow";
                 break;
@@ -437,19 +550,21 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
         }
         // symbols handled below are treated as right associative
         if (chainer_name.size() > 0) {
-            size_t chainer_pos = ++idx;
-            if (idx + 1 >= tokens.size()) throw ExprError(
-                "expected an expr after " + chainer_name + ", reached end of tokens", tokens[chainer_pos],
-                "expr before " + chainer_name, tokens[res_from], tokens[res_to]);
-            ++idx;
+            size_t chainer_pos = idx;
+            // if (idx + 1 >= end_of_token) throw ExprError(
+            //     "expected an expr after " + chainer_name + ", reached end of tokens", tokens[chainer_pos],
+            //     "expr before " + chainer_name, tokens[res_from], tokens[res_to]);
+            // ++idx;
+            incr_idx("an expr after " + chainer_name, "an expr with chainer", chain_hdr);
             std::shared_ptr<ParseLambdaToken> plt;
             try {
                 plt = parse_lambda(tokens, idx, flag_context);
             } catch (ExprError& e) {
-                e.puterror();
-                throw ExprError(
+                ExprError newe(
                     "above error raised during parsing expr", tokens[idx],
                     "after this " + chainer_name, tokens[chainer_pos]);
+                newe.chain(e);
+                throw newe;
             }
             std::shared_ptr<Term> expr = plt->term(), combined;
             switch (tokens[chainer_pos].type()) {
@@ -470,6 +585,8 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
                         __FILE__, __LINE__, __func__);
             }
             return std::make_shared<ParseLambdaToken>(tokens[res_from], tokens[idx], combined);
+        } else {
+            idx = chain_hdr - 1;
         }
     }
     return res_to < 0
@@ -478,9 +595,13 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
     throw ParseError("reached end of parse_lambda()", tokens[idx]);
 }
 
-std::shared_ptr<Term> parse_lambda(const std::string& str) {
+std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens, size_t& idx, const std::shared_ptr<std::vector<std::shared_ptr<Context>>>& flag_context, bool no_chainer) {
+    return parse_lambda(tokens, idx, tokens.size(), flag_context, no_chainer);
+}
+
+std::shared_ptr<Term> parse_lambda(const std::string& str, const std::shared_ptr<std::vector<std::shared_ptr<Context>>>& flag_context) {
     size_t idx;
-    return parse_lambda(tokenize(FileData({str}, "")), idx = 0, nullptr)->term();
+    return parse_lambda(tokenize(FileData({str}, "")), idx = 0, flag_context)->term();
 }
 
 Environment parse_defs(const std::vector<Token>& tokens) {
@@ -559,9 +680,9 @@ Environment parse_defs(const std::vector<Token>& tokens) {
     unused(flg_str);
 
     for (size_t idx = 0; !eof && idx < tokens.size(); ++idx) {
-        if (DEBUG_CERR) std::cerr << "[debug; parse loop] flag[def]: " << def_str() << std::endl;
+        // if (DEBUG_CERR) std::cerr << "[debug; parse loop] flag[def]: " << def_str() << ", token: " << tokens[idx] << std::endl;
         if (DEBUG_CERR) {
-            std::cerr << "[debug; parse loop] flag[flg]: " << flg_str() << ", token: \"" << (tokens[idx].type() == TokenType::NewLine ? "<NL>" : tokens[idx].string()) << "\"\t";
+            std::cerr << "[debug; parse loop] flag[def]: " << def_str() << ", flag[flg]: " << flg_str() << ", token: " << tokens[idx] << "\t";  // << (tokens[idx].type() == TokenType::NewLine ? "<NL>" : tokens[idx].string()) << "\"\t";
             std::cerr << "flag context dump (size: " << flag_context.size() << "): ";
             for (auto&& c : flag_context) {
                 std::cerr << "[";
@@ -595,6 +716,7 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                         err.bind(e);
                         throw err;
                     }
+                    // std::cerr << "[debug] read_lambda: " << to_string(*expr) << std::endl;
                     break;
                 }
                 case TokenType::DefinedBy:
@@ -643,6 +765,11 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                 case TokenType::Backslash:
                     if (idx + 1 < tokens.size() && tokens[idx + 1].type() == TokenType::NewLine) continue;
                     throw invalid_err;
+                case TokenType::Spaces:
+                    continue;
+                case TokenType::Period:
+                    // std::cerr << "[debug] reached Period in parse_def() with read_lambda" << std::endl;
+                    // [[fallthrough]];
                 default:
                     throw ParseError("expected expr, got an invalid token", t);
             }
@@ -779,8 +906,11 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                 if (read_def_name || read_flag_cname) {
                     if (flag_line_num < flag_context.size()) flag_context.resize(flag_line_num);
                     cname = t.string();
+                    bool name_confirmed = false;
                     while (tokens[idx + 1].type() != TokenType::NewLine && tokens[idx + 1].type() != TokenType::DefinedBy) {
-                        cname += tokens[++idx].string();
+                        ++idx;
+                        if (tokens[idx].type() == TokenType::Spaces) name_confirmed = true;
+                        if (!name_confirmed) cname += tokens[idx].string();
                     }
                 }
                 if (read_def_name) {
@@ -873,6 +1003,8 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                 read_flag_context_end = false;
                 continue;
             }
+            case TokenType::Spaces:
+                continue;
             default:
                 throw ParseError("not implemented in parse_defs() (token = " + to_string(t) + ")", t);
         }

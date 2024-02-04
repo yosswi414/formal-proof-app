@@ -36,6 +36,7 @@ enum class TokenType {
     Hyphen,
     Verticalbar,
     Plus,
+    Spaces,                // ' ', '\t'
     Leftarrow,             // <-
     Rightarrow,            // ->
     Leftrightarrow,        // <->
@@ -166,14 +167,16 @@ class BaseError {
             os << std::string(lno_str_len, ' ') << " | " << std::string(std::max(end_pos - 6, 0), ' ') << std::string("...~~~").substr(std::max(6 - end_pos, 0)) << "^" << std::endl;
         }
         if (_note) _note->puterror();
+        if (_next) _next->puterror();
     }
 
     void bind(const BaseError& e) { _note = std::make_shared<BaseError>(e); }
+    void chain(const BaseError& e) { _next = std::make_shared<BaseError>(e); }
 
   private:
     std::string _errtype, _msg;
     Token _token, _token2;
-    std::shared_ptr<BaseError> _note;
+    std::shared_ptr<BaseError> _note, _next;
 };
 
 #define DEFINE_ERROR(name)                                                                                                                                    \
@@ -202,14 +205,18 @@ class ParseLambdaToken {
     std::shared_ptr<Term> term() { return _term; }
     Token& begin() { return _token_begin; }
     Token& end() { return _token_end; }
+    const std::shared_ptr<Term> term() const { return _term; }
+    const Token& begin() const { return _token_begin; }
+    const Token& end() const { return _token_end; }
 
   private:
     Token _token_begin, _token_end;
     std::shared_ptr<Term> _term;
 };
 
+std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens, size_t& idx, size_t end_of_token, const std::shared_ptr<std::vector<std::shared_ptr<Context>>>& flag_context, bool no_chainer = false);
 std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens, size_t& idx, const std::shared_ptr<std::vector<std::shared_ptr<Context>>>& flag_context, bool no_chainer = false);
 
-std::shared_ptr<Term> parse_lambda(const std::string& str);
+std::shared_ptr<Term> parse_lambda(const std::string& str, const std::shared_ptr<std::vector<std::shared_ptr<Context>>>& flag_context = nullptr);
 
 Environment parse_defs(const std::vector<Token>& tokens);

@@ -42,7 +42,63 @@ std::string Environment::string_brief(bool inSingleLine, size_t indentSize) cons
 
 std::string Environment::repr() const {
     std::string res = "";
-    for (auto&& def : *this) res += def->repr() + "\n";
+    for (auto&& def : *this) {
+        Context& con_old = *def->context();
+        Context con_new = con_old;
+        auto cname = def->definiendum();
+        auto term = def->definiens();
+        auto type = def->type();
+        for (size_t i = 0; i < con_new.size(); ++i) {
+            if (con_new[i].value()->name().size() == 1) continue;
+            auto var_old = con_new[i].value();
+            auto var_new = get_fresh_var(con_new);
+            // std::cerr << "[debug @ Environment::repr() / substitution] var = " << var_old << " -> " << var_new << "\n";
+            con_new[i].value() = var_new;
+            // std::cerr << "\tcontext subst (j = -): old cont = " << con_new << std::endl;
+            for (size_t j = i + 1; j < con_new.size(); ++j) {
+                // std::cerr << "\tcontext subst (j = " << j << "): old cont = " << con_new << std::endl;
+                std::shared_ptr<Term> con_type = con_new[j].type();
+                // std::cerr << "\tcontext subst (j = " << j << "): old type = " << con_type << "\n";
+                con_type = substitute(con_type, var_old, var_new);
+                // std::cerr << "\tcontext subst (j = " << j << "): new type = " << con_type << "\n";
+                con_new[j].type() = con_type;
+                // std::cerr << "\tcontext subst (j = " << j << "): new cont = " << con_new << std::endl;
+            }
+            if (term){
+                // std::cerr << "\told term = " << term << "\n";
+                term = substitute(term, var_old, var_new);
+                // std::cerr << "\tnew term = " << term << "\n";
+            }
+            // std::cerr << "\told type = " << type << "\n";
+            type = substitute(type, var_old, var_new);
+            // std::cerr << "\tnew type = " << type << std::endl;
+        }
+        for (size_t i = 0; i < con_new.size(); ++i) {
+            con_new[i].type() = rename_var_short(con_new[i].type());
+        }
+        if (term) term = rename_var_short(term);
+        type = rename_var_short(type);
+        // for(auto&& tv : con_old) {
+        //     if (tv.value()->name().size() > 1) {
+        //         auto var_old = tv.value();
+        //         auto var_new = get_fresh_var(con_old);
+        //         std::cerr << "[debug @ Environment::repr() / substitution] var = " << var_old << " -> " << var_new << "\n";
+        //         con_new.emplace_back(var_new, tv.type());
+        //         std::cerr << "\told term = " << term << "\n";
+        //         term = substitute(term, var_old, var_new);
+        //         std::cerr << "\tnew term = " << term << "\n";
+        //         std::cerr << "\told type = " << type << "\n";
+        //         type = substitute(type, var_old, var_new);
+        //         std::cerr << "\tnew type = " << type << std::endl;
+        //         con_new.emplace_back(var_new, )
+        //     } else con_new.push_back(tv);
+        // }
+        // std::cerr << "[debug @ Environment::repr() / Definition generation] def = \n";
+        auto newdef = Definition(std::make_shared<Context>(con_new), cname, term, type);
+        // std::cerr << newdef.repr() << std::endl;
+        res += newdef.repr() + "\n";
+        // res += def->repr() + "\n";
+    }
     res += "END\n";
     return res;
 }

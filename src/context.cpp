@@ -54,8 +54,13 @@ Context Context::operator+(const Context& c) const {
     return Context(*this) += c;
 }
 
-std::set<char> free_var(const Context& con) {
-    std::set<char> FV;
+// std::set<char> free_var(const Context& con) {
+//     std::set<char> FV;
+//     for (auto&& tv : con) FV.insert(tv.value()->name());
+//     return FV;
+// }
+std::set<std::string> free_var(const Context& con) {
+    std::set<std::string> FV;
     for (auto&& tv : con) FV.insert(tv.value()->name());
     return FV;
 }
@@ -66,13 +71,23 @@ bool is_free_var(const Context& con, const std::shared_ptr<Variable>& var) {
 }
 
 std::shared_ptr<Variable> get_fresh_var(const Context& con) {
-    std::set<char> univ;
-    for (char ch = 'A'; ch <= 'Z'; ++ch) univ.insert(ch);
-    for (char ch = 'a'; ch <= 'z'; ++ch) univ.insert(ch);
+    // std::set<char> univ;
+    // for (char ch = 'A'; ch <= 'Z'; ++ch) univ.insert(ch);
+    // for (char ch = 'a'; ch <= 'z'; ++ch) univ.insert(ch);
+    // set_minus_inplace(univ, free_var(con));
+    // if (!univ.empty()) return variable(*univ.begin());
+    // check_true_or_exit(false, "out of fresh variable",
+    //                    __FILE__, __LINE__, __func__);
+    auto univ = char_vars_set();
     set_minus_inplace(univ, free_var(con));
-    if (!univ.empty()) return variable(*univ.begin());
-    check_true_or_exit(false, "out of fresh variable",
-                       __FILE__, __LINE__, __func__);
+    if (!univ.empty()) {
+        for (auto&& ch : _preferred_names) {
+            auto itr = univ.find({ch});
+            if (itr != univ.end()) return variable({ch});
+        }
+        return variable(*univ.begin());
+    }
+    return get_fresh_var_depleted();
 }
 
 bool equiv_context_n(const Context& a, const Context& b, size_t n) {

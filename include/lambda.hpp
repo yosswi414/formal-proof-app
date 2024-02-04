@@ -65,7 +65,7 @@ class Term {
     virtual std::string repr() const;
     virtual std::string repr_new() const;
     virtual std::string repr_book() const;
-    virtual std::string string_db(std::vector<char> bound = {}) const;
+    // virtual std::string string_db(std::vector<char> bound = {}) const;
 
   protected:
     Term(const EpsilonType& et) : _etype(et) {}
@@ -90,13 +90,14 @@ class Square : public Term {
 class Variable : public Term {
   public:
     Variable(char ch);
+    Variable(const std::string& name);
     std::string string() const override;
-    std::string string_db(std::vector<char> bound = {}) const override;
-    const char& name() const;
-    char& name();
+    // std::string string_db(std::vector<char> bound = {}) const override;
+    const std::string& name() const;
+    std::string& name();
 
   private:
-    char _var_name;
+    std::string _var_name;
 };
 
 class Application : public Term {
@@ -112,7 +113,7 @@ class Application : public Term {
     std::string repr() const override;
     std::string repr_new() const override;
     std::string repr_book() const override;
-    std::string string_db(std::vector<char> bound = {}) const override;
+    // std::string string_db(std::vector<char> bound = {}) const override;
 
   private:
     std::shared_ptr<Term> _M, _N;
@@ -154,7 +155,7 @@ class AbstLambda : public Term {
     std::string repr() const override;
     std::string repr_new() const override;
     std::string repr_book() const override;
-    std::string string_db(std::vector<char> bound = {}) const override;
+    // std::string string_db(std::vector<char> bound = {}) const override;
 
   private:
     Typed<Variable> _var;
@@ -175,7 +176,7 @@ class AbstPi : public Term {
     std::string repr() const override;
     std::string repr_new() const override;
     std::string repr_book() const override;
-    std::string string_db(std::vector<char> bound = {}) const override;
+    // std::string string_db(std::vector<char> bound = {}) const override;
 
   private:
     Typed<Variable> _var;
@@ -197,43 +198,16 @@ class Constant : public Term {
     std::string repr() const override;
     std::string repr_new() const override;
     std::string repr_book() const override;
-    std::string string_db(std::vector<char> bound = {}) const override;
+    // std::string string_db(std::vector<char> bound = {}) const override;
 
   private:
     std::string _name;
     std::vector<std::shared_ptr<Term>> _args;
 };
 
-std::shared_ptr<Term> copy(const std::shared_ptr<Term>& term);
-
-std::set<char> free_var(const std::shared_ptr<Term>& term);
-template <class... Ts>
-std::set<char> free_var(const std::shared_ptr<Term>& term, Ts... data) {
-    return set_union(free_var(term), free_var(data...));
-}
-
-bool is_free_var(const std::shared_ptr<Term>& term, const std::shared_ptr<Variable>& var);
-
-std::shared_ptr<Variable> get_fresh_var(const std::shared_ptr<Term>& term);
-template <class... Ts>
-std::shared_ptr<Variable> get_fresh_var(const std::shared_ptr<Term>& term, Ts... data) {
-    std::set<char> univ;
-    for (char ch = 'A'; ch <= 'Z'; ++ch) univ.insert(ch);
-    for (char ch = 'a'; ch <= 'z'; ++ch) univ.insert(ch);
-    set_minus_inplace(univ, free_var(term, data...));
-    if (!univ.empty()) return std::make_shared<Variable>(*univ.begin());
-    std::cerr << "out of fresh variable" << std::endl;
-    exit(EXIT_FAILURE);
-}
-
-std::shared_ptr<Variable> get_fresh_var(const std::vector<std::shared_ptr<Term>>& terms);
-
-std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::shared_ptr<Variable>& var_bind, const std::shared_ptr<Term>& expr);
-std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::shared_ptr<Term>& var_bind, const std::shared_ptr<Term>& expr);
-std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::vector<std::shared_ptr<Variable>>& vars, const std::vector<std::shared_ptr<Term>>& exprs);
-
 // shared_ptr constructors
 std::shared_ptr<Variable> variable(const char& ch);
+std::shared_ptr<Variable> variable(const std::string& ch);
 extern std::shared_ptr<Star> star;
 extern std::shared_ptr<Square> sq;
 std::shared_ptr<Application> appl(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b);
@@ -250,6 +224,60 @@ std::shared_ptr<Application> appl(const std::shared_ptr<Term>& t);
 std::shared_ptr<AbstLambda> lambda(const std::shared_ptr<Term>& t);
 std::shared_ptr<AbstPi> pi(const std::shared_ptr<Term>& t);
 std::shared_ptr<Constant> constant(const std::shared_ptr<Term>& t);
+
+std::shared_ptr<Term> copy(const std::shared_ptr<Term>& term);
+
+// std::set<char> free_var(const std::shared_ptr<Term>& term);
+// template <class... Ts>
+// std::set<char> free_var(const std::shared_ptr<Term>& term, Ts... data) {
+//     return set_union(free_var(term), free_var(data...));
+// }
+
+std::set<std::string> free_var(const std::shared_ptr<Term>& term);
+template <class... Ts>
+std::set<std::string> free_var(const std::shared_ptr<Term>& term, Ts... data) {
+    return set_union(free_var(term), free_var(data...));
+}
+
+bool is_free_var(const std::shared_ptr<Term>& term, const std::shared_ptr<Variable>& var);
+
+extern int _fresh_var_id;
+extern std::set<std::string> _char_vars_set;
+extern const std::string _preferred_names;
+
+const std::set<std::string>& char_vars_set();
+
+std::shared_ptr<Variable> get_fresh_var_depleted();
+
+std::shared_ptr<Variable> get_fresh_var(const std::shared_ptr<Term>& term);
+template <class... Ts>
+std::shared_ptr<Variable> get_fresh_var(const std::shared_ptr<Term>& term, Ts... data) {
+    // std::set<char> univ;
+    // for (char ch = 'A'; ch <= 'Z'; ++ch) univ.insert(ch);
+    // for (char ch = 'a'; ch <= 'z'; ++ch) univ.insert(ch);
+    // set_minus_inplace(univ, free_var(term, data...));
+    // if (!univ.empty()) return std::make_shared<Variable>(*univ.begin());
+    // std::cerr << "out of fresh variable" << std::endl;
+    // exit(EXIT_FAILURE);
+    auto univ = char_vars_set();
+    set_minus_inplace(univ, free_var(term, data...));
+    if (!univ.empty()) {
+        for (auto&& ch : _preferred_names) {
+            auto itr = univ.find({ch});
+            if (itr != univ.end()) return variable({ch});
+        }
+        return variable(*univ.begin());
+    }
+    return get_fresh_var_depleted();
+}
+
+std::shared_ptr<Variable> get_fresh_var(const std::vector<std::shared_ptr<Term>>& terms);
+
+std::shared_ptr<Term> rename_var_short(std::shared_ptr<Term> term);
+
+std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::shared_ptr<Variable>& var_bind, const std::shared_ptr<Term>& expr);
+std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::shared_ptr<Term>& var_bind, const std::shared_ptr<Term>& expr);
+std::shared_ptr<Term> substitute(const std::shared_ptr<Term>& term, const std::vector<std::shared_ptr<Variable>>& vars, const std::vector<std::shared_ptr<Term>>& exprs);
 
 bool exact_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b);
 bool alpha_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b);

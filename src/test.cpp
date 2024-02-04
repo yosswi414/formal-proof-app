@@ -54,7 +54,8 @@ size_t test_fail = 0;
         sep();                                                                                       \
     } while (false)
 
-#define defvar(vname) std::shared_ptr<Term> vname = variable(#vname[0])
+// #define defvar(vname) std::shared_ptr<Term> vname = variable(#vname[0])
+#define defvar(vname) std::shared_ptr<Term> vname = variable(#vname)
 
 void test_alpha_subst() {
     std::shared_ptr<Term> e1, e2, e3;
