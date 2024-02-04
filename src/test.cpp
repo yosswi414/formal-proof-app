@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <functional>
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -410,6 +411,273 @@ void test_get_type() {
     test_result();
 }
 
+namespace yet_another_parser_system {
+
+class ParseFailedException : public std::runtime_error {
+  public:
+    ParseFailedException(const char* _Message) : runtime_error(_Message) {}
+};
+
+template <typename T = void*>
+class ParseResult {
+  public:
+    ParseResult() {}
+    ParseResult(bool status) : _success(status) {}
+    ParseResult(bool status, const T& data) : _success(status), _data(data) {}
+
+    bool result() const { return _success; }
+    const T& data() const {
+        // if (!result()) throw ParseFailedException("parse failed");
+        return _data;
+    }
+
+    operator bool() const { return _success; }
+
+  private:
+    bool _success;
+    T _data;
+};
+
+using Source = const std::string;
+
+std::map<Source*, size_t> _parse_str_pos;
+
+size_t position(Source& str) { return _parse_str_pos[&str]; }
+size_t& _position(Source& str) { return _parse_str_pos[&str]; }
+
+void resetState(Source& str, size_t new_pos = 0) {
+    _parse_str_pos[&str] = new_pos;
+}
+
+void resetAllState() {
+    std::map<Source*, size_t>().swap(_parse_str_pos);
+}
+
+template <typename T = void*>
+using Parser = std::function<ParseResult<T>(Source&)>;
+
+template <typename T>
+ParseResult<T> alwaystrue(Source& str) {
+    (void)str;  // suppressing unused parameter warning
+    return ParseResult<T>(true, T());
+};
+
+template <typename T>
+ParseResult<T> alwaysfalse(Source& str) {
+    (void)str;  // suppressing unused parameter warning
+    return ParseResult<T>(false);
+};
+
+Parser<> endOfStr = [](Source& str) {
+    if (str.size() == position(str)) return ParseResult<>(true);
+    else return ParseResult<>(false);
+};
+
+Parser<char> satisfy(const std::function<bool(char)>& func) {
+    return [=](Source& str) {
+        size_t& pos = _position(str);
+        if (str.size() <= pos || !func(str[pos])) return ParseResult<char>(false);
+        return ParseResult<char>(true, str[pos++]);
+    };
+}
+
+bool isDigit(char ch) { return '0' <= ch && ch <= '9'; }
+bool isLower(char ch) { return 'a' <= ch && ch <= 'z'; }
+bool isUpper(char ch) { return 'A' <= ch && ch <= 'Z'; }
+bool isAlpha(char ch) { return isLower(ch) || isUpper(ch); }
+bool isAlNum(char ch) { return isAlpha(ch) || isDigit(ch); }
+
+auto digit = satisfy(isDigit);
+auto alphabet = satisfy(isAlpha);
+auto alnum = satisfy(isAlNum);
+
+Parser<char> anychar = satisfy([](char) { return true; });
+
+Parser<char> onechar(char ch) {
+    return satisfy([=](char c) { return c == ch; });
+}
+
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const ParseResult<T>& pr) {
+    if (!pr.result()) return os << "[parse failed]";
+    return os << pr.data();
+}
+
+template <>
+std::ostream& operator<<(std::ostream& os, const ParseResult<void*>& pr) {
+    return os << (pr.result() ? "success" : "failed");
+}
+
+template <typename T1, typename T2>
+Parser<std::string> operator+(const Parser<T1>& p1, const Parser<T2>& p2) {
+    return [=](Source& str) {
+        size_t pos_begin = position(str);
+        auto res1 = p1(str);
+        auto res2 = p2(str);
+        if (!res1 || !res2) {
+            resetState(str, pos_begin);
+            return ParseResult<std::string>(false);
+        }
+        std::ostringstream oss;
+        oss << res1.data() << res2.data();
+        return ParseResult<std::string>(true, oss.str());
+    };
+}
+
+template <typename T1, typename T2>
+Parser<std::string>& operator+=(Parser<T1>& p1, const Parser<T2>& p2) {
+    return p1 = (p1 + p2);
+}
+
+template <typename T>
+Parser<std::string> operator*(const Parser<T>& p, int n) {
+    return [=](Source& str) {
+        size_t pos_begin = position(str);
+        std::ostringstream oss;
+        for (int i = 0; i < n; ++i) {
+            auto res = p(str);
+            if (!res) {
+                resetState(str, pos_begin);
+                return ParseResult<std::string>(false);
+            }
+            oss << res.data();
+        }
+        return ParseResult<std::string>(true, oss.str());
+    };
+}
+
+template <typename T>
+Parser<std::string> operator*(int n, const Parser<T>& p) { return p * n; }
+
+template <typename T>
+Parser<std::string> geq_zero(const Parser<T>& p) {
+    return [=](Source& str) {
+        std::ostringstream oss;
+        while (true) {
+            size_t pos_begin_sub = position(str);
+            auto res = p(str);
+            if (!res) {
+                resetState(str, pos_begin_sub);
+                return ParseResult<std::string>(true, oss.str());
+            }
+            oss << res.data();
+        }
+    };
+}
+
+template <typename T>
+Parser<std::string> more_than_zero(const Parser<T>& p) {
+    return p + geq_zero(p);
+}
+
+template <typename T>
+const Parser<T> operator||(const Parser<T>& p1, const Parser<T>& p2) {
+    return [=](Source& str) {
+        size_t pos_begin = position(str);
+        auto res1 = p1(str);
+        if (res1) return res1;
+        resetState(str, pos_begin);
+        auto res2 = p2(str);
+        if (res2) return res2;
+        return ParseResult<T>(false);
+    };
+}
+
+Parser<std::string> string(Source& cmp) {
+    Parser<std::string> psum = alwaystrue<std::string>;
+    for (size_t i = 0; i < cmp.size(); ++i) psum += onechar(cmp[i]);
+    return psum;
+}
+
+Parser<char> either(Source& cmp) {
+    return [=](Source& str) {
+        // std::cerr << "[debug] either(): str = " << str << ", pos = " << position(str) << ", &str = " << &str << std::endl;
+        for (size_t i = 0; i < cmp.size(); ++i) {
+            size_t pos_begin = position(str);
+            auto res = onechar(cmp[i])(str);
+            if (!res) resetState(str, pos_begin);
+            else return res;
+        }
+        return ParseResult<char>(false);
+    };
+    Parser<char> psum = alwaysfalse<char>;
+    for (size_t i = 0; i < cmp.size(); ++i) psum = psum || onechar(cmp[i]);
+    return psum;
+}
+
+template <typename T1, typename T2>
+Parser<T1> operator<(const Parser<T1>& p1, const Parser<T2>& p2) {
+    return [=](Source& str) {
+        size_t pos_begin = position(str);
+        ParseResult<T1> res;
+        if (!(res = p1(str)) || !p2(str)) {
+            resetState(str, pos_begin);
+            return ParseResult<T1>(false);
+        }
+        return res;
+    };
+}
+
+template <typename T1, typename T2>
+Parser<T2> operator>(const Parser<T1>& p1, const Parser<T2>& p2) {
+    return [=](Source& str) {
+        size_t pos_begin = position(str);
+        ParseResult<T2> res;
+        if (!p1(str) || !(res = p2(str))) {
+            resetState(str, pos_begin);
+            return ParseResult<T2>(false);
+        }
+        return res;
+    };
+}
+};  // namespace yet_another_parser_system
+
+namespace yaps = yet_another_parser_system;
+
+void test_new_parser() {
+    std::string str1 = "hehhe";
+    std::string str2 = "world,hoge";
+    for (auto p = yaps::anychar(str1); p; p = yaps::anychar(str1)) {
+        std::cout << "str1 : " << p << std::endl;
+    }
+    std::cout << "str2 : " << (yaps::anychar * 3)(str2) << std::endl;
+    std::string str3 = "123";
+    std::cout << "str3 : " << yaps::digit(str3) << std::endl;
+    std::cout << "str3 : " << yaps::digit(str3) << std::endl;
+    std::cout << "str3 : " << yaps::digit(str3) << std::endl;
+    std::cout << "str3 end : " << yaps::endOfStr(str3) << std::endl;
+    yaps::resetState(str3);
+
+    std::cout << "str3 : " << yaps::onechar('1')(str3) << std::endl;
+    std::cout << "str3 : " << yaps::onechar('3')(str3) << std::endl;
+    std::cout << "str3 : " << yaps::onechar('2')(str3) << std::endl;
+    std::cout << "str3 end : " << yaps::endOfStr(str3) << std::endl;
+    std::cout << "str2 : " << (yaps::anychar * 3)(str2) << std::endl;
+    yaps::resetState(str2);
+    std::cout << "str2 ([a-z]*) : " << yaps::geq_zero(yaps::alphabet)(str2) << std::endl;
+    std::cout << "str2 (.) : " << yaps::anychar(str2) << std::endl;
+    std::cout << "str2 ([a-z]*) : " << yaps::geq_zero(yaps::alphabet)(str2) << std::endl;
+
+    std::string str4 = "acb";
+    std::cout << "str4 : " << (yaps::onechar('a') + yaps::onechar('b') || yaps::onechar('c') + yaps::onechar('b'))(str4) << std::endl;
+    std::cout << "str4 : " << (yaps::onechar('a') + yaps::onechar('c') || yaps::onechar('c') + yaps::onechar('b'))(str4) << std::endl;
+    yaps::resetState(str2);
+    std::cout << "str2 ([a-z]*) : " << yaps::string("world,h")(str2) << std::endl;
+    std::string str5 = "$z:A.B";
+    std::cout << "str5 : " << ((yaps::onechar('$') > yaps::alphabet) + (yaps::onechar(':') > yaps::alphabet) + (yaps::onechar('.') > yaps::alphabet))(str5) << std::endl;
+    yaps::resetState(str5);
+    std::cout << "str5 : " << ((yaps::onechar('$') < yaps::alphabet) + (yaps::onechar(':') < yaps::alphabet) + (yaps::onechar('.') < yaps::alphabet))(str5) << std::endl;
+    std::string str6 = "abcd";
+    std::cout << "str6 : " << ((yaps::alphabet > yaps::alphabet) + (yaps::alphabet < yaps::alphabet))(str6) << std::endl;
+    std::string str7 = "S -> A -> B -> *";
+    auto spaces = yaps::geq_zero(yaps::onechar(' '));
+    auto name = yaps::more_than_zero(yaps::alnum || yaps::either("_*"));
+    auto chainArrow = name + yaps::geq_zero((spaces > yaps::string("->")) + (spaces > name));
+    std::cout << "str7: " << chainArrow(str7) << std::endl;
+
+    std::string expr = R"(equiv_in[%P x, %P x, $u:%P x.u, $u:%P x.u])";
+}
+
 int main() {
     Environment delta;
     try {
@@ -432,4 +700,5 @@ int main() {
     // test_def_file();
 
     test_get_type();
+    test_new_parser();
 }
