@@ -2,7 +2,7 @@ CPPFLAGS = -std=c++17 -Wall -Wextra
 DEBUGFLAGS = -fsanitize=address -fno-omit-frame-pointer -g
 INCDIR = include
 INCFLAG = -I$(INCDIR)
-OPTFLAG = -O3
+OPTFLAG = -O2
 
 DEF_FILE = def_file_bez
 
@@ -41,7 +41,7 @@ bin/test_leak.out: bin/test_leak.obj $(OBJS_LAMBDA_DEBUG) $(OBJS_DEPEND_DEBUG)
 src/def_file_nocomm: src/def_file bin/def_conv.out
 	bin/def_conv.out -f $< -c > $@
 
-.PHONY: test book parse clean test_read lambda conv test_leak book_leak conv_leak nocomm compile-%
+.PHONY: test book parse clean test_read lambda conv test_leak book_leak conv_leak nocomm compile-% test_nocomm
 
 nocomm: src/def_file_nocomm
 
@@ -53,6 +53,10 @@ compile-%: bin/verifier.out
 	@bin/verifier.out -f script_autotest -d src/def_file_nocomm -s || (echo "\033[1m\033[31mcheck #1 failed.\033[m"; exit 1)
 	@./test_book3 src/def_file_nocomm script_autotest > /dev/null || (echo "\033[1m\033[31mcheck #2 failed.\033[m"; exit 1)
 	@echo "\033[1m\033[32mDefinition \""$(@:compile-%=%)"\" has been verified successfully\033[m"
+
+test_nocomm: src/def_file_nocomm
+	@./test_automake3 src/def_file_nocomm implies script_autotest > /dev/null || (echo "\033[1m\033[31mcheck failed.\033[m"; exit 1)
+	@echo "\033[1m\033[32mdef_file_nocomm has been verified successfully\033[m"
 
 test_read: bin/def_conv.out src/def_file
 	$^ -r
