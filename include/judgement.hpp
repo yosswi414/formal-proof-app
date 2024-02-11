@@ -12,6 +12,9 @@ class Judgement {
               const std::shared_ptr<Context>& context,
               const std::shared_ptr<Term>& proof,
               const std::shared_ptr<Term>& prop);
+    Judgement(const std::shared_ptr<Environment>& env,
+              const std::shared_ptr<Context>& context,
+              const std::shared_ptr<Term>& prop);
     std::string string(bool inSingleLine = true, size_t indentSize = 0) const;
     std::string string_brief(bool inSingleLine, size_t indentSize) const;
 

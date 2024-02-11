@@ -13,6 +13,10 @@ Judgement::Judgement(const std::shared_ptr<Environment>& env,
                      const std::shared_ptr<Term>& proof,
                      const std::shared_ptr<Term>& prop)
     : _env(env), _context(context), _term(proof), _type(prop) {}
+Judgement::Judgement(const std::shared_ptr<Environment>& env,
+                     const std::shared_ptr<Context>& context,
+                     const std::shared_ptr<Term>& prop)
+    : _env(env), _context(context), _term(nullptr), _type(prop) {}
 std::string Judgement::string(bool inSingleLine, size_t indentSize) const {
     std::string res("");
     std::string indent_ex_1(indentSize, '\t');
@@ -20,7 +24,8 @@ std::string Judgement::string(bool inSingleLine, size_t indentSize) const {
     res += indent_ex_1 + "Judge<<" + eol;
     res += _env->string(inSingleLine, inSingleLine ? 0 : indentSize + 1);
     res += " ;" + eol + indent_ex + indent_in + _context->string();
-    res += " " + TURNSTILE + " " + _term->string();
+    res += " " + TURNSTILE + " ";
+    res += (_term ? _term->string() : DOUBLE_BOTTOM);
     res += " : " + _type->string();
     res += eol + indent_ex + ">>";
     return res;
@@ -33,7 +38,8 @@ std::string Judgement::string_brief(bool inSingleLine, size_t indentSize) const 
     res += indent_ex_1 + "Judge<<" + eol;
     res += _env->string_brief(inSingleLine, inSingleLine ? 0 : indentSize + 1);
     res += " ;" + eol + indent_ex + indent_in + _context->string();
-    res += " " + TURNSTILE + " " + _term->string();
+    res += " " + TURNSTILE + " ";
+    res += (_term ? _term->string() : DOUBLE_BOTTOM);
     res += " : " + _type->string();
     res += eol + indent_ex + ">>";
     return res;

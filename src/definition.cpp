@@ -45,7 +45,7 @@ std::string Definition::string() const {
     res = (_definiens ? "Def< " : "Def-prim< ");
     res += _context->string();
     res += " " + DEFINITION_SEPARATOR + " " + _definiendum;
-    res += " := " + (_definiens ? _definiens->string() : EMPTY_DEFINIENS);
+    res += " := " + (_definiens ? _definiens->string() : DOUBLE_BOTTOM);
     res += " : " + _type->string();
     res += " >";
     return res;
