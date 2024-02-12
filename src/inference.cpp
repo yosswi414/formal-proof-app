@@ -112,6 +112,7 @@ std::string to_string(const RuleType type) {
         case RuleType::Sp: return "sp";
         case RuleType::Tp: return "tp";
     }
+    return "[RuleType::to_string: unknown type: " + std::to_string((int)type) + "]";
 }
 
 class Rule {
@@ -271,7 +272,7 @@ class Inst : public Rule {
     std::vector<RulePtr> _k;
 };
 
-Inst::Inst(const RulePtr& idx, const RulePtr& n, const std::vector<RulePtr>& k, const RulePtr& p) : Rule(RuleType::Inst), _idx(idx), _n(n), _k(k), _p(p) {}
+Inst::Inst(const RulePtr& idx, const RulePtr& n, const std::vector<RulePtr>& k, const RulePtr& p) : Rule(RuleType::Inst), _idx(idx), _n(n), _p(p), _k(k) {}
 const RulePtr& Inst::idx() const { return _idx; }
 const RulePtr& Inst::n() const { return _n; }
 const std::vector<RulePtr>& Inst::k() const { return _k; }
@@ -352,20 +353,22 @@ RulePtr _get_script(const std::shared_ptr<Term>& term, const Delta& delta, const
                     // def := D
                     const auto& def = delta->back();
                     RulePtr left, right;
-                    Delta delta_new = std::make_shared<Environment>(delta->begin(), delta->end() - 1);
-                    left = get_script(term, delta_new, gamma);
+                    Delta delta_new = std::make_shared<Environment>(*delta);
+                    delta_new->pop_back();
+                    left = _get_script(term, delta_new, gamma);
                     if (def->is_prim()) {
                         // Judgement(delta, def->context(), def->type());
-                        right = get_script(def->type(), delta_new, def->context());
+                        right = _get_script(def->type(), delta_new, def->context());
                         rule = std::make_shared<Defpr>(left, right, def->definiendum());
                     } else {
                         // Judgement(delta, def->context(), def->definiens(), def->type());
-                        right = get_script(def->definiens(), delta_new, def->context());
+                        right = _get_script(def->definiens(), delta_new, def->context());
                         rule = std::make_shared<Def>(left, right, def->definiendum());
                     }
                     break;
                 }
             }
+            break;
         }
         case EpsilonType::Square:
             // square cannot have a type
