@@ -2,6 +2,7 @@
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <queue>
 #include <vector>
 
 #include "book.hpp"
@@ -676,6 +677,120 @@ void test_new_parser() {
     std::cout << "str7: " << chainArrow(str7) << std::endl;
 
     std::string expr = R"(equiv_in[%P x, %P x, $u:%P x.u, $u:%P x.u])";
+}
+
+std::set<std::string> extract_constant(const std::shared_ptr<Term>& term) {
+    std::set<std::string> constants;
+    switch (term->etype()) {
+        case EpsilonType::Star:
+        case EpsilonType::Square:
+        case EpsilonType::Variable:
+            break;
+        case EpsilonType::Application: {
+            auto a = appl(term);
+            constants = extract_constant(a->M());
+            set_union_inplace(constants, extract_constant(a->N()));
+            break;
+        }
+        case EpsilonType::AbstLambda: {
+            auto l = lambda(term);
+            constants = extract_constant(l->var().type());
+            set_union_inplace(constants, extract_constant(l->expr()));
+            break;
+        }
+        case EpsilonType::AbstPi: {
+            auto p = pi(term);
+            constants = extract_constant(p->var().type());
+            set_union_inplace(constants, extract_constant(p->expr()));
+            break;
+        }
+        case EpsilonType::Constant: {
+            auto c = constant(term);
+            constants.insert(c->name());
+            for (auto& arg : c->args()) set_union_inplace(constants, extract_constant(arg));
+            break;
+        }
+    }
+    return constants;
+}
+
+std::set<std::string> extract_constant(const Context& con) {
+    std::set<std::string> constants;
+    for (auto&& tv : con) set_union_inplace(constants, extract_constant(tv.type()));
+    return constants;
+}
+
+std::set<std::string> extract_constant(const std::shared_ptr<Context>& con) {
+    return extract_constant(*con);
+}
+
+std::set<std::string> extract_constant(const Definition& def) {
+    std::set<std::string> constants;
+    constants = extract_constant(def.context());
+    if (!def.is_prim()) set_union_inplace(constants, extract_constant(def.definiens()));
+    set_union_inplace(constants, extract_constant(def.type()));
+    return constants;
+}
+
+std::set<std::string> extract_constant(const std::shared_ptr<Definition>& def) {
+    return extract_constant(*def);
+}
+
+std::set<std::string> extract_constant(const Environment& env) {
+    std::set<std::string> constants;
+    for (auto&& def : env) set_union_inplace(constants, extract_constant(def));
+    return constants;
+}
+
+std::set<std::string> extract_constant(const std::shared_ptr<Environment>& env) {
+    return extract_constant(*env);
+}
+
+void test_inference(const Environment& defs, const std::string& def_name) {
+    int idx0 = defs.lookup_index(def_name);
+    if (idx0 < 0) {
+        std::cerr << "error: no such constant defined in file: " + def_name << std::endl;
+        return;
+    }
+
+    using psi = std::pair<std::string, int>;
+    std::map<int, psi> resolved;
+    std::queue<psi> unresolved;
+
+    unresolved.push({def_name, -1});
+
+    while (!unresolved.empty()) {
+        psi q = unresolved.front();
+        unresolved.pop();
+        int idx = defs.lookup_index(q.first);
+        if (idx < 0) {
+            if (q.second < 0) {
+                std::cerr << "error: no such constant defined in file: " + def_name << std::endl;
+            } else {
+                std::cerr << "error: undefined constant \"" + q.first + "\" found\n";
+                std::cerr << "       during resolving dependency in \"" + defs[q.second]->definiendum() + "\"" << std::endl;
+            }
+            return;
+        }
+        resolved[idx] = q;  // always overwrite in BFS to take the earliest dependency
+        auto unres_next = extract_constant(defs[idx]);
+        for (auto&& c : unres_next) unresolved.push({c, idx});
+    }
+
+    // print dependency
+    {
+        for (auto&& [idx, cp] : resolved) {
+            const std::string& c = cp.first;
+            int par = cp.second;
+            std::cout << "idx " << idx << ": " << c << "\n\t:= " << defs[idx] << "\n";
+            if (par < 0) {
+                std::cout << "\t(root)\n";
+            } else {
+                std::cout << "\t(called in " << par << ": " << defs[par]->definiendum() << ")\n";
+            }
+        }
+        std::cout << std::flush;
+    }
 }
 
 int main() {
