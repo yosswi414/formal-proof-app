@@ -234,6 +234,75 @@ std::vector<Token> tokenize(const FileData& lines) {
     return tokens;
 }
 
+enum class ParseType {
+    _WaitTerm,
+    ParenLeft_WaitTerm,
+    Term,
+    Term_WaitParenClose,
+    Identifier,
+    Variable,
+    Const_WaitTerm,
+    Const_WaitClose,
+    Appl_WaitFirst,
+    Appl_WaitSecond,
+    AbstL_WaitVar,
+    AbstL_WaitColon,
+    AbstL_WaitFirst,
+    AbstL_WaitPeriod,
+    AbstL_WaitSecond,
+    AbstP_WaitVar,
+    AbstP_WaitColon,
+    AbstP_WaitFirst,
+    AbstP_WaitPeriod,
+    AbstP_WaitSecond,
+    Implies_WaitSecond,
+    Equiv_WaitSecond,
+    Kind_WaitSecond,
+    LineContinuator,
+};
+
+class ParseStack {
+  public:
+    ParseStack(): _ptype(ParseType::_WaitTerm) {}
+    ParseStack(ParseType type, const Token& left, const Token& right) : _ptype(type), _terms({ParseLambdaToken(left, right)}) {}
+    ParseStack(const ParseLambdaToken& term) : _ptype(ParseType::Term), _terms({term}) {}
+    std::vector<ParseLambdaToken>& terms() { return _terms; }
+    const std::vector<ParseLambdaToken>& terms() const { return _terms; }
+    ParseType ptype() const { return _ptype; }
+    void change_ptype(ParseType nt) { _ptype = nt; }
+
+  private:
+    ParseType _ptype;
+    std::vector<ParseLambdaToken> _terms;
+};
+
+std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tokens, size_t& idx, size_t end_of_token, bool exhaust_token, const std::shared_ptr<std::vector<std::shared_ptr<Context>>>& flag_context) {
+    std::stack<ParseStack> stk;
+    switch (tokens[idx].type()) {
+        case TokenType::Asterisk:
+        case TokenType::AtSign:
+        case TokenType::Character:
+        case TokenType::String:
+        case TokenType::Underscore:
+        case TokenType::Number:
+        case TokenType::Hyphen:
+        case TokenType::Period:
+        case TokenType::Colon:
+        case TokenType::DollarSign:
+        case TokenType::QuestionMark:
+        case TokenType::ParenLeft:
+        case TokenType::ParenRight:
+        case TokenType::SquareBracketLeft:
+        case TokenType::SquareBracketRight:
+        case TokenType::Comma:
+        case TokenType::Leftrightdoublearrow:
+        case TokenType::Rightarrow:
+        case TokenType::Rightdoublearrow:
+        case TokenType::Backslash:
+        case TokenType::NewLine:
+    }
+}
+
 std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens, size_t& idx, size_t end_of_token, bool exhaust_token, const std::shared_ptr<std::vector<std::shared_ptr<Context>>>& flag_context, bool no_chainer) {
     // {
     //     std::cerr << "[debug] parse_lambda(): from " << tokens[idx] << " to ";
@@ -583,7 +652,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
                     for (auto&& tv : *con) {
                         parameters.push_back(tv.value());
                     }
-                }
+                        }
             }
             if (require_more_args || tokens[idx].type() != TokenType::SquareBracketRight) {
                 while (true) {
