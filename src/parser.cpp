@@ -1,5 +1,7 @@
 #include "parser.hpp"
 
+#include <deque>
+#include <functional>
 #include <iostream>
 #include <memory>
 #include <queue>
@@ -236,13 +238,20 @@ std::vector<Token> tokenize(const FileData& lines) {
 
 enum class ParseType {
     _WaitTerm,
-    ParenLeft_WaitTerm,
+    Paren_Open,
+    Paren_Close,
     Term,
-    Term_WaitParenClose,
-    Identifier,
-    Variable,
+    Identifier_Str,
+    Identifier_NumSym,
+    Identifier_Complete,
+    Const_Name,
     Const_WaitTerm,
-    Const_WaitClose,
+    Const_WaitCloseOrComma,
+    Const_WaitTermOrClose,
+    Const_Separator,
+    Const_Open,
+    Const_Close,
+    Const_Context,
     Appl_WaitFirst,
     Appl_WaitSecond,
     AbstL_WaitVar,
@@ -255,51 +264,477 @@ enum class ParseType {
     AbstP_WaitFirst,
     AbstP_WaitPeriod,
     AbstP_WaitSecond,
-    Implies_WaitSecond,
-    Equiv_WaitSecond,
-    Kind_WaitSecond,
+    Abst_SepColon,
+    Abst_SepPeriod,
+    Arrow_Kind,
+    Arrow_Implies,
+    Arrow_Equiv,
+    Spaces,
     LineContinuator,
+    EndOfLine,
 };
+
+std::string to_string(const ParseType& ptype) {
+    switch (ptype) {
+        case ParseType::_WaitTerm: return "ParseType::_WaitTerm";
+        case ParseType::Paren_Open: return "ParseType::Paren_Open";
+        case ParseType::Paren_Close: return "ParseType::Paren_Close";
+        case ParseType::Term: return "ParseType::Term";
+        case ParseType::Identifier_Str: return "ParseType::Identifier_Str";
+        case ParseType::Identifier_NumSym: return "ParseType::Identifier_NumSym";
+        case ParseType::Identifier_Complete: return "ParseType::Identifier_Complete";
+        case ParseType::Const_Name: return "ParseType::Const_Name";
+        case ParseType::Const_WaitTerm: return "ParseType::Const_WaitTerm";
+        case ParseType::Const_WaitCloseOrComma: return "ParseType::Const_WaitCloseOrComma";
+        case ParseType::Const_WaitTermOrClose: return "ParseType::Const_WaitTermOrClose";
+        case ParseType::Const_Separator: return "ParseType::Const_Separator";
+        case ParseType::Const_Open: return "ParseType::Const_Open";
+        case ParseType::Const_Close: return "ParseType::Const_Close";
+        case ParseType::Const_Context: return "ParseType::Const_Context";
+        case ParseType::Appl_WaitFirst: return "ParseType::Appl_WaitFirst";
+        case ParseType::Appl_WaitSecond: return "ParseType::Appl_WaitSecond";
+        case ParseType::AbstL_WaitVar: return "ParseType::AbstL_WaitVar";
+        case ParseType::AbstL_WaitColon: return "ParseType::AbstL_WaitColon";
+        case ParseType::AbstL_WaitFirst: return "ParseType::AbstL_WaitFirst";
+        case ParseType::AbstL_WaitPeriod: return "ParseType::AbstL_WaitPeriod";
+        case ParseType::AbstL_WaitSecond: return "ParseType::AbstL_WaitSecond";
+        case ParseType::AbstP_WaitVar: return "ParseType::AbstP_WaitVar";
+        case ParseType::AbstP_WaitColon: return "ParseType::AbstP_WaitColon";
+        case ParseType::AbstP_WaitFirst: return "ParseType::AbstP_WaitFirst";
+        case ParseType::AbstP_WaitPeriod: return "ParseType::AbstP_WaitPeriod";
+        case ParseType::AbstP_WaitSecond: return "ParseType::AbstP_WaitSecond";
+        case ParseType::Abst_SepColon: return "ParseType::Abst_SepColon";
+        case ParseType::Abst_SepPeriod: return "ParseType::Abst_SepPeriod";
+        case ParseType::Arrow_Kind: return "ParseType::Arrow_Kind";
+        case ParseType::Arrow_Implies: return "ParseType::Arrow_Implies";
+        case ParseType::Arrow_Equiv: return "ParseType::Arrow_Equiv";
+        case ParseType::Spaces: return "ParseType::Spaces";
+        case ParseType::LineContinuator: return "ParseType::LineContinuator";
+        case ParseType::EndOfLine: return "ParseType::EndOfLine";
+    }
+    return "[to_string(ParseType): not implemented (type value = " + std::to_string((int)ptype) + ")]";
+}
 
 class ParseStack {
   public:
-    ParseStack(): _ptype(ParseType::_WaitTerm) {}
-    ParseStack(ParseType type, const Token& left, const Token& right) : _ptype(type), _terms({ParseLambdaToken(left, right)}) {}
-    ParseStack(const ParseLambdaToken& term) : _ptype(ParseType::Term), _terms({term}) {}
-    std::vector<ParseLambdaToken>& terms() { return _terms; }
-    const std::vector<ParseLambdaToken>& terms() const { return _terms; }
+    ParseStack() : _ptype(ParseType::_WaitTerm) {}
+    ParseStack(TokenType type, int idx) : _token_begin(idx), _token_end(idx + 1) {
+        switch (type) {
+            case TokenType::String:
+            case TokenType::Character:
+            case TokenType::Underscore:
+                _ptype = ParseType::Identifier_Str;
+                break;
+            default:
+                _ptype = ParseType::Identifier_NumSym;
+        }
+    }
+    ParseStack(ParseType type, int idx) : _ptype(type), _token_begin(idx), _token_end(idx + 1) {}
+    ParseStack(ParseType type, int begin, int end) : _ptype(type), _token_begin(begin), _token_end(end) {}
+    ParseStack(const std::shared_ptr<Term> term, int idx) : _ptype(ParseType::Term), _token_begin(idx), _token_end(idx + 1), _terms({term}) {}
+
     ParseType ptype() const { return _ptype; }
     void change_ptype(ParseType nt) { _ptype = nt; }
 
+    std::string excerpt(const std::vector<Token>& tokens) const {
+        std::string res;
+        for (int i = _token_begin; i < _token_end; ++i) res += tokens[i].string();
+        return res;
+    }
+    int begin() const { return _token_begin; }
+    int& begin() { return _token_begin; }
+    int end() const { return _token_end; }
+    int& end() { return _token_end; }
+
+    std::vector<std::shared_ptr<Term>>& terms() { return _terms; }
+    const std::vector<std::shared_ptr<Term>>& terms() const { return _terms; }
+    void add_term(const std::shared_ptr<Term> term) { _terms.push_back(term); }
+
   private:
     ParseType _ptype;
-    std::vector<ParseLambdaToken> _terms;
+    int _token_begin = -1, _token_end = -1;
+    std::vector<std::shared_ptr<Term>> _terms;
 };
 
-std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tokens, size_t& idx, size_t end_of_token, bool exhaust_token, const std::shared_ptr<std::vector<std::shared_ptr<Context>>>& flag_context) {
+std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tokens, size_t& idx, size_t end_of_token, bool exhaust_token, const std::shared_ptr<std::vector<std::shared_ptr<Context>>>& flag_context, const std::shared_ptr<Environment> definitions) {
+    const size_t pos_init = idx;
+
     std::stack<ParseStack> stk;
+
+    /* successful condition:
+        - AND:
+            - stk has one Term
+            - OR:
+                - reaches EndOfLine without LineContinuation
+                - reaches invalid token
+                - reads another Term (stk = [Term Term])
+        return:
+            - the first Term
+    */
+
+    /*
+        [TODO]
+        - argument check (argc match) by `definitions`
+            - automatically cut off the extra part when '+' is used and |+| > argc
+                - maybe not a good idea, such notation would not be intuitive
+    */
+
+    // fetch token
     switch (tokens[idx].type()) {
         case TokenType::Asterisk:
+            stk.emplace(star, idx);
+            break;
         case TokenType::AtSign:
+            stk.emplace(sq, idx);
+            break;
         case TokenType::Character:
         case TokenType::String:
         case TokenType::Underscore:
+            stk.emplace(ParseType::Identifier_Str, idx);
+            break;
         case TokenType::Number:
         case TokenType::Hyphen:
+            stk.emplace(ParseType::Identifier_NumSym, idx);
+            break;
         case TokenType::Period:
+            // stk.emplace(ParseType::Identifier_NumSym, idx);
+            stk.emplace(ParseType::Abst_SepPeriod, idx);
+            break;
+        case TokenType::Spaces:
+            stk.emplace(ParseType::Spaces, idx);
+            break;
         case TokenType::Colon:
+            stk.emplace(ParseType::Abst_SepColon, idx);
+            break;
+        case TokenType::Percent:
+            stk.emplace(ParseType::Appl_WaitFirst, idx);
+            break;
         case TokenType::DollarSign:
+            stk.emplace(ParseType::AbstL_WaitVar, idx);
+            break;
         case TokenType::QuestionMark:
+            stk.emplace(ParseType::AbstP_WaitVar, idx);
+            break;
         case TokenType::ParenLeft:
+            stk.emplace(ParseType::Paren_Open, idx);
+            break;
         case TokenType::ParenRight:
+            stk.emplace(ParseType::Paren_Close, idx);
+            break;
         case TokenType::SquareBracketLeft:
+            stk.emplace(ParseType::Const_Open, idx);
+            break;
         case TokenType::SquareBracketRight:
+            stk.emplace(ParseType::Const_Close, idx);
+            break;
         case TokenType::Comma:
+            stk.emplace(ParseType::Const_Separator, idx);
+            break;
+        case TokenType::Plus:
+            stk.emplace(ParseType::Const_Context, idx);
+            break;
         case TokenType::Leftrightdoublearrow:
+            stk.emplace(ParseType::Arrow_Equiv, idx);
+            break;
         case TokenType::Rightarrow:
+            stk.emplace(ParseType::Arrow_Kind, idx);
+            break;
         case TokenType::Rightdoublearrow:
+            stk.emplace(ParseType::Arrow_Implies, idx);
+            break;
         case TokenType::Backslash:
+            stk.emplace(ParseType::LineContinuator, idx);
+            break;
         case TokenType::NewLine:
+            stk.emplace(ParseType::EndOfLine, idx);
+            break;
+        default:
+            throw ParseError("parse_lambda_new(): could not fetch the token: not implemented", tokens[idx]);
+    }
+
+    // find contractable series of tokens
+    std::deque<ParseStack> stash;
+    auto load = [&stk, &stash](int cnt) {
+        while (cnt--) {
+            stash.push_front(stk.top());
+            stk.pop();
+        }
+    };
+    auto flush = [&stk, &stash](int cnt = 0) {
+        while (!stash.empty()) {
+            if (--cnt >= 0) stk.push(stash.front());
+            stash.pop_front();
+        }
+    };
+    // auto elim_right_assoc = [&stash](ParseStack& ps, const std::function<void(std::shared_ptr<Term>&, const std::vector<std::shared_ptr<Term>>&)>& pred) {
+    //     std::vector<std::shared_ptr<Term>>& terms = ps.terms();
+    //     std::shared_ptr<Term> term = terms.back();
+    //     terms.pop_back();
+    //     while (!terms.empty()) {
+    //         pred(term, terms);
+    //         terms.pop_back();
+    //     }
+    //     terms = {term};
+    //     ps.change_ptype(ParseType::Term);
+    // };
+    auto elim_right_assoc = [&tokens, &stash]() {
+        std::vector<ParseType> order{
+            ParseType::Arrow_Kind,
+            ParseType::Arrow_Implies,
+            ParseType::Arrow_Equiv,
+        };
+        for (size_t i = 0; i < stash.size(); ++i) {
+            switch (stash[i].ptype()) {
+                case ParseType::Identifier_Str:
+                case ParseType::Identifier_Complete:
+                    stash[i].terms() = {variable(stash[i].excerpt(tokens))};
+                    stash[i].change_ptype(ParseType::Term);
+                    break;
+                case ParseType::Term:
+                case ParseType::Arrow_Kind:
+                case ParseType::Arrow_Implies:
+                case ParseType::Arrow_Equiv:
+                    break;
+                default:
+                    throw ParseError(
+                        "Invalid token found. Type: " + to_string(stash[i].ptype()),
+                        tokens[stash[i].begin()], tokens[stash[i].end() - 1],
+                        "In term-arrow sequence",
+                        tokens[stash.front().begin()], tokens[stash.back().end() - 1]);
+            }
+        }
+        for (auto arrow_t : order) {
+            for (int i = stash.size() - 1; i >= 0; --i) {
+                if (stash[i].ptype() != arrow_t) continue;
+                if (i + 1 >= stash.size()) {
+                    throw ParseError(
+                        "Expected a term in right hand side of the operator, reached end of expr",
+                        tokens[stash[i].begin()]);
+                }
+                if (stash[i + 1].ptype() != ParseType::Term) {
+                    throw ParseError(
+                        "Expected a term in right hand side of the operator, got a non-term object. Type: " + to_string(stash[i + 1].ptype()),
+                        tokens[stash[i + 1].begin()], tokens[stash[i + 1].end() - 1],
+                        "The operator locates here",
+                        tokens[stash[i].begin()]);
+                }
+                if (i - 1 < 0) {
+                    throw ParseError(
+                        "Expected a term in left hand side of the operator, reached beginning of expr",
+                        tokens[stash[i].begin()]);
+                }
+                if (stash[i - 1].ptype() != ParseType::Term) {
+                    throw ParseError(
+                        "Expected a term in left hand side of the operator, got a non-term object. Type: " + to_string(stash[i - 1].ptype()),
+                        tokens[stash[i - 1].begin()], tokens[stash[i - 1].end() - 1],
+                        "The operator locates here",
+                        tokens[stash[i].begin()]);
+                }
+
+                // T arrow T -> T
+                std::shared_ptr<Term> T1, T2, term_new;
+                T1 = stash[i - 1].terms().front();
+                T2 = stash[i + 1].terms().front();
+                switch (arrow_t) {
+                    case ParseType::Arrow_Kind:
+                        term_new = pi(get_fresh_var(T2), T1, T2);
+                        break;
+                    case ParseType::Arrow_Implies:
+                        term_new = constant("implies", {T1, T2});
+                        break;
+                    case ParseType::Arrow_Equiv:
+                        term_new = constant("equiv", {T1, T2});
+                        break;
+                }
+                stash[i - 1].terms() = {term_new};
+                stash[i - 1].end() = stash[i + 1].end();
+                stash.erase(stash.begin() + i + 1);
+                stash.erase(stash.begin() + i);
+                --i;
+            }
+        }
+    };
+    bool reduced = true;
+    while (reduced) {
+        reduced = false;
+        switch (stk.top().ptype()) {
+            // tokens reactive at front
+            case ParseType::Identifier_Str:
+            case ParseType::Identifier_NumSym: {
+                load(2);
+                // Identifier_Str Identifier_* -> Identifier_Str
+                if (stash[0].ptype() == ParseType::Identifier_Str) {
+                    stash[0].end() = stash[1].end();
+                    flush(1);
+                    reduced = true;
+                }
+                // (not Identifier_Str) Identifier_NumSym : Error
+                else if (stash[1].ptype() == ParseType::Identifier_NumSym) {
+                    throw ParseError(
+                        "An identifier must begin with alphabet or underscore",
+                        tokens[stash[0].begin()], tokens[stash[0].end() - 1]);
+                }
+                break;
+            }
+            case ParseType::Const_Open: {
+                load(2);
+                switch (stash[0].ptype()) {
+                    // only valid
+                    case ParseType::Identifier_Complete:
+                    case ParseType::Identifier_Str: {
+                        std::string cname = stash[0].excerpt(tokens);
+                        // undefined constant : error
+                        if (definitions->lookup_index(cname) < 0) {
+                            throw ParseError(
+                                "Undefined identifier cannot establish an instantiation of a definition",
+                                tokens[stash[0].begin()], tokens[stash[0].end() - 1]);
+                        }
+                        stash[0].change_ptype(ParseType::Const_Name);
+                        stash[1].change_ptype(ParseType::Const_WaitTermOrClose);
+                        flush(2);
+                        reduced = true;
+                        break;
+                    }
+                    case ParseType::Identifier_NumSym:
+                        throw ParseError(
+                            "An identifier must begin with alphabet or underscore",
+                            tokens[stash[0].begin()], tokens[stash[0].end() - 1]);
+                    default:
+                        throw ParseError(
+                            "A defined identifier is missing before square bracket",
+                            tokens[stash[1].begin()], tokens[stash[1].end() - 1]);
+                }
+                break;
+            }
+
+            case ParseType::Spaces: {
+                load(2);
+                if (stash[0].ptype() == ParseType::Identifier_Str) {
+                    stash[0].change_ptype(ParseType::Identifier_Complete);
+                }
+                flush(1);
+                reduced = true;
+                break;
+            }
+
+            case ParseType::Paren_Close: {
+                while (!stk.empty() && stk.top().ptype() != ParseType::Paren_Open) load(1);
+                if (stk.empty()) {
+                    throw ParseError(
+                        "cannot close parenthesis that is not opened",
+                        tokens[stash.back().begin()], tokens[stash.back().end() - 1]);
+                }
+                load(1);  // load '('
+                int begin = stash.front().begin(), end = stash.back().end();
+                // strip parentheses
+                stash.pop_front();
+                stash.pop_back();
+                // eliminate arrows
+                elim_right_assoc();
+                if (stash.size() != 1) {
+                    throw ParseError(
+                        "Could not reduce term-arrow sequence in parentheses to a single term",
+                        tokens[begin], tokens[end - 1],
+                        "At least one irreducible token exists. Last number of tokens left: " + std::to_string(stash.size()),
+                        tokens[stash.front().begin()], tokens[stash.back().end() - 1]);
+                }
+                if (stash.front().ptype() != ParseType::Term) {
+                    throw ParseError(
+                        "Could not reduce term-arrow sequence in parentheses to a single term",
+                        tokens[begin], tokens[end - 1],
+                        "The type of the result of reduction is not ParseType::Term. Type: " + to_string(stash.front().ptype()),
+                        tokens[stash.front().begin()], tokens[stash.back().end() - 1]);
+                }
+                stash.front().begin() = begin;
+                stash.front().end() = end;
+                flush(1);
+                reduced = true;
+                break;
+            }
+
+            // to be implemented
+            case ParseType::EndOfLine: {
+                load(2);
+                switch (stash[0].ptype()) {
+                    case ParseType::LineContinuator:
+                        flush();
+                        reduced = true;
+                        break;
+                }
+                if (reduced) break;
+                // end of expr
+                // check if we get a single ParseType::Term in stk
+                // or spill out some invalid tokens left in stk
+                flush(1);   // strip EndOfLine
+                load(stk.size());
+                elim_right_assoc();
+                if (stash.size() != 1) {
+                    throw ParseError(
+                        "Could not reduce term-arrow sequence in parentheses to a single term",
+                        tokens[pos_init], tokens[idx],
+                        "At least one irreducible token exists. Last number of tokens left: " + std::to_string(stash.size()),
+                        tokens[stash.front().begin()], tokens[stash.back().end() - 1]);
+                }
+                if (stash.front().ptype() != ParseType::Term) {
+                    throw ParseError(
+                        "Could not reduce term-arrow sequence in parentheses to a single term",
+                        tokens[pos_init], tokens[idx],
+                        "The type of the result of reduction is not ParseType::Term. Type: " + to_string(stash.front().ptype()),
+                        tokens[stash.front().begin()], tokens[stash.back().end() - 1]);
+                }
+                flush(1);
+                reduced = true;
+                break;
+            }
+
+            case ParseType::Const_Separator:
+            case ParseType::Const_Close:
+            case ParseType::Const_Context:
+            case ParseType::Abst_SepColon:
+            case ParseType::Abst_SepPeriod:
+
+            // heaviest
+            case ParseType::Term:
+
+            // tokens inactive at front
+            case ParseType::Identifier_Complete:
+            case ParseType::Paren_Open:
+            case ParseType::LineContinuator:
+            case ParseType::Appl_WaitFirst:
+            case ParseType::Appl_WaitSecond:
+            case ParseType::AbstL_WaitVar:
+            case ParseType::AbstL_WaitColon:
+            case ParseType::AbstL_WaitFirst:
+            case ParseType::AbstL_WaitPeriod:
+            case ParseType::AbstL_WaitSecond:
+            case ParseType::AbstP_WaitVar:
+            case ParseType::AbstP_WaitColon:
+            case ParseType::AbstP_WaitFirst:
+            case ParseType::AbstP_WaitPeriod:
+            case ParseType::AbstP_WaitSecond:
+            case ParseType::_WaitTerm:
+            case ParseType::Const_Name:
+            case ParseType::Const_WaitTerm:
+            case ParseType::Const_WaitCloseOrComma:
+            case ParseType::Const_WaitTermOrClose:
+            case ParseType::Arrow_Kind:
+            case ParseType::Arrow_Implies:
+            case ParseType::Arrow_Equiv:
+                // need further fetch
+                load(2);
+                switch (stash[0].ptype()) {
+                    case ParseType::Identifier_Str:
+                    case ParseType::Identifier_Complete:
+                        stash[0].change_ptype(ParseType::Term);
+                        stash[0].terms() = {variable(stash[0].excerpt(tokens))};
+                        reduced = true;
+                        break;
+                    default:
+                        break;
+                }
+                flush(2);
+                break;
+        }
     }
 }
 
@@ -430,7 +865,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
             size_t pos_period = idx;
             // int depth_period = 0;
             // std::map<TokenType, int> depth_brackets;
-            
+
             // int brackets_present = 0;
             int pos_period_last_valid = -1;
             while (!expr2 && tokens[pos_period].type() != TokenType::NewLine) {
@@ -627,7 +1062,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
                 if (endwhile) break;
                 ++pos_right;
             }
-            if (tokens[pos_right].type () != TokenType:: SquareBracketRight) {
+            if (tokens[pos_right].type() != TokenType::SquareBracketRight) {
                 throw ExprError(
                     "closing square bracket not found", tokens[pos_right],
                     "square bracket opens here", tokens[idx]);
@@ -652,7 +1087,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
                     for (auto&& tv : *con) {
                         parameters.push_back(tv.value());
                     }
-                        }
+                }
             }
             if (require_more_args || tokens[idx].type() != TokenType::SquareBracketRight) {
                 while (true) {
@@ -745,13 +1180,12 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
             idx = chain_hdr - 1;
         }
     }
-    if (res_to < 0){
+    if (res_to < 0) {
         return std::make_shared<ParseLambdaToken>(tokens[res_from], res_ptr);
-    }
-    else {
+    } else {
         if (exhaust_token) {
             for (size_t i = idx + 1; i < end_of_token; ++i) {
-                switch(tokens[i].type()) {
+                switch (tokens[i].type()) {
                     case TokenType::NewLine:
                     case TokenType::Spaces:
                         continue;
