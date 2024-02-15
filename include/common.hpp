@@ -100,6 +100,14 @@ std::set<T>& set_minus_inplace(std::set<T>& a, const std::set<T>& b) {
 #define check_true_or_ret_false_nomsg(expr) check_true_or_ret_false(expr, "", "", 0, "")
 #define check_true_or_ret_false_err(expr, msg, file, line, func) check_true_or_exec(expr, msg, return (false), file, line, func, false)
 
+#define fstr(val) #val " = " << (val)
+
+#define debug(msg)                                                               \
+    do {                                                                         \
+        std::cerr << __FILE__ << ":" << __LINE__ << " in " << __func__ << ":\n"; \
+        std::cerr << "\t" << msg << std::endl;                                           \
+    } while (false)
+
 template <class T>
 std::string to_string(const std::set<T>& s) {
     std::stringstream ss;
