@@ -355,7 +355,7 @@ std::string to_string_short(const ParseType& ptype) {
 
 class ParseStack {
   public:
-    ParseStack() : _ptype(ParseType::_WaitTerm) {}
+    ParseStack() : ParseStack(ParseType::_WaitTerm, 0) {}
     ParseStack(TokenType type, int idx) : _token_begin(idx), _token_end(idx + 1) {
         switch (type) {
             case TokenType::String:
@@ -391,7 +391,7 @@ class ParseStack {
 
   private:
     ParseType _ptype;
-    int _token_begin = -1, _token_end = -1;
+    int _token_begin = 0, _token_end = 0;
     std::vector<std::shared_ptr<Term>> _terms;
 };
 
@@ -405,7 +405,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
     tree.emplace(std::make_shared<stk_t>());
 
     stk_pt stk = tree.front();
-    stk->emplace(ParseType::_WaitTerm, -1);
+    stk->emplace();
 
     /* successful condition:
         - AND:
@@ -413,7 +413,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
             - OR:
                 - reaches EndOfLine without LineContinuation
                 - reaches invalid token
-                - [pending] reads another Term (stk = [Term Term])
+                - [rejected] reads another Term (stk = [Term Term])
         return:
             - the first Term
         note:
@@ -440,7 +440,8 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
         // return itr->starts_with(cname_part);
     };
 
-    std::stack<ParseType> abst_absorber;
+    std::stack<ParseType> atmosphere;
+    atmosphere.push(ParseType::Undefined);
 
     auto is_arrow = [](ParseType type) {
         switch (type) {
@@ -558,6 +559,8 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
         return expr_seq_str;
     };
 
+    bool got_term = false;
+
     while (true) {
         // fetch token
         switch (tokens[idx].type()) {
@@ -582,7 +585,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                 // if Identifier + '.' is still a prefix of a constant, treat '.' as part of identifier
                 ParseType main_type, branch_type;
                 bool needs_branch = true;
-                if (abst_absorber.empty() || is_period_nameonly(abst_absorber.top(), stk->top().ptype())) {
+                if (atmosphere.size() == 1 || is_period_nameonly(atmosphere.top(), stk->top().ptype())) {
                     needs_branch = false;
                     main_type = ParseType::Identifier_NumSym;
                 } else if (stk->top().ptype() == ParseType::Identifier_Str && exists_cand_const(name + ".")) {
@@ -678,7 +681,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                         : is_readable_as_term(stk->top().ptype()))) { load(1); }
         };
 
-        auto elim_right_assoc = [&invalid_token_err, &tokens, &type_seq_to_str](std::deque<ParseStack>& stash) -> bool {
+        auto elim_right_assoc = [&invalid_token_err, &flush, &tokens, &type_seq_to_str](std::deque<ParseStack>& stash) -> bool {
             std::vector<ParseType> order{
                 ParseType::Arrow_Kind,
                 ParseType::Arrow_Implies,
@@ -705,6 +708,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                             tokens[stash[i].begin()], tokens[stash[i].end() - 1],
                             "In term-arrow sequence",
                             tokens[stash.front().begin()], tokens[stash.back().end() - 1]);
+                        flush(i - 1);
                         return false;
                 }
             }
@@ -781,7 +785,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
             return reduced;
         };
 
-        auto contract_top_term = [&tokens, &stack_dump, &is_ps_sort](stk_pt stk, bool is_term_decided = false) -> bool {
+        auto contract_top_term = [&tokens, &stack_dump, &got_term](stk_pt stk, bool is_term_decided = false) -> bool {
             bool reduced = false;
 
             // debug("contract_top_term(): " << fstr(is_term_decided) << ", stack = " << stack_dump(stk));
@@ -812,6 +816,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                     case ParseType::_WaitTerm: {
                         stk->push(s1);
                         reduced = true;
+                        got_term = true;
                         break;
                     }
                     // for simplicity, it never takes further arrow in appl and second expr of abst
@@ -852,10 +857,11 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                     }
                     case ParseType::Term: {
                         // if (!is_term_decided) {
-                        //     stk->push(s0);
-                        //     stk->push(s1);
-                        //     return reduced;
-                        // };
+                        if (true) {
+                            stk->push(s0);
+                            stk->push(s1);
+                            return reduced;
+                        };
                         // application without explicit symbol '%'?
                         const auto term1 = s0.terms()[0];
                         const auto term2 = s1.terms()[0];
@@ -914,7 +920,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                 }
                 // debug("contract_top_term(): one step, stack = " << stack_dump(stk));
             }
-            // debug("contract_top_term(): finished");
+            // debug("contract_top_term(): finished: " << stk->top().terms()[0]);
             return reduced;
         };
 
@@ -922,6 +928,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
 
         // debug(fstr(idx) << " < " << end_of_token << ", fetched: " << tokens[idx] << " (" << to_string(stk->top().ptype()) << ")");
 
+        invalid_token_err.reset();
         while (!invalid_token_err && !end_of_line && reduced) {
             reduced = false;
             switch (stk->top().ptype()) {
@@ -950,6 +957,8 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                         invalid_token_err = std::make_shared<ParseError>(
                             "An identifier must begin with alphabet or underscore",
                             tokens[stash[0].begin()], tokens[stash[0].end() - 1]);
+                        flush(1);
+                        break;
                     }
                     flush(2);
                     break;
@@ -967,6 +976,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                                 stash[1].change_ptype(ParseType::Const_WaitTermOrClose);
                                 flush(2);
                                 reduced = true;
+                                atmosphere.push(ParseType::Const_Open);
                                 break;
                             }
                             [[fallthrough]];
@@ -1004,6 +1014,10 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                 }
 
                 case ParseType::Paren_Close: {
+                    ParseStack close = stk->top();
+                    stk->pop();
+                    reduced |= contract_top_term(stk, true);
+                    stk->push(close);
                     while (!stk->empty() && stk->top().ptype() != ParseType::Paren_Open) load(1);
                     if (stk->empty()) {
                         throw ParseError(
@@ -1011,6 +1025,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                             tokens[stash.back().begin()], tokens[stash.back().end() - 1]);
                     }
                     load(1);  // load '('
+                    // debug(fstr(idx) << ", at PCl, stash = " << type_seq_to_str(stash));
                     int begin = stash.front().begin(), end = stash.back().end();
                     // strip parentheses
                     stash.pop_front();
@@ -1042,6 +1057,12 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                 }
 
                 case ParseType::Const_Separator: {
+                    if (atmosphere.top() != ParseType::Const_Open){
+                        invalid_token_err = std::make_shared<ParseError>(
+                            "Invalid token (comma can only be used as a separator in constant argument list)",
+                            tokens[stk->top().begin()]);
+                        break;
+                    }
                     // Const_WaitTerm T arr ... arr T ,
                     ParseStack comma = stk->top();
                     stk->pop();
@@ -1084,12 +1105,20 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                             invalid_token_err = std::make_shared<ParseError>(
                                 "Invalid token (comma can only be used as a separator in constant argument list)",
                                 tokens[stash[1].begin()], tokens[stash[1].end() - 1]);
+                            flush(1);
                             break;
                     }
                     break;
                 }
 
                 case ParseType::Const_Close: {
+                    if (atmosphere.top() != ParseType::Const_Open) {
+                        invalid_token_err = std::make_shared<ParseError>(
+                            "Invalid token (closing square bracket can only be used as the end of argument list of constant)",
+                            tokens[stk->top().begin()]);
+                        break;
+                    }
+                    if (invalid_token_err) break;
                     // Const_Name Const_WaitTerm T ]
                     ParseStack close = stk->top();
                     stk->pop();
@@ -1132,6 +1161,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                             stash[0].terms() = {constant(cname, args)};
                             // T
                             flush(1);
+                            atmosphere.pop();
                             reduced = true;
                             break;
                         }
@@ -1147,6 +1177,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                             invalid_token_err = std::make_shared<ParseError>(
                                 "Invalid token (closing square bracket can only be used as the end of argument list of constant)",
                                 tokens[stash[2].begin()], tokens[stash[2].end() - 1]);
+                            flush(2);
                             break;
                         }
                     }
@@ -1178,6 +1209,19 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
 
                 case ParseType::Abst_SepColon: {
                     // Abst_WaitVar Identifier Abst_SepColon
+                    // debug(fstr(idx) << ", at AbSpCl, absorber = " << to_string(atmosphere.top()) << ", stack = " << stack_dump(stk));
+
+                    switch (atmosphere.top()) {
+                        case ParseType::AbstL_WaitVar:
+                        case ParseType::AbstP_WaitVar:
+                            break;
+                        default:
+                            invalid_token_err = std::make_shared<ParseError>(
+                                "Invalid token (colon can only be used as a separator between bound variable and its type in expr)",
+                                tokens[stk->top().begin()]);
+                            break;
+                    }
+                    if (invalid_token_err) break;
                     load(3);
                     bool is_lambda = false;
                     switch (stash[0].ptype()) {
@@ -1185,6 +1229,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                             is_lambda = true;
                             [[fallthrough]];
                         case ParseType::AbstP_WaitVar: {
+                            // debug("at AbSpCl, stash[1].ptype() = " << to_string(stash[1].ptype()));
                             switch (stash[1].ptype()) {
                                 case ParseType::Varname_Incomplete:
                                 case ParseType::Identifier_Str:
@@ -1208,8 +1253,8 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                                     flush(1);
                                     reduced = true;
 
-                                    abst_absorber.pop();
-                                    abst_absorber.push(wait_t);
+                                    atmosphere.pop();
+                                    atmosphere.push(wait_t);
                                     break;
                                 }
                                 default:
@@ -1222,9 +1267,15 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                             break;
                         }
                         default:
+                            // debug(fstr(stash.size()));
+                            // debug("ptype: " << to_string(stash[0].ptype()));
+                            // debug(fstr(stash[0].end()));
+                            // debug(fstr(tokens[stash[0].begin()]));
                             invalid_token_err = std::make_shared<ParseError>(
                                 "Invalid token (colon can only be used as a separator between bound variable and its type in expr)",
-                                tokens[stash[0].begin()], tokens[stash[0].end() - 1]);
+                                tokens[stash[0].begin()]);
+                            flush(2);
+                            break;
                     }
                     break;
                 }
@@ -1256,7 +1307,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                             stash[0].change_ptype(wait_t);
                             stash[0].end() = end;
                             flush(1);
-                            abst_absorber.pop();
+                            atmosphere.pop();
                             reduced = true;
                             break;
                         }
@@ -1300,7 +1351,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
 
                 case ParseType::AbstL_WaitVar:
                 case ParseType::AbstP_WaitVar: {
-                    abst_absorber.push(stk->top().ptype());
+                    atmosphere.push(stk->top().ptype());
                     break;
                 }
                 case ParseType::AbstL_WaitFirst:
@@ -1352,10 +1403,10 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
         }
 
         // debug(fstr(idx) << " < " << end_of_token << ", reduction finished, stack: " << stack_dump(stk));
-        if (invalid_token_err) {
-            // debug(fstr(idx) << ", invalid token found");
-            invalid_token_err->puterror();
-        }
+        // if (invalid_token_err) {
+        //     debug(fstr(idx) << ", invalid token found");
+        //     invalid_token_err->puterror();
+        // }
 
         if (!stash.empty()) {
             std::string type_seq_str = type_seq_to_str(stash);
@@ -1391,6 +1442,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
             throw *invalid_token_err;
         }
         if (idx + 1 == end_of_token || end_of_line || invalid_token_err) {
+            if (invalid_token_err) stk->pop();
             reduced = true;
             while (reduced) {
                 reduced = false;
