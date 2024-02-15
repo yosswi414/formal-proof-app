@@ -35,6 +35,8 @@ void unused(T x, Ts... data) { unused(x), unused(data...); }
 
 const bool DEBUG_CERR = false;
 
+const bool flag_address_comp = true;
+
 template <class T>
 std::set<T>& set_union(const std::set<T>& a, const std::set<T>& b, std::set<T>& res) {
     res = a;
@@ -104,8 +106,9 @@ std::set<T>& set_minus_inplace(std::set<T>& a, const std::set<T>& b) {
 
 #define debug(msg)                                                               \
     do {                                                                         \
+        if (!DEBUG_CERR) break;                                                  \
         std::cerr << __FILE__ << ":" << __LINE__ << " in " << __func__ << ":\n"; \
-        std::cerr << "\t" << msg << std::endl;                                           \
+        std::cerr << "\t" << msg << std::endl;                                   \
     } while (false)
 
 template <class T>

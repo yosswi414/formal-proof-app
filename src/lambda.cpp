@@ -401,7 +401,7 @@ std::shared_ptr<Constant> constant(const std::shared_ptr<Term>& t) {
 }
 
 bool alpha_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) {
-    if (a == b) return true;
+    if (flag_address_comp && a == b) return true;
     if (a->etype() != b->etype()) return false;
     switch (a->etype()) {
         case EpsilonType::Star:
@@ -505,6 +505,46 @@ bool exact_comp(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b) 
                 "exact_comp(): unknown etype: " << to_string(a->etype()),
                 __FILE__, __LINE__, __func__);
     }
+}
+
+std::pair<std::shared_ptr<Term>, std::shared_ptr<Term>> mismatch(const std::shared_ptr<Term>& a,const std::shared_ptr<Term>& b) {
+    if (a->etype() != b->etype()) return {a, b};
+    switch(a->etype()) {
+        case EpsilonType::Star:
+        case EpsilonType::Square:
+            return {nullptr, nullptr};
+        case EpsilonType::Variable:
+            if(!alpha_comp(a, b)) return {a, b};
+            else return {nullptr, nullptr};
+        case EpsilonType::Application: {
+            auto ta = appl(a), tb = appl(b);
+            if (alpha_comp(ta->M(), tb->M())) return mismatch(ta->N(), tb->N());
+            else return mismatch(ta->M(), tb->M());
+        }
+        case EpsilonType::AbstLambda: {
+            auto ta = lambda(a), tb = lambda(b);
+            if (alpha_comp(ta->var().type(), tb->var().type())) {
+                auto var = get_fresh_var(ta->expr(), tb->expr());
+                return mismatch(substitute(ta->expr(), ta->var().value(), var), substitute(tb->expr(), tb->var().value(), var));
+            } else return mismatch(ta->var().type(), tb->var().type());
+        }
+        case EpsilonType::AbstPi: {
+            auto ta = pi(a), tb = pi(b);
+            if (alpha_comp(ta->var().type(), tb->var().type())) {
+                auto var = get_fresh_var(ta->expr(), tb->expr());
+                return mismatch(substitute(ta->expr(), ta->var().value(), var), substitute(tb->expr(), tb->var().value(), var));
+            } else return mismatch(ta->var().type(), tb->var().type());
+        }
+        case EpsilonType::Constant: {
+            auto ta = constant(a), tb = constant(b);
+            if (ta->name() != tb->name()) return {ta, tb};
+            for (size_t i = 0; i < std::min(ta->args().size(), tb->args().size()); ++i) {
+                if (!alpha_comp(ta->args()[i], tb->args()[i])) return mismatch(ta->args()[i], tb->args()[i]);
+            }
+            return {nullptr, nullptr};
+        }
+    }
+    return {nullptr, nullptr};
 }
 
 bool is_sort(const std::shared_ptr<Term>& t) {

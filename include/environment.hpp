@@ -39,9 +39,11 @@ bool has_definition(const std::shared_ptr<Environment>& env, const Definition& d
 
 bool is_delta_reducible(const std::shared_ptr<Term>& term, const Environment& delta);
 
+int expr_rank(const std::shared_ptr<Term>& term, const Environment& delta);
 std::shared_ptr<Term> delta_reduce(const std::shared_ptr<Constant>& term, const Environment& delta);
+std::shared_ptr<Term> delta_nf_above(const std::shared_ptr<Term>& term, const Environment& delta, int idx);
 std::shared_ptr<Term> delta_nf(const std::shared_ptr<Term>& term, const Environment& delta);
-
+std::shared_ptr<Term> NF_above(const std::shared_ptr<Term>& term, const Environment& delta, int idx);
 std::shared_ptr<Term> NF(const std::shared_ptr<Term>& term, const Environment& delta);
 std::shared_ptr<Term> NF(const std::shared_ptr<Term>& term, const std::shared_ptr<Environment>& delta);
 

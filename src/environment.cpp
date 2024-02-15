@@ -202,7 +202,35 @@ std::shared_ptr<Term> delta_reduce(const std::shared_ptr<Constant>& term, const 
     return substitute(M, xs, term->args());
 }
 
-std::shared_ptr<Term> delta_nf(const std::shared_ptr<Term>& term, const Environment& delta) {
+int expr_rank(const std::shared_ptr<Term>& term, const Environment& delta) {
+    switch(term->etype()) {
+        case EpsilonType::Star:
+        case EpsilonType::Square:
+        case EpsilonType::Variable:
+            return -1;
+        case EpsilonType::Application: {
+            auto t = appl(term);
+            return std::max(expr_rank(t->M(), delta), expr_rank(t->N(), delta));
+        }
+        case EpsilonType::AbstLambda: {
+            auto t = lambda(term);
+            return std::max(expr_rank(t->var().type(), delta), expr_rank(t->expr(), delta));
+        }
+        case EpsilonType::AbstPi: {
+            auto t = pi(term);
+            return std::max(expr_rank(t->var().type(), delta), expr_rank(t->expr(), delta));
+        }
+        case EpsilonType::Constant: {
+            auto t = constant(term);
+            int rank = delta.lookup_index(t);
+            for (auto&& arg : t->args()) rank = std::max(rank, expr_rank(arg, delta));
+            return rank;
+        }
+    }
+    return -1;
+}
+
+std::shared_ptr<Term> delta_nf_above(const std::shared_ptr<Term>& term, const Environment& delta, int idx) {
     switch (term->etype()) {
         case EpsilonType::Star:
         case EpsilonType::Square:
@@ -230,8 +258,9 @@ std::shared_ptr<Term> delta_nf(const std::shared_ptr<Term>& term, const Environm
         }
         case EpsilonType::Constant: {
             auto t = constant(term);
+            auto rank = delta.lookup_index(t);
             auto dptr = delta.lookup_def(t);
-            if (!dptr || dptr->is_prim()) {
+            if (rank < idx || delta[rank]->is_prim()) {
                 if (t->args().size() == 0) return t;
                 std::vector<std::shared_ptr<Term>> nargs;
                 for (auto&& arg : t->args()) nargs.push_back(delta_nf(arg, delta));
@@ -247,8 +276,31 @@ std::shared_ptr<Term> delta_nf(const std::shared_ptr<Term>& term, const Environm
         __FILE__, __LINE__, __func__);
 }
 
+std::shared_ptr<Term> delta_nf(const std::shared_ptr<Term>& term, const Environment& delta) {
+    return delta_nf_above(term, delta, 0);
+}
+
+std::shared_ptr<Term> NF_above(const std::shared_ptr<Term>& term, const Environment& delta, int idx) {
+    std::shared_ptr<Term> t, t_prev, t_dx;
+    t = term;
+    do {
+        t_prev = t;
+        t = beta_nf(t);
+        if (!alpha_comp(t, beta_nf(t))) {
+            debug("beta_nf found not to be idempotent. aborting...");
+            exit(EXIT_FAILURE);
+        }
+        t = delta_nf_above(t, delta, idx);
+        if (!alpha_comp(t, delta_nf_above(t, delta, idx))) {
+            debug("delta_nf found not to be idempotent. aborting...");
+            exit(EXIT_FAILURE);
+        }
+    } while (!alpha_comp(t, t_prev));
+    return t;
+}
+
 std::shared_ptr<Term> NF(const std::shared_ptr<Term>& term, const Environment& delta) {
-    return beta_nf(delta_nf(term, delta));
+    return NF_above(term, delta, 0);
 }
 std::shared_ptr<Term> NF(const std::shared_ptr<Term>& term, const std::shared_ptr<Environment>& delta) {
     return NF(term, *delta);
@@ -336,7 +388,7 @@ std::shared_ptr<Term> reduce_application(const std::shared_ptr<Application>& ter
 bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b, const Environment& delta) {
     // std::cerr << "conv a = " << a << std::endl;
     // std::cerr << "conv b = " << b << std::endl;
-    if (a == b) return true;
+    if (flag_address_comp && a == b) return true;
 
     if (a->etype() == b->etype()) {
         switch (a->etype()) {

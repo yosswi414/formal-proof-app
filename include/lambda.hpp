@@ -45,7 +45,9 @@ std::string to_string(const EpsilonType& k);
 
 template <typename PtrType, typename std::enable_if_t<std::is_pointer<PtrType>::value || std::is_same<PtrType, std::unique_ptr<typename PtrType::element_type>>::value || std::is_same<PtrType, std::shared_ptr<typename PtrType::element_type>>::value, int> = 0>
 std::ostream& operator<<(std::ostream& os, const PtrType& ptr) {
-    return os << ptr->string();
+  if (ptr) os << ptr->string();
+  else os << "(n/a)";
+  return os;
 }
 
 std::ostream& operator<<(std::ostream& os, const EpsilonType& k);
@@ -286,6 +288,8 @@ template <class T, class U>
 bool alpha_comp(const std::shared_ptr<T>& a, const std::shared_ptr<U>& b) {
     return alpha_comp(std::static_pointer_cast<Term>(a), std::static_pointer_cast<Term>(b));
 }
+
+std::pair<std::shared_ptr<Term>, std::shared_ptr<Term>> mismatch(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b);
 
 bool is_sort(const std::shared_ptr<Term>& t);
 

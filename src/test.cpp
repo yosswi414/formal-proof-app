@@ -331,46 +331,38 @@ void test_reduction3(const Environment& delta) {
         e.puterror();
         exit(EXIT_FAILURE);
     }
-    show(ansnB->repr());
+    show(ansnB->repr_new());
     std::cerr << "FV(exprB) = " << to_string(free_var(exprB)) << std::endl;
     std::cerr << "FV(ansnB) = " << to_string(free_var(ansnB)) << std::endl;
     std::cerr << "test 0" << std::endl;
     bout(free_var(exprB) == free_var(ansnB));
     // if (!bout_result) return;
     std::cerr << "test 1" << std::endl;
-    bout(is_convertible(exprB, ansnB, delta));
-    std::cerr << "test 2" << std::endl;
-    bout(exprB->etype() == EpsilonType::Constant);
-    show(delta.lookup_index(constant(exprB)));
-    bout(is_constant_defined(constant(exprB)->name(), delta));
-    bout(is_constant_defined("Rset_fig14.10", delta));
-    bout(is_constant_primitive("Rset_fig14.10", delta));
-    std::cerr << "test 3" << std::endl;
-    auto eBd1 = delta_reduce(constant(exprB), delta);
-    // show(eBd1);
-    std::cerr << "FV(eBd1)  = " << to_string(free_var(eBd1)) << std::endl;
-    std::cerr << "FV(ansnB) = " << to_string(free_var(ansnB)) << std::endl;
-    std::cerr << "test 4" << std::endl;
-    auto eBdn = exprB;
-    for (int d = 1; is_delta_reducible(eBdn, delta); ++d) {
-        eBdn = delta_reduce(constant(eBdn), delta);
-        std::cerr << "d" << d << ":\t";
-        show(eBdn);
-    }
-    // show(exprB);
-    std::cerr << "FV(eBdn)  = " << to_string(free_var(eBdn)) << std::endl;
-    std::cerr << "FV(ansnB) = " << to_string(free_var(ansnB)) << std::endl;
-    std::cerr << "test 5" << std::endl;
-    auto eBnf = NF(exprB, delta);
-    show(eBnf->repr_new());
-    auto aBnf = NF(ansnB, delta);
-    show(aBnf->repr_new());
-    std::cerr << "FV(eBnf)  = " << to_string(free_var(eBnf)) << std::endl;
-    std::cerr << "FV(aBnf) = " << to_string(free_var(aBnf)) << std::endl;
-
     test(is_convertible(exprB, ansnB, delta));
-    test(is_convertible(eBnf, aBnf, delta));
-    test(alpha_comp(eBnf, aBnf));
+    std::cerr << "test 2" << std::endl;
+    while (true) {
+        int rank_e = expr_rank(exprB, delta);
+        int rank_a = expr_rank(ansnB, delta);
+        show(rank_e);
+        show(rank_a);
+        bout(alpha_comp(exprB, ansnB));
+        bout(is_convertible(exprB, ansnB, delta));
+        auto exprB_n = NF_above(exprB, delta, std::min(rank_e, rank_a));
+        auto ansnB_n = NF_above(ansnB, delta, std::min(rank_e, rank_a));
+        bool brk = false;
+        bout(alpha_comp(exprB, exprB_n));
+        if (bout_result) brk = true;
+        bout(alpha_comp(ansnB, ansnB_n));
+        if (bout_result && brk) break;
+        exprB = exprB_n;
+        ansnB = ansnB_n;
+    }
+    std::cerr << "test 3" << std::endl;
+    show(expr_rank(NF(exprB, delta), delta));
+    show(expr_rank(NF(ansnB, delta), delta));
+    show(expr_rank(NF(exprB, delta), delta));
+    show(expr_rank(NF(ansnB, delta), delta));
+    test(is_convertible(exprB, ansnB, delta));
 
     test_result();
 }
