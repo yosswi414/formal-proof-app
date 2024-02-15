@@ -781,17 +781,32 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
             return reduced;
         };
 
-        auto contract_top_term = [&stack_dump, &is_ps_sort](stk_pt stk, bool is_term_decided = false) -> bool {
+        auto contract_top_term = [&tokens, &stack_dump, &is_ps_sort](stk_pt stk, bool is_term_decided = false) -> bool {
             bool reduced = false;
 
-            debug("contract_top_term(): " << fstr(is_term_decided) << ", stack = " << stack_dump(stk));
+            // debug("contract_top_term(): " << fstr(is_term_decided) << ", stack = " << stack_dump(stk));
+            if (is_term_decided) {
+                switch(stk->top().ptype()) {
+                    case ParseType::Term:
+                        break;
+                    case ParseType::Identifier_Str:
+                    case ParseType::Varname_Incomplete: {
+                        stk->top().change_ptype(ParseType::Term);
+                        stk->top().terms() = {variable(stk->top().excerpt(tokens))};
+                        reduced = true;
+                        break;
+                    }
+                    default:
+                        break;
+                }
+            }
 
             while (stk->size() >= 2 && stk->top().ptype() == ParseType::Term) {
                 ParseStack s1 = stk->top();
                 stk->pop();
                 ParseStack s0 = stk->top();
                 stk->pop();
-                debug("contract_top_term(): s0, s1 = " << to_string_short(s0.ptype()) << ", " << to_string_short(s1.ptype()));
+                // debug("contract_top_term(): s0, s1 = " << to_string_short(s0.ptype()) << ", " << to_string_short(s1.ptype()));
                 bool is_lambda = false;
                 switch (s0.ptype()) {
                     case ParseType::_WaitTerm: {
@@ -865,13 +880,28 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                         // debug("contract_top_term():AbP1: " << fstr(s0.terms().front()));
                         // debug("contract_top_term():AbP1: " << fstr(s1.terms().size()));
                         // debug("contract_top_term():AbP1: " << fstr(s1.terms().front()));
-                        debug("contract_top_term():AbP1: s0 bound: " << s0.terms()[0]);
+                        // debug("contract_top_term():AbP1: s0 bound: " << s0.terms()[0]);
                         const auto term = s1.terms()[0];
-                        debug("contract_top_term():AbP1: " << fstr(term));
+                        // debug("contract_top_term():AbP1: " << fstr(term));
                         // debug("contract_top_term():AbP1: term type = " << to_string(term->etype()));
                         s0.add_term(term);
                         ParseType new_type = (is_lambda ? ParseType::AbstL_WaitPeriod : ParseType::AbstP_WaitPeriod);
                         s0.change_ptype(new_type);
+                        s0.end() = s1.end();
+                        stk->push(s0);
+                        reduced = true;
+                        break;
+                    }
+                    case ParseType::Const_WaitTermOrClose:
+                    case ParseType::Const_WaitTerm: {
+                        if (!is_term_decided) {
+                            stk->push(s0);
+                            stk->push(s1);
+                            return reduced;
+                        }
+                        const auto term = s1.terms()[0];
+                        s0.add_term(term);
+                        s0.change_ptype(ParseType::Const_WaitCloseOrComma);
                         s0.end() = s1.end();
                         stk->push(s0);
                         reduced = true;
@@ -882,14 +912,15 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                         stk->push(s1);
                         return reduced;
                 }
-                debug("contract_top_term(): one step, stack = " << stack_dump(stk));
+                // debug("contract_top_term(): one step, stack = " << stack_dump(stk));
             }
+            // debug("contract_top_term(): finished");
             return reduced;
         };
 
         bool reduced = true;
 
-        debug(fstr(idx) << " < " << end_of_token << ", fetched: " << tokens[idx] << " (" << to_string(stk->top().ptype()) << ")");
+        // debug(fstr(idx) << " < " << end_of_token << ", fetched: " << tokens[idx] << " (" << to_string(stk->top().ptype()) << ")");
 
         while (!invalid_token_err && !end_of_line && reduced) {
             reduced = false;
@@ -1014,13 +1045,16 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                     // Const_WaitTerm T arr ... arr T ,
                     ParseStack comma = stk->top();
                     stk->pop();
-                    load_arrow_seq(stash);
-                    elim_right_assoc(stash);
-                    flush(1);
+                    if (is_readable_as_term(stk->top().ptype())) {
+                        load_arrow_seq(stash);
+                        elim_right_assoc(stash);
+                        flush(1);
+                        contract_top_term(stk, true);
+                    }
                     stk->push(comma);
 
-                    // Const_WaitTerm T ,
-                    load(3);
+                    // Const_WaitCloseOrComma ,
+                    load(2);
                     switch (stash[0].ptype()) {
                         case ParseType::Const_WaitTermOrClose:
                         case ParseType::Const_WaitTerm: {
@@ -1038,9 +1072,9 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                                 tokens[stk->top().begin()], tokens[stk->top().end() - 1]);
                         }
                         case ParseType::Const_WaitCloseOrComma: {
-                            stash[0].add_term(stash[1].terms().front());
+                            // stash[0].add_term(stash[1].terms().front());
                             stash[0].change_ptype(ParseType::Const_WaitTerm);
-                            stash[0].end() = stash[2].end();
+                            stash[0].end() = stash[1].end();
                             flush(1);
                             // Const_WaitCloseOrComma
                             reduced = true;
@@ -1056,7 +1090,18 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                 }
 
                 case ParseType::Const_Close: {
-                    // Const_Name Const_WaitClose ]
+                    // Const_Name Const_WaitTerm T ]
+                    ParseStack close = stk->top();
+                    stk->pop();
+                    if (is_readable_as_term(stk->top().ptype())) {
+                        load_arrow_seq(stash);
+                        elim_right_assoc(stash);
+                        flush(1);
+                        contract_top_term(stk, true);
+                    }
+                    stk->push(close);
+
+                    // Const_Name Const_WaitCloseOrComma ]
                     load(3);
                     if (stash[0].ptype() != ParseType::Const_Name) {
                         throw ParseError(
@@ -1192,9 +1237,9 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                     load_arrow_seq(stash);
                     reduced |= elim_right_assoc(stash);
                     flush(1);
-                    debug(fstr(idx) << ", at AbSpPr after elim right assoc, stack = " << stack_dump(stk));
+                    // debug(fstr(idx) << ", at AbSpPr after elim right assoc, stack = " << stack_dump(stk));
                     reduced |= contract_top_term(stk, true);
-                    debug(fstr(idx) << ", at AbSpPr after contract top term, stack = " << stack_dump(stk));
+                    // debug(fstr(idx) << ", at AbSpPr after contract top term, stack = " << stack_dump(stk));
                     stk->push(period);
 
                     // Abst_WaitFirst Term Abst_SepPeriod
@@ -1224,6 +1269,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                 }
 
                 case ParseType::Term: {
+                    if (stk->size() == 1) break;
                     load(2);
                     if (!stk->empty() && stash[0].ptype() == ParseType::Term) {
                         load(1);
@@ -1246,7 +1292,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                     }
                     flush(stash.size());
 
-                    debug(fstr(idx) << ", at T after * T T, stack = " << stack_dump(stk));
+                    // debug(fstr(idx) << ", at T after * T T, stack = " << stack_dump(stk));
 
                     reduced |= contract_top_term(stk, false);
                     break;
@@ -1305,9 +1351,9 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
             }
         }
 
-        debug(fstr(idx) << " < " << end_of_token << ", reduction finished, stack: " << stack_dump(stk));
+        // debug(fstr(idx) << " < " << end_of_token << ", reduction finished, stack: " << stack_dump(stk));
         if (invalid_token_err) {
-            debug(fstr(idx) << ", invalid token found");
+            // debug(fstr(idx) << ", invalid token found");
             invalid_token_err->puterror();
         }
 
@@ -1348,25 +1394,26 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
             reduced = true;
             while (reduced) {
                 reduced = false;
-                debug(fstr(idx) << " < " << end_of_token << ", finalize 0/2, stack: " << stack_dump(stk));
+                // debug(fstr(idx) << " < " << end_of_token << ", finalize 0/2, stack: " << stack_dump(stk));
                 load_arrow_seq(stash);
                 reduced |= elim_right_assoc(stash);
                 flush(1);
-                debug(fstr(idx) << " < " << end_of_token << ", finalize 1/2, stack: " << stack_dump(stk));
+                // debug(fstr(idx) << " < " << end_of_token << ", finalize 1/2, stack: " << stack_dump(stk));
                 reduced |= contract_top_term(stk, true);
-                debug(fstr(idx) << " < " << end_of_token << ", finalize 2/2, stack: " << stack_dump(stk));
+                // debug(fstr(idx) << " < " << end_of_token << ", finalize 2/2, stack: " << stack_dump(stk));
             }
             break;
         }
         ++idx;
     }
 
-    debug(fstr(stk->top().terms().size()));
+    // debug(fstr(stk->top().terms().size()));
 
     if (stk->top().terms().size() != 1) throw ParseError(
         "Could not obtain an expr by parsing this part",
         tokens[stk->top().begin()], tokens[stk->top().end() - 1]);
 
+    // debug("return: " << stk->top().terms().front());
     return std::make_shared<ParseLambdaToken>(tokens[stk->top().begin()], tokens[idx = stk->top().end() - 1], stk->top().terms()[0]);
 }
 
@@ -1380,9 +1427,13 @@ std::shared_ptr<Term> parse_lambda_new(const std::string& str, const std::shared
     return parse_lambda_new(tokens, idx, tokens.size(), true, flag_context, definitions)->term();
 }
 
-std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens, size_t& idx, size_t end_of_token, bool exhaust_token, const std::shared_ptr<std::vector<std::shared_ptr<Context>>>& flag_context, bool no_chainer) {
+std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tokens, size_t& idx, const std::shared_ptr<std::vector<std::shared_ptr<Context>>>& flag_context, const std::shared_ptr<Environment> definitions) {
+    return parse_lambda_new(tokens, idx, tokens.size(), false, flag_context, definitions);
+}
+
+std::shared_ptr<ParseLambdaToken> parse_lambda_old(const std::vector<Token>& tokens, size_t& idx, size_t end_of_token, bool exhaust_token, const std::shared_ptr<std::vector<std::shared_ptr<Context>>>& flag_context, bool no_chainer) {
     // {
-    //     std::cerr << "[debug] parse_lambda(): from " << tokens[idx] << " to ";
+    //     std::cerr << "[debug] parse_lambda_old(): from " << tokens[idx] << " to ";
     //     if (end_of_token == tokens.size()) std::cerr << "end";
     //     else std::cerr << tokens[end_of_token - 1];
     //     std::cerr << std::endl;
@@ -1428,7 +1479,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
         }
         case TokenType::ParenLeft: {
             size_t parleft = idx;
-            auto content = parse_lambda(tokens, ++idx, end_of_token, flag_context, false);
+            auto content = parse_lambda_old(tokens, ++idx, end_of_token, flag_context, false);
 
             incr_idx("a closing parenthesis", "inside a parentheses", parleft);
 
@@ -1447,7 +1498,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
             std::shared_ptr<ParseLambdaToken> expr1, expr2;
             incr_idx("an expr", "an application", appl_hdr, 0);
             try {
-                expr1 = parse_lambda(tokens, idx, end_of_token, flag_context);
+                expr1 = parse_lambda_old(tokens, idx, end_of_token, flag_context);
             } catch (ExprError& e) {
                 ExprError newe(
                     "above error raised during parsing 1st expr of application", tokens[idx],
@@ -1457,7 +1508,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
             }
             incr_idx("an expr", "an application", appl_hdr);
             try {
-                expr2 = parse_lambda(tokens, idx, end_of_token, exhaust_token, flag_context, true);
+                expr2 = parse_lambda_old(tokens, idx, end_of_token, exhaust_token, flag_context, true);
             } catch (ExprError& e) {
                 ExprError newe(
                     "above error raised during parsing 2nd expr of application (1st expr = " + expr1->term()->string() + ")", tokens[idx],
@@ -1484,7 +1535,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
                 "expected colon, not found by here", tokens[pos_colon],
                 "during parsing an abstraction", tokens[abst_hdr], tokens[pos_colon - 1]);
             try {
-                var = parse_lambda(tokens, idx, pos_colon, true, flag_context);
+                var = parse_lambda_old(tokens, idx, pos_colon, true, flag_context);
             } catch (ExprError& e) {
                 ExprError newe(
                     "above error raised during parsing bind variable of abstraction", tokens[idx],
@@ -1559,7 +1610,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
                 pos_period_last_valid = pos_period;
                 std::cerr << "[debug] parsing abst: " << var->term() << ": first token of 1st expr: " << tokens[idx] << "\tperiod_pos: " << tokens[pos_period] << std::endl;
                 try {
-                    expr1 = parse_lambda(tokens, idx, pos_period, true, flag_context);
+                    expr1 = parse_lambda_old(tokens, idx, pos_period, true, flag_context);
                 } catch (ExprError& e) {
                     std::cerr << "[debug] parsing abst: " << var->term() << ":  failed. moving period forward." << std::endl;
                     // e.puterror();
@@ -1571,7 +1622,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
                 idx = pos_period + 1;
                 std::cerr << "[debug] parsing abst: " << var->term() << ", " << expr1->term() << ": first token of 2nd expr: " << tokens[idx] << "\tperiod_pos: " << tokens[pos_period] << std::endl;
                 try {
-                    expr2 = parse_lambda(tokens, idx, end_of_token, exhaust_token, flag_context, true);
+                    expr2 = parse_lambda_old(tokens, idx, end_of_token, exhaust_token, flag_context, true);
                     std::cerr << "[debug] parsing abst: " << var->term() << ", " << expr1->term() << ": parsed: " << expr2->term() << std::endl;
                 } catch (ExprError& e) {
                     std::cerr << "[debug] parsing abst: " << var->term() << ", " << expr1->term() << ": failed. moving period forward." << std::endl;
@@ -1604,7 +1655,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
             // // ++idx;
             // incr_idx("an expr", "an abstraction", abst_hdr);
             // try {
-            //     expr2 = parse_lambda(tokens, idx, end_of_token, flag_context, true);
+            //     expr2 = parse_lambda_old(tokens, idx, end_of_token, flag_context, true);
             // } catch (ExprError& e) {
             //     e.puterror();
             //     throw ExprError(
@@ -1734,7 +1785,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
             if (require_more_args || tokens[idx].type() != TokenType::SquareBracketRight) {
                 while (true) {
                     try {
-                        parameters.emplace_back(parse_lambda(tokens, idx, end_of_token, flag_context)->term());
+                        parameters.emplace_back(parse_lambda_old(tokens, idx, end_of_token, flag_context)->term());
                     } catch (ExprError& e) {
                         ExprError newe(
                             "above error raised during parsing #" + std::to_string(parameters.size() + 1) + " expr of constant", tokens[idx],
@@ -1791,7 +1842,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
             incr_idx("an expr after " + chainer_name, "an expr with chainer", chain_hdr);
             std::shared_ptr<ParseLambdaToken> plt;
             try {
-                plt = parse_lambda(tokens, idx, flag_context);
+                plt = parse_lambda_old(tokens, idx, flag_context);
             } catch (ExprError& e) {
                 ExprError newe(
                     "above error raised during parsing expr", tokens[idx],
@@ -1832,24 +1883,24 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
                     case TokenType::Spaces:
                         continue;
                     default:
-                        throw ExprError("reached end of parse_lambda() (tokens must be exhausted)", tokens[idx]);
+                        throw ExprError("reached end of parse_lambda_old() (tokens must be exhausted)", tokens[idx]);
                 }
             }
         }
         // std::cerr << "[debug] return: " << res_from << "-" << res_to << ", " << res_ptr << std::endl;
         return std::make_shared<ParseLambdaToken>(tokens[res_from], tokens[res_to], res_ptr);
     }
-    throw ParseError("reached end of parse_lambda()", tokens[idx]);
+    throw ParseError("reached end of parse_lambda_old()", tokens[idx]);
 }
-std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens, size_t& idx, size_t end_of_token, const std::shared_ptr<std::vector<std::shared_ptr<Context>>>& flag_context, bool no_chainer) {
-    return parse_lambda(tokens, idx, end_of_token, false, flag_context, no_chainer);
-}
-
-std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens, size_t& idx, const std::shared_ptr<std::vector<std::shared_ptr<Context>>>& flag_context, bool no_chainer) {
-    return parse_lambda(tokens, idx, tokens.size(), flag_context, no_chainer);
+std::shared_ptr<ParseLambdaToken> parse_lambda_old(const std::vector<Token>& tokens, size_t& idx, size_t end_of_token, const std::shared_ptr<std::vector<std::shared_ptr<Context>>>& flag_context, bool no_chainer) {
+    return parse_lambda_old(tokens, idx, end_of_token, false, flag_context, no_chainer);
 }
 
-std::shared_ptr<Term> parse_lambda(const std::string& str, const std::shared_ptr<std::vector<std::shared_ptr<Context>>>& flag_context) {
+std::shared_ptr<ParseLambdaToken> parse_lambda_old(const std::vector<Token>& tokens, size_t& idx, const std::shared_ptr<std::vector<std::shared_ptr<Context>>>& flag_context, bool no_chainer) {
+    return parse_lambda_old(tokens, idx, tokens.size(), flag_context, no_chainer);
+}
+
+std::shared_ptr<Term> parse_lambda_old(const std::string& str, const std::shared_ptr<std::vector<std::shared_ptr<Context>>>& flag_context) {
     size_t idx = 0;
     std::shared_ptr<FileData> fdp = std::make_shared<FileData>(FileData({str}, "raw_string[parse_lambda]"));
     raw_string_fds.push_back(fdp);
@@ -1857,11 +1908,11 @@ std::shared_ptr<Term> parse_lambda(const std::string& str, const std::shared_ptr
     // for (size_t i = 0; i < tokens.size(); ++i) {
     //     std::cerr << "[debug] token " << i << ": " << tokens[i] << std::endl;
     // }
-    return parse_lambda(tokens, idx, tokens.size(), true, flag_context)->term();
+    return parse_lambda_old(tokens, idx, tokens.size(), true, flag_context)->term();
 }
 
 Environment parse_defs(const std::vector<Token>& tokens) {
-    Environment env;
+    std::shared_ptr<Environment> env = std::make_shared<Environment>();
     // state variables
     bool eof = false;
     int in_def = -1;     // def2 - edef2
@@ -1899,7 +1950,8 @@ Environment parse_defs(const std::vector<Token>& tokens) {
 
     std::queue<std::shared_ptr<Variable>> temp_vars;
 
-    std::vector<std::shared_ptr<Context>> flag_context;
+    std::shared_ptr<std::vector<std::shared_ptr<Context>>> flag_context;
+    flag_context = std::make_shared<std::vector<std::shared_ptr<Context>>>();
     size_t flag_line_num = 0;
 
     auto def_str = [&]() {
@@ -1939,8 +1991,8 @@ Environment parse_defs(const std::vector<Token>& tokens) {
         // if (DEBUG_CERR) std::cerr << "[debug; parse loop] flag[def]: " << def_str() << ", token: " << tokens[idx] << std::endl;
         if (DEBUG_CERR) {
             std::cerr << "[debug; parse loop] flag[def]: " << def_str() << ", flag[flg]: " << flg_str() << ", token: " << tokens[idx] << "\t";  // << (tokens[idx].type() == TokenType::NewLine ? "<NL>" : tokens[idx].string()) << "\"\t";
-            std::cerr << "flag context dump (size: " << flag_context.size() << "): ";
-            for (auto&& c : flag_context) {
+            std::cerr << "flag context dump (size: " << flag_context->size() << "): ";
+            for (auto&& c : *flag_context) {
                 std::cerr << "[";
                 if (c) std::cerr << c;
                 else std::cerr << "NUL";
@@ -1966,7 +2018,8 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                 case TokenType::Character: {
                     size_t idx0 = idx;
                     try {
-                        expr = parse_lambda(tokens, idx, std::make_shared<std::vector<std::shared_ptr<Context>>>(flag_context));
+                        // expr = parse_lambda_old(tokens, idx, std::make_shared<std::vector<std::shared_ptr<Context>>>(flag_context));
+                        expr = parse_lambda_new(tokens, idx, flag_context, env);
                     } catch (const ExprError& e) {
                         ParseError err("failed to parse a lambda expression", tokens[idx0]);
                         err.bind(e);
@@ -2073,7 +2126,7 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                     while (!temp_vars.empty()) {
                         auto q = temp_vars.front();
                         temp_vars.pop();
-                        flag_context[flag_line_num]->emplace_back(q, expr->term());
+                        (*flag_context)[flag_line_num]->emplace_back(q, expr->term());
                     }
                     read_flag_context_type = false;
                     read_lambda = false;
@@ -2094,9 +2147,9 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                 type = expr->term();
                 read_flag_stmt_type = false;
                 context = std::make_shared<Context>();
-                for (size_t i = 0; i < flag_line_num; ++i) *context += *flag_context[i];
-                if (term) env.push_back(std::make_shared<Definition>(context, cname, term, type));
-                else env.push_back(std::make_shared<Definition>(context, cname, type));
+                for (size_t i = 0; i < flag_line_num; ++i) *context += *(*flag_context)[i];
+                if (term) env->push_back(std::make_shared<Definition>(context, cname, term, type));
+                else env->push_back(std::make_shared<Definition>(context, cname, type));
             }
             continue;
         }
@@ -2143,12 +2196,12 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                 // add definition to env
                 read_def_end = false;
                 if (term) {
-                    env.push_back(std::make_shared<Definition>(
+                    env->push_back(std::make_shared<Definition>(
                         context,
                         cname,
                         term, type));
                 } else {
-                    env.push_back(std::make_shared<Definition>(
+                    env->push_back(std::make_shared<Definition>(
                         context,
                         cname,
                         type));
@@ -2160,7 +2213,7 @@ Environment parse_defs(const std::vector<Token>& tokens) {
             case TokenType::Character:
             case TokenType::String: {
                 if (read_def_name || read_flag_cname) {
-                    if (flag_line_num < flag_context.size()) flag_context.resize(flag_line_num);
+                    if (flag_line_num < flag_context->size()) flag_context->resize(flag_line_num);
                     cname = t.string();
                     bool name_confirmed = false;
                     while (tokens[idx + 1].type() != TokenType::NewLine && tokens[idx + 1].type() != TokenType::DefinedBy) {
@@ -2194,8 +2247,8 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                 read_flag_context = true;
                 read_flag_context_type = false;
                 read_lambda = true;
-                if (flag_line_num < flag_context.size()) flag_context.resize(flag_line_num);
-                flag_context.push_back(std::make_shared<Context>());
+                if (flag_line_num < flag_context->size()) flag_context->resize(flag_line_num);
+                flag_context->push_back(std::make_shared<Context>());
                 continue;
             }
             case TokenType::SquareBracketRight: {
@@ -2229,9 +2282,9 @@ Environment parse_defs(const std::vector<Token>& tokens) {
             case TokenType::Verticalbar: {
                 if (!vbar_head_of_line) throw ParseError("vertical bar '|' should be placed at the head of line", t);
                 ++flag_line_num;
-                if (flag_context.size() < flag_line_num || !flag_context[flag_line_num - 1]) {
-                    std::cerr << "flag context dump (size: " << flag_context.size() << "): ";
-                    for (auto&& c : flag_context) {
+                if (flag_context->size() < flag_line_num || !(*flag_context)[flag_line_num - 1]) {
+                    std::cerr << "flag context dump (size: " << flag_context->size() << "): ";
+                    for (auto&& c : *flag_context) {
                         std::cerr << "[";
                         if (c) std::cerr << c;
                         else std::cerr << "NUL";
@@ -2252,7 +2305,7 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                 throw ParseError("invalid token", t);
             }
             case TokenType::NewLine: {
-                if (!read_flag_context_end && flag_line_num < flag_context.size()) flag_context.resize(flag_line_num);
+                if (!read_flag_context_end && flag_line_num < flag_context->size()) flag_context->resize(flag_line_num);
                 flag_line_num = 0;
                 vbar_head_of_line = true;
                 read_flag_cname = true;
@@ -2265,5 +2318,5 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                 throw ParseError("not implemented in parse_defs() (token = " + to_string(t) + ")", t);
         }
     }
-    return env;
+    return *env;
 }
