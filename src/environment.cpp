@@ -14,8 +14,13 @@ Environment::Environment(const std::vector<std::shared_ptr<Definition>>& defs) :
     }
 }
 
+std::vector<std::shared_ptr<FileData>> raw_fname_fds;
+
 Environment::Environment(const std::string& fname) {
-    *this = parse_defs(tokenize(FileData(fname)));
+    std::shared_ptr<FileData> fdp = std::make_shared<FileData>(fname);
+    raw_fname_fds.push_back(fdp);
+    auto tokens = tokenize(*fdp);
+    *this = parse_defs(tokens);
 }
 
 std::string Environment::string(bool inSingleLine, size_t indentSize) const {
