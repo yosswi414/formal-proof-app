@@ -22,23 +22,42 @@ $ bin/def_conv.out -f <input_file> [options...]
 $ bin/verifier.out -f <input_file> [options...]
 ```
 
+- Reads `input_file` as a definition file and outputs a script file (series of inference rule)
+```bash
+$ bin/genscript.out -f <input_file> [options...]
+```
+
 ### Options (Common)
 
 - `-f FILE`: Read `FILE` instead of stdin
-- `-c`: Use the conventional notation (No syntax sugar)
-- `-n`: Use the new notation (Redundant brackets are omitted)
-- `-r`: Use the rich notation (Intended to be a human-readable format; not readable by above executables)
 - `-s`: Suppress output, only verifies the input
 - `-h`: Show help page and exit
 
-### Options (Only available in `bin/verifier.out`)
+### Options (`bin/def_conv.out`)
 
+- `-c`: Use the conventional notation (No syntax sugar)
+- `-n`: Use the new notation (Redundant brackets are omitted)
+- `-r`: Use the rich notation (Intended to be a human-readable format; not readable by above executables)
+
+### Options (`bin/verifier.out`)
+
+- `-c`: Use the conventional notation (No syntax sugar)
+- `-n`: Use the new notation (Redundant brackets are omitted)
+- `-r`: Use the rich notation (Intended to be a human-readable format; not readable by above executables)
 - `-l LINES`: Read first `LINES` lines of input and ignore the rest
 - `-d def_file`: Read `def_file` for definition reference (The name of definition will be referred to in the output book)
-- `-o out_file`: Output the output (book) to `out_file` instead of stdout
+- `-o out_file`: Output to `out_file` instead of stdout
 - `-e log_file`: Output the error output to `log_file` instead of stderr
 - `--out-def out_def_file`: Extract the final environment from input script and output definitions to `def_file`
 - `--skip-check`: Bypass the inference rule applicability check through the script (Saves some time)
+- `-v`: verbose output (debug purpose)
+
+
+### Options (`bin/genscript.out`)
+- `-f FILE`: Read `FILE` instead of stdin
+- `-o out_file`: Output to `out_file` instead of stdout
+- `-t target`: Choose a definition in input and only focus on it and its dependency
+- `-v`: verbose output (debug purpose)
 
 ## About the syntax sugars
 
