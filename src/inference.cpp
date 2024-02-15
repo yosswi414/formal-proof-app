@@ -80,21 +80,6 @@ std::shared_ptr<Term> get_type(const std::shared_ptr<Term>& term, const std::sha
     }
 }
 
-enum class RuleType {
-    Sort,
-    Var,
-    Weak,
-    Form,
-    Appl,
-    Abst,
-    Conv,
-    Def,
-    Defpr,
-    Inst,
-    Cp,
-    Sp,
-    Tp
-};
 
 std::string to_string(const RuleType type) {
     switch (type) {
@@ -115,187 +100,64 @@ std::string to_string(const RuleType type) {
     return "[RuleType::to_string: unknown type: " + std::to_string((int)type) + "]";
 }
 
-class Rule {
-  public:
-    Rule(RuleType type, int lno = -1);
-    RuleType type() const;
-
-  private:
-    RuleType _type;
-    int _lno;
-};
-
-Rule::Rule(RuleType type, int lno) : _type(type), _lno(lno) {}
-RuleType Rule::type() const { return _type; }
-
-using RulePtr = std::shared_ptr<Rule>;
-
-class Sort : public Rule {
-  public:
-    Sort();
-};
+Rule::Rule(RuleType rtype) : _rtype(rtype) {}
+RuleType Rule::rtype() const { return _rtype; }
+int& Rule::lno() { return _lno; }
 
 Sort::Sort() : Rule(RuleType::Sort) {}
 
-class Var : public Rule {
-  public:
-    Var(const RulePtr& idx, const std::string& var);
-    const RulePtr& idx() const;
-    const std::string& var() const;
-
-  private:
-    RulePtr _idx;
-    std::string _var;
-};
-
-Var::Var(const RulePtr& idx, const std::string& var) : Rule(RuleType::Var), _idx(idx), _var(var) {}
-const RulePtr& Var::idx() const { return _idx; }
+Var::Var(const RulePtr& idx, const std::string& vname) : Rule(RuleType::Var), _idx(idx), _var(vname) {}
+RulePtr& Var::idx() { return _idx; }
 const std::string& Var::var() const { return _var; }
 
-class Weak : public Rule {
-  public:
-    Weak(const RulePtr& idx1, const RulePtr& idx2, const std::string& var);
-    const RulePtr& idx1() const;
-    const RulePtr& idx2() const;
-    const std::string& var() const;
-
-  private:
-    RulePtr _idx1, _idx2;
-    std::string _var;
-};
-
 Weak::Weak(const RulePtr& idx1, const RulePtr& idx2, const std::string& var) : Rule(RuleType::Weak), _idx1(idx1), _idx2(idx2), _var(var) {}
-const RulePtr& Weak::idx1() const { return _idx1; }
-const RulePtr& Weak::idx2() const { return _idx2; }
+RulePtr& Weak::idx1() { return _idx1; }
+RulePtr& Weak::idx2() { return _idx2; }
 const std::string& Weak::var() const { return _var; }
 
-class Form : public Rule {
-  public:
-    Form(const RulePtr& idx1, const RulePtr& idx2);
-    const RulePtr& idx1() const;
-    const RulePtr& idx2() const;
-
-  private:
-    RulePtr _idx1, _idx2;
-};
-
 Form::Form(const RulePtr& idx1, const RulePtr& idx2) : Rule(RuleType::Form), _idx1(idx1), _idx2(idx2) {}
-const RulePtr& Form::idx1() const { return _idx1; }
-const RulePtr& Form::idx2() const { return _idx2; }
-
-class Appl : public Rule {
-  public:
-    Appl(const RulePtr& idx1, const RulePtr& idx2);
-    const RulePtr& idx1() const;
-    const RulePtr& idx2() const;
-
-  private:
-    RulePtr _idx1, _idx2;
-};
+RulePtr& Form::idx1() { return _idx1; }
+RulePtr& Form::idx2() { return _idx2; }
 
 Appl::Appl(const RulePtr& idx1, const RulePtr& idx2) : Rule(RuleType::Appl), _idx1(idx1), _idx2(idx2) {}
-const RulePtr& Appl::idx1() const { return _idx1; }
-const RulePtr& Appl::idx2() const { return _idx2; }
-
-class Abst : public Rule {
-  public:
-    Abst(const RulePtr& idx1, const RulePtr& idx2);
-    const RulePtr& idx1() const;
-    const RulePtr& idx2() const;
-
-  private:
-    RulePtr _idx1, _idx2;
-};
+RulePtr& Appl::idx1() { return _idx1; }
+RulePtr& Appl::idx2() { return _idx2; }
 
 Abst::Abst(const RulePtr& idx1, const RulePtr& idx2) : Rule(RuleType::Abst), _idx1(idx1), _idx2(idx2) {}
-const RulePtr& Abst::idx1() const { return _idx1; }
-const RulePtr& Abst::idx2() const { return _idx2; }
-
-class Conv : public Rule {
-  public:
-    Conv(const RulePtr& idx1, const RulePtr& idx2);
-    const RulePtr& idx1() const;
-    const RulePtr& idx2() const;
-
-  private:
-    RulePtr _idx1, _idx2;
-};
+RulePtr& Abst::idx1() { return _idx1; }
+RulePtr& Abst::idx2() { return _idx2; }
 
 Conv::Conv(const RulePtr& idx1, const RulePtr& idx2) : Rule(RuleType::Conv), _idx1(idx1), _idx2(idx2) {}
-const RulePtr& Conv::idx1() const { return _idx1; }
-const RulePtr& Conv::idx2() const { return _idx2; }
-
-class Def : public Rule {
-  public:
-    Def(const RulePtr& idx1, const RulePtr& idx2, const std::string& name);
-    const RulePtr& idx1() const;
-    const RulePtr& idx2() const;
-    const std::string& name() const;
-
-  private:
-    RulePtr _idx1, _idx2;
-    std::string _name;
-};
+RulePtr& Conv::idx1() { return _idx1; }
+RulePtr& Conv::idx2() { return _idx2; }
 
 Def::Def(const RulePtr& idx1, const RulePtr& idx2, const std::string& name) : Rule(RuleType::Def), _idx1(idx1), _idx2(idx2), _name(name) {}
-const RulePtr& Def::idx1() const { return _idx1; }
-const RulePtr& Def::idx2() const { return _idx2; }
+RulePtr& Def::idx1() { return _idx1; }
+RulePtr& Def::idx2() { return _idx2; }
 const std::string& Def::name() const { return _name; }
 
-class Defpr : public Rule {
-  public:
-    Defpr(const RulePtr& idx1, const RulePtr& idx2, const std::string& name);
-    const RulePtr& idx1() const;
-    const RulePtr& idx2() const;
-    const std::string& name() const;
-
-  private:
-    RulePtr _idx1, _idx2;
-    std::string _name;
-};
-
 Defpr::Defpr(const RulePtr& idx1, const RulePtr& idx2, const std::string& name) : Rule(RuleType::Defpr), _idx1(idx1), _idx2(idx2), _name(name) {}
-const RulePtr& Defpr::idx1() const { return _idx1; }
-const RulePtr& Defpr::idx2() const { return _idx2; }
+RulePtr& Defpr::idx1() { return _idx1; }
+RulePtr& Defpr::idx2() { return _idx2; }
 const std::string& Defpr::name() const { return _name; }
 
-class Inst : public Rule {
-  public:
-    Inst(const RulePtr& idx, const RulePtr& n, const std::vector<RulePtr>& k, const RulePtr& p);
-    const RulePtr& idx() const;
-    const RulePtr& n() const;
-    const RulePtr& p() const;
-    const std::vector<RulePtr>& k() const;
+Inst::Inst(const RulePtr& idx, const size_t& n, const std::vector<RulePtr>& k, const size_t& p) : Rule(RuleType::Inst), _idx(idx), _n(n), _p(p), _k(k) {}
+RulePtr& Inst::idx() { return _idx; }
+const size_t& Inst::n() const { return _n; }
+std::vector<RulePtr>& Inst::k() { return _k; }
+const size_t& Inst::p() const { return _p; }
 
-  private:
-    RulePtr _idx, _n, _p;
-    std::vector<RulePtr> _k;
-};
-
-Inst::Inst(const RulePtr& idx, const RulePtr& n, const std::vector<RulePtr>& k, const RulePtr& p) : Rule(RuleType::Inst), _idx(idx), _n(n), _p(p), _k(k) {}
-const RulePtr& Inst::idx() const { return _idx; }
-const RulePtr& Inst::n() const { return _n; }
-const std::vector<RulePtr>& Inst::k() const { return _k; }
-const RulePtr& Inst::p() const { return _p; }
-
-using Delta = std::shared_ptr<Environment>;
-using Gamma = std::shared_ptr<Context>;
-
-class DeductionError {
-  public:
-    DeductionError(const std::string& msg, const Delta& delta, const Gamma& gamma, const std::shared_ptr<Term>& term);
-
-  private:
-    std::string _msg;
-    Delta _delta;
-    Gamma _gamma;
-    std::shared_ptr<Term> _term;
-};
-DeductionError::DeductionError(const std::string& msg, const Delta& delta, const Gamma& gamma, const std::shared_ptr<Term>& term) : _msg(msg), _delta(delta), _gamma(gamma), _term(term) {}
+DeductionError::DeductionError(const std::string& msg) : _msg(msg) {}
+void DeductionError::puterror(std::ostream& os) const { os << BOLD(RED("DeductionError")) ": " <<_msg << std::endl; }
 
 std::map<Delta, std::map<Gamma, std::map<std::shared_ptr<Term>, RulePtr>>> hist_inf;
 
+int func_called = 0;
+int cache_hit = 0;
+
 RulePtr _get_script(const std::shared_ptr<Term>& term, const Delta& delta, const Gamma& gamma) {
+    ++func_called;
+    ++cache_hit;
     // cache lookup by pointer address
     bool hit_d = false, hit_g = false;
     auto itr_d = hist_inf.find(delta);
@@ -342,6 +204,7 @@ RulePtr _get_script(const std::shared_ptr<Term>& term, const Delta& delta, const
     }
 
     // cache missed (body of deduction process)
+    --cache_hit;
     RulePtr rule;
 
     switch (term->etype()) {
@@ -368,18 +231,121 @@ RulePtr _get_script(const std::shared_ptr<Term>& term, const Delta& delta, const
                     break;
                 }
             }
+            else {
+                // Δ; Γ, x:A |- * : @
+                // weak
+                // left: Δ; Γ |- * : @
+                // right: Δ; Γ |- A : s
+                std::string vname = gamma->back().value()->name();
+                std::shared_ptr<Term> type = gamma->back().type();
+                Gamma gamma_new = std::make_shared<Context>(*gamma);
+                gamma_new->pop_back();
+                RulePtr left, right;
+                left = _get_script(star, delta, gamma_new);
+                right = _get_script(type, delta, gamma_new);
+                rule = std::make_shared<Weak>(left, right, vname);
+                break;
+            }
             break;
         }
         case EpsilonType::Square:
             // square cannot have a type
-            throw DeductionError("Square (type of kind) cannot be typed", delta, gamma, term);
-        case EpsilonType::Variable:
-        case EpsilonType::Application:
-        case EpsilonType::AbstLambda:
-        case EpsilonType::AbstPi:
-        case EpsilonType::Constant:
+            throw DeductionError("Square (type of kind) cannot be typed");
+        case EpsilonType::Variable: {
+            auto t = variable(term);
+            std::string vname = gamma->back().value()->name();
+            if (vname == t->name()) {
+                // Δ; Γ, x:A |- x:A
+                // var
+                // idx: Δ; Γ |- A : s
+                std::shared_ptr<Term> type = gamma->back().type();
+                Gamma gamma_new = std::make_shared<Context>(*gamma);
+                gamma_new->pop_back();
+                RulePtr idx;
+                idx = _get_script(type, delta, gamma_new);
+                rule = std::make_shared<Var>(idx, vname);
+                break;
+            }
+            else {
+                // Δ; Γ, x:C |- A:B
+                // weak
+                // left: Δ; Γ |- A:B
+                // right:Δ; Γ |- C:s
+                auto C = gamma->back().type();
+                Gamma gamma_new = std::make_shared<Context>(*gamma);
+                gamma_new->pop_back();
+                RulePtr left, right;
+                left = _get_script(term, delta, gamma_new);
+                right = _get_script(C, delta, gamma_new);
+                rule = std::make_shared<Weak>(left, right, vname);
+                break;
+            }
+        }
+        case EpsilonType::Application: {
+            auto t = appl(term);
+            // Δ; Γ |- M N : B[x:=N]
+            // appl
+            // left: Δ; Γ |- M : ?x:A.B
+            // right: Δ; Γ |- N : A
+            RulePtr left, right;
+            left = _get_script(t->M(), delta, gamma);
+            right = _get_script(t->N(), delta, gamma);
+            rule = std::make_shared<Appl>(left, right);
+            break;
+        }
+        case EpsilonType::AbstLambda: {
+            auto t = lambda(term);
+            // Δ; Γ |- $x:A.M : ?x:A.B
+            // abst
+            // left: Δ; Γ, x: A |- M: B
+            // right: Δ; Γ |- ?x:A.B : s
+            Gamma gamma_new = std::make_shared<Context>(*gamma);
+            gamma_new->push_back(t->var());
+            RulePtr left, right;
+            left = _get_script(t->expr(), delta, gamma_new);
+            right = _get_script(get_type(t, delta, gamma), delta, gamma);
+            rule = std::make_shared<Abst>(left, right);
+            break;
+        }
+        case EpsilonType::AbstPi: {
+            auto t = pi(term);
+            // Δ; Γ |- ?x:A.B : s2
+            // form
+            // left: Δ; Γ |- A : s1
+            // right: Δ; Γ, x:A |- B : s2
+            Gamma gamma_new = std::make_shared<Context>(*gamma);
+            gamma_new->push_back(t->var());
+            RulePtr left, right;
+            left = _get_script(t->var().type(), delta, gamma);
+            right = _get_script(t->expr(), delta, gamma_new);
+            rule = std::make_shared<Form>(left, right);
+            break;
+        }
+        case EpsilonType::Constant: {
+            auto t = constant(term);
+            auto def = delta->lookup_def(t);
+            if (!def){
+                throw DeductionError("Definition not found: " + t->name());
+            }
+                // Δ; Γ |- a(U1...) : N[x1:=U1,...]
+                // inst-prim
+                // left: Δ; Γ |- * : @
+                // right:   Δ; Γ |- U1: A1
+                //          Δ; Γ |- U2: A2[x1:=U1]
+                //          Δ; Γ |- ...
+                //          Δ; Γ |- Uk: Ak[x1:=U1,...,xk-1:=Uk-1]
+            RulePtr left;
+            std::vector<RulePtr> rights;
+            left = _get_script(star, delta, gamma);
+            for(auto&& U: t->args()) {
+                rights.push_back(_get_script(U, delta, gamma));
+            }
+            rule = std::make_shared<Inst>(left, rights.size(), rights, delta->lookup_index(t));
+            break;
+
+        }
         default:
-            throw DeductionError("not implemented", delta, gamma, term);
+            throw DeductionError("not implemented");
     }
 
     // cache register

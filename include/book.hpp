@@ -35,10 +35,14 @@ class Book : public std::vector<Judgement> {
 
     std::string string() const;
     std::string repr() const;
+    std::string repr(size_t lno) const;
     std::string repr_new() const;
+    std::string repr_new(size_t lno) const;
+    std::string def_list() const;
 
     void read_script(const std::string& scriptname, size_t limit = -1);
     void read_script(const FileData& fdata, size_t limit = -1);
+    void read_script(const FileData& fdata, bool is_verbose, size_t limit = -1);
 
     void read_def_file(const std::string& fname);
     const Environment& env() const;

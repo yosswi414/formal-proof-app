@@ -4,6 +4,7 @@
 #include <memory>
 #include <queue>
 #include <vector>
+#include <fstream>
 
 #include "book.hpp"
 #include "context.hpp"
@@ -754,6 +755,108 @@ std::set<std::string> extract_constant(const std::shared_ptr<Environment>& env) 
     return extract_constant(*env);
 }
 
+size_t current_lno = 0;
+void generate_script(RulePtr& rule, TextData& data) {
+    if (rule->lno() >= 0) return;
+    switch (rule->rtype()) {
+        case RuleType::Sort: {
+            auto r = std::dynamic_pointer_cast<Sort>(rule);
+            r->lno() = current_lno++;
+            std::string script = std::to_string(r->lno()) + " sort";
+            data.push_back(script);
+            return;
+        }
+        case RuleType::Var: {
+            auto r = std::dynamic_pointer_cast<Var>(rule);
+            generate_script(r->idx(), data);
+            r->lno() = current_lno++;
+            std::string script = std::to_string(r->lno()) + " var " + std::to_string(r->idx()->lno()) + " " + r->var();
+            data.push_back(script);
+            return;
+        }
+        case RuleType::Weak: {
+            auto r = std::dynamic_pointer_cast<Weak>(rule);
+            generate_script(r->idx1(), data);
+            generate_script(r->idx2(), data);
+            r->lno() = current_lno++;
+            std::string script = std::to_string(r->lno()) + " weak " + std::to_string(r->idx1()->lno()) + " " + std::to_string(r->idx2()->lno()) + " " + r->var();
+            data.push_back(script);
+            return;
+        }
+        case RuleType::Form: {
+            auto r = std::dynamic_pointer_cast<Form>(rule);
+            generate_script(r->idx1(), data);
+            generate_script(r->idx2(), data);
+            r->lno() = current_lno++;
+            std::string script = std::to_string(r->lno()) + " form " + std::to_string(r->idx1()->lno()) + " " + std::to_string(r->idx2()->lno());
+            data.push_back(script);
+            return;
+        }
+        case RuleType::Appl: {
+            auto r = std::dynamic_pointer_cast<Appl>(rule);
+            generate_script(r->idx1(), data);
+            generate_script(r->idx2(), data);
+            r->lno() = current_lno++;
+            std::string script = std::to_string(r->lno()) + " appl " + std::to_string(r->idx1()->lno()) + " " + std::to_string(r->idx2()->lno());
+            data.push_back(script);
+            return;
+        }
+        case RuleType::Abst: {
+            auto r = std::dynamic_pointer_cast<Abst>(rule);
+            generate_script(r->idx1(), data);
+            generate_script(r->idx2(), data);
+            r->lno() = current_lno++;
+            std::string script = std::to_string(r->lno()) + " abst " + std::to_string(r->idx1()->lno()) + " " + std::to_string(r->idx2()->lno());
+            data.push_back(script);
+            return;
+        }
+        case RuleType::Conv: {
+            auto r = std::dynamic_pointer_cast<Conv>(rule);
+            generate_script(r->idx1(), data);
+            generate_script(r->idx2(), data);
+            r->lno() = current_lno++;
+            std::string script = std::to_string(r->lno()) + " conv " + std::to_string(r->idx1()->lno()) + " " + std::to_string(r->idx2()->lno());
+            data.push_back(script);
+            return;
+        }
+        case RuleType::Def: {
+            auto r = std::dynamic_pointer_cast<Def>(rule);
+            generate_script(r->idx1(), data);
+            generate_script(r->idx2(), data);
+            r->lno() = current_lno++;
+            std::string script = std::to_string(r->lno()) + " def " + std::to_string(r->idx1()->lno()) + " " + std::to_string(r->idx2()->lno()) + " " + r->name();
+            data.push_back(script);
+            return;
+        }
+        case RuleType::Defpr: {
+            auto r = std::dynamic_pointer_cast<Defpr>(rule);
+            generate_script(r->idx1(), data);
+            generate_script(r->idx2(), data);
+            r->lno() = current_lno++;
+            std::string script = std::to_string(r->lno()) + " defpr " + std::to_string(r->idx1()->lno()) + " " + std::to_string(r->idx2()->lno()) + " " + r->name();
+            data.push_back(script);
+            return;
+        }
+        case RuleType::Inst: {
+            auto r = std::dynamic_pointer_cast<Inst>(rule);
+            generate_script(r->idx(), data);
+            for (auto&& v : r->k()) { generate_script(v, data); }
+            r->lno() = current_lno++;
+            std::string script = std::to_string(r->lno()) + " inst " + std::to_string(r->idx()->lno()) + " " + std::to_string(r->k().size()) + " ";
+            for (auto&& v : r->k()) { script += std::to_string(v->lno()) + " "; }
+            script += std::to_string(r->p());
+            data.push_back(script);
+            return;
+        }
+        case RuleType::Cp:
+        case RuleType::Sp:
+        case RuleType::Tp:
+            throw DeductionError("generate_script(): not implemented");
+    }
+}
+
+extern int func_called, cache_hit;
+
 void test_inference(const Environment& defs, const std::string& def_name) {
     int idx0 = defs.lookup_index(def_name);
     if (idx0 < 0) {
@@ -790,6 +893,7 @@ void test_inference(const Environment& defs, const std::string& def_name) {
         for (auto&& [idx, cp] : resolved) {
             const std::string& c = cp.first;
             int par = cp.second;
+            std::cout << "(" << idx << ", (" << c << ", " << par << ")) ->" << std::endl;
             std::cout << "idx " << idx << ": " << c << "\n\t:= " << defs[idx] << "\n";
             if (par < 0) {
                 std::cout << "\t(root)\n";
@@ -799,6 +903,39 @@ void test_inference(const Environment& defs, const std::string& def_name) {
         }
         std::cout << std::flush;
     }
+
+    Delta delta = std::make_shared<Environment>(defs);
+    std::map<int, RulePtr> proofs;
+    RulePtr proof_obj;
+    Gamma gamma_init = std::make_shared<Context>();
+    // try {
+    //     for (auto&& [idx, cp] : resolved) {
+    //         auto def = defs[idx];
+    //         delta->push_back(def);
+    //         proofs[idx] = _get_script(star, delta, gamma_init);
+
+    //         proof_obj = proofs[idx];
+    //     }
+    // } catch (DeductionError& e) {
+    //     e.puterror();
+    //     exit(EXIT_FAILURE);
+    // }
+    proof_obj = _get_script(star, delta, gamma_init);
+    TextData data;
+    generate_script(proof_obj, data);
+
+    std::string ofname = "inference_out";
+    std::ofstream ofs(ofname);
+    if (!ofs){
+        ofs.close();
+        std::cerr << "file IO error: could not open " << ofname << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    for (auto&& line : data) ofs << line << "\n";
+    ofs << "-1" << std::endl;
+    ofs.close();
+
+    std::cerr << "script has been generated. cache stat: hit = " << cache_hit << " / " << func_called << std::endl;
 }
 
 void test_parse2() {
@@ -888,8 +1025,8 @@ void test_new_parser(const Environment& delta) {
 int main() {
     Environment defs_bez, defs_mine;
     try {
-        defs_bez = Environment("def_file_bez");
-        // defs_mine = Environment("src/def_file");
+        // defs_bez = Environment("def_file_bez");
+        defs_mine = Environment("src/def_file");
     } catch (ParseError& e) {
         e.puterror();
         exit(EXIT_FAILURE);
@@ -904,13 +1041,13 @@ int main() {
     // test_sandbox_combinators();
 
     // test_parse();
-    test_reduction3(defs_bez);
+    // test_reduction3(defs_bez);
     // test_def_file();
 
     // test_get_type();
     // test_yaps();
 
-    // test_inference(defs_mine, "exists1");
+    test_inference(defs_mine, "implies_in");
 
     // test_parse2();
     // test_new_parser(defs_bez);

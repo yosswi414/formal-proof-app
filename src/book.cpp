@@ -15,7 +15,11 @@ Book::Book(const FileData& fdata, size_t limit) : Book(false) {
     read_script(fdata, limit);
 }
 
-void Book::read_script(const FileData& fdata, size_t limit) {
+void Book::read_script(const FileData& fdata, size_t limit){
+    this->read_script(fdata, false, limit);
+}
+
+void Book::read_script(const FileData& fdata, bool is_verbose, size_t limit) {
     std::stringstream ss;
     auto errmsg = [](const std::string& op, size_t lno) {
         return op + ": wrong format (line " + std::to_string(lno + 1) + ")";
@@ -148,6 +152,7 @@ void Book::read_script(const FileData& fdata, size_t limit) {
         }
         ss.clear();
         ss.str("");
+        if (is_verbose) std::cerr << this->repr(this->size() - 1);
     }
 }
 
@@ -385,55 +390,74 @@ std::string Book::string() const {
     res += "\n]]";
     return res;
 }
-std::string Book::repr() const {
+
+std::string Book::def_list() const {
     std::stringstream ss;
     // defs enum
     for (size_t dno = 0; dno < this->env().size(); ++dno) {
         ss << "D" << dno << " : " << this->env()[dno]->repr_book() << std::endl;
-    }
-    if (this->env().size() > 0) ss << "--------------" << std::endl;
-    for (size_t lno = 0; lno < this->size(); ++lno) {
-        const auto& judge = (*this)[lno];
-        ss << lno << " : ";
-        if (this->env().size() > 0) {
-            if (judge.env()->size() > 0) ss << "D" << def_num((*judge.env())[0]);
-            for (size_t dno = 1; dno < judge.env()->size(); ++dno) {
-                ss << ",D" << def_num((*judge.env())[dno]);
-            }
-        } else if (judge.env()->size() > 0) {
-            ss << "env(#defs = " << judge.env()->size() << ")";
-        }
-        ss << " ; ";
-        // output context
-        ss << judge.context()->repr_book() << " |- ";
-        ss << judge.term()->repr_book() << " : ";
-        ss << judge.type()->repr_book() << "\n";
     }
     return ss.str();
 }
+
+std::string Book::repr(size_t lno) const {
+    std::stringstream ss;
+    const auto& judge = (*this)[lno];
+    ss << lno << " : ";
+    if (this->env().size() > 0) {
+        if (judge.env()->size() > 0) ss << "D" << def_num((*judge.env())[0]);
+        for (size_t dno = 1; dno < judge.env()->size(); ++dno) {
+            ss << ",D" << def_num((*judge.env())[dno]);
+        }
+    } else if (judge.env()->size() > 0) {
+        ss << "env(#defs = " << judge.env()->size() << "; last: " << judge.env()->back()->definiendum() << ")";
+    }
+    ss << " ; ";
+    // output context
+    ss << judge.context()->repr_book() << " |- ";
+    ss << judge.term()->repr_book() << " : ";
+    ss << judge.type()->repr_book() << "\n";
+    return ss.str();
+}
+
+std::string Book::repr() const {
+    std::stringstream ss;
+    // defs enum
+    ss << this->def_list();
+    if (this->env().size() > 0) ss << "--------------" << std::endl;
+    for (size_t lno = 0; lno < this->size(); ++lno) {
+        ss << this->repr(lno);
+    }
+    return ss.str();
+}
+
+std::string Book::repr_new(size_t lno) const {
+    std::stringstream ss;
+    const auto& judge = (*this)[lno];
+    ss << lno << " : ";
+    if (this->env().size() > 0) {
+        if (judge.env()->size() > 0) ss << "D" << def_num((*judge.env())[0]);
+        for (size_t dno = 1; dno < judge.env()->size(); ++dno) {
+            ss << ",D" << def_num((*judge.env())[dno]);
+        }
+    } else if (judge.env()->size() > 0) {
+        ss << "env(#defs = " << judge.env()->size() << "; last: " << judge.env()->back()->definiendum() << ")";
+    }
+    ss << " ; ";
+    // output context
+    ss << judge.context()->repr_book() << " |- ";
+    ss << judge.term()->repr_new() << " : ";
+    ss << judge.type()->repr_new() << "\n";
+    return ss.str();
+}
+
 std::string Book::repr_new() const {
     std::stringstream ss;
     // defs enum
-    for (size_t dno = 0; dno < this->env().size(); ++dno) {
-        ss << "D" << dno << " : " << this->env()[dno]->repr_book() << std::endl;
-    }
+    ss << this->def_list();
     if (this->env().size() > 0) ss << "--------------" << std::endl;
     for (size_t lno = 0; lno < this->size(); ++lno) {
-        const auto& judge = (*this)[lno];
-        ss << lno << " : ";
-        if (this->env().size() > 0) {
-            if (judge.env()->size() > 0) ss << "D" << def_num((*judge.env())[0]);
-            for (size_t dno = 1; dno < judge.env()->size(); ++dno) {
-                ss << ",D" << def_num((*judge.env())[dno]);
-            }
-        } else if (judge.env()->size() > 0) {
-            ss << "env(#defs = " << judge.env()->size() << ")";
-        }
-        ss << " ; ";
-        // output context
-        ss << judge.context()->repr_book() << " |- ";
-        ss << judge.term()->repr_new() << " : ";
-        ss << judge.type()->repr_new() << "\n";
+        ss << this->repr_new(lno);
     }
     return ss.str();
 }
