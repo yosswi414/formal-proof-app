@@ -159,9 +159,25 @@ class BaseError {
             size_t lno_begin = lno1, lno_end = lno2;
             size_t lno_str_len = std::to_string(lno_end + 1).size();
             os << std::string(lno_str_len, ' ') << " | " << std::string(pos1, ' ') << "v" << std::string("~~~...").substr(0, _token.line().size() - 1 - pos1) << std::endl;
-            for (size_t lno_i = lno_begin; lno_i <= lno_end; ++lno_i) {
-                std::string lno_i_str = std::to_string(lno_i + 1);
-                os << std::string(lno_str_len - lno_i_str.size(), ' ') << lno_i + 1 << " | " << _token.filedata()[lno_i] << std::endl;
+            if (lno_end - lno_begin > 10) {
+                for (size_t lno_i = lno_begin; lno_i < lno_begin + 5; ++lno_i) {
+                    std::string lno_i_str = std::to_string(lno_i + 1);
+                    os << std::string(lno_str_len - lno_i_str.size(), ' ') << lno_i + 1 << " | " << _token.filedata()[lno_i] << "\n";
+                }
+                os << std::string(lno_str_len, '~') << " |\n";
+                os << std::string(lno_str_len, '~') << " | ... (" << lno_end - lno_begin - 10 << " lines) ...\n";
+                os << std::string(lno_str_len, '~') << " |\n";
+                for (size_t lno_i = lno_end - 4; lno_i <= lno_end; ++lno_i) {
+                    std::string lno_i_str = std::to_string(lno_i + 1);
+                    os << std::string(lno_str_len - lno_i_str.size(), ' ') << lno_i + 1 << " | " << _token.filedata()[lno_i] << "\n";
+                }
+                os << std::flush;
+            } else {
+                for (size_t lno_i = lno_begin; lno_i <= lno_end; ++lno_i) {
+                    std::string lno_i_str = std::to_string(lno_i + 1);
+                    os << std::string(lno_str_len - lno_i_str.size(), ' ') << lno_i + 1 << " | " << _token.filedata()[lno_i] << "\n";
+                }
+                os << std::flush;
             }
             int end_pos = pos2 + len2 - 1;
             os << std::string(lno_str_len, ' ') << " | " << std::string(std::max(end_pos - 6, 0), ' ') << std::string("...~~~").substr(std::max(6 - end_pos, 0)) << "^" << std::endl;
