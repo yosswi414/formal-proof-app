@@ -395,7 +395,7 @@ class ParseStack {
     std::vector<std::shared_ptr<Term>> _terms;
 };
 
-std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tokens, size_t& idx, size_t end_of_token, bool exhaust_token, const std::shared_ptr<std::vector<std::shared_ptr<Context>>>& flag_context, const std::shared_ptr<Environment> definitions) {
+std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tokens, size_t& idx, size_t end_of_token, bool exhaust_token, const std::vector<std::shared_ptr<Context>>& flag_context, const Environment& definitions) {
     const size_t pos_init = idx;  // for rollback use
 
     using stk_t = std::stack<ParseStack>;
@@ -432,7 +432,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
     */
 
     std::set<std::string> defined_names;
-    for (auto&& def : *definitions) defined_names.insert(def->definiendum());
+    for (auto&& def : definitions) defined_names.insert(def->definiendum());
     auto exists_cand_const = [&defined_names](const std::string& cname_part) {
         auto itr = std::lower_bound(defined_names.begin(), defined_names.end(), cname_part);
         if (itr == defined_names.end()) return false;
@@ -962,7 +962,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                         // only valid
                         case ParseType::Identifier_Str: {
                             // undefined constant : error
-                            if (definitions->lookup_index(name) >= 0) {
+                            if (definitions.lookup_index(name) >= 0) {
                                 stash[0].change_ptype(ParseType::Const_Name);
                                 stash[1].change_ptype(ParseType::Const_WaitTermOrClose);
                                 flush(2);
@@ -992,7 +992,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                     if (stash[0].ptype() == ParseType::Identifier_Str) {
                         std::string name = stash[0].excerpt(tokens);
                         ParseType newtype = ParseType::Const_Name;
-                        if (definitions->lookup_index(name) < 0) {
+                        if (definitions.lookup_index(name) < 0) {
                             newtype = ParseType::Term;
                             stash[0].terms() = {variable(name)};
                         }
@@ -1115,7 +1115,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                             const std::string& cname = stash[0].excerpt(tokens);
                             const auto& args = stash[1].terms();
                             // argc match check
-                            size_t argc = definitions->lookup_def(cname)->context()->size();
+                            size_t argc = definitions.lookup_def(cname)->context()->size();
                             if (argc != args.size()) {
                                 throw ParseError(
                                     "The length of argument list "
@@ -1159,7 +1159,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                         case ParseType::Const_WaitTermOrClose:
                         case ParseType::Const_WaitTerm: {
                             int end = stash[1].end();
-                            for (auto&& tvs : *flag_context) {
+                            for (auto&& tvs : flag_context) {
                                 for (auto&& tv : *tvs) stash[0].add_term(tv.value());
                             }
                             stash[0].end() = end;
@@ -1331,7 +1331,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
                         case ParseType::Identifier_Str:
                         case ParseType::Varname_Incomplete: {
                             std::string name = stash[0].excerpt(tokens);
-                            if (definitions->lookup_index(name) >= 0) {
+                            if (definitions.lookup_index(name) >= 0) {
                                 throw ParseError(
                                     "The name of defined constant cannot be used as a variable name. Did you forget an argument list?",
                                     tokens[stash[0].begin()], tokens[stash[0].end() - 1]);
@@ -1417,18 +1417,26 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
     return std::make_shared<ParseLambdaToken>(tokens[stk->top().begin()], tokens[idx = stk->top().end() - 1], stk->top().terms()[0]);
 }
 
+std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tokens, size_t& idx, const std::vector<std::shared_ptr<Context>>& flag_context, const Environment& definitions) {
+    return parse_lambda_new(tokens, idx, tokens.size(), false, flag_context, definitions);
+}
+
 std::vector<std::shared_ptr<FileData>> raw_string_fds;
 
-std::shared_ptr<Term> parse_lambda_new(const std::string& str, const std::shared_ptr<std::vector<std::shared_ptr<Context>>>& flag_context, const std::shared_ptr<Environment>& definitions) {
+std::shared_ptr<Term> parse_lambda_new(const std::string& str, const std::vector<std::shared_ptr<Context>>& flag_context, const Environment& definitions) {
     size_t idx = 0;
     std::shared_ptr<FileData> fdp = std::make_shared<FileData>(FileData({str}, "raw_string[parse_lambda_new]"));
     raw_string_fds.push_back(fdp);
     auto tokens = tokenize(*fdp);
     return parse_lambda_new(tokens, idx, tokens.size(), true, flag_context, definitions)->term();
 }
-
-std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tokens, size_t& idx, const std::shared_ptr<std::vector<std::shared_ptr<Context>>>& flag_context, const std::shared_ptr<Environment> definitions) {
-    return parse_lambda_new(tokens, idx, tokens.size(), false, flag_context, definitions);
+std::shared_ptr<Term> parse_lambda_new(const std::string& str, const Environment& definitions) {
+    std::vector<std::shared_ptr<Context>> fc;
+    return parse_lambda_new(str, fc, definitions);
+}
+std::shared_ptr<Term> parse_lambda_new(const std::string& str) {
+    Environment env;
+    return parse_lambda_new(str, env);
 }
 
 std::shared_ptr<ParseLambdaToken> parse_lambda_old(const std::vector<Token>& tokens, size_t& idx, size_t end_of_token, bool exhaust_token, const std::shared_ptr<std::vector<std::shared_ptr<Context>>>& flag_context, bool no_chainer) {
@@ -1912,7 +1920,7 @@ std::shared_ptr<Term> parse_lambda_old(const std::string& str, const std::shared
 }
 
 Environment parse_defs(const std::vector<Token>& tokens) {
-    std::shared_ptr<Environment> env = std::make_shared<Environment>();
+    Environment env;
     // state variables
     bool eof = false;
     int in_def = -1;     // def2 - edef2
@@ -1950,8 +1958,7 @@ Environment parse_defs(const std::vector<Token>& tokens) {
 
     std::queue<std::shared_ptr<Variable>> temp_vars;
 
-    std::shared_ptr<std::vector<std::shared_ptr<Context>>> flag_context;
-    flag_context = std::make_shared<std::vector<std::shared_ptr<Context>>>();
+    std::vector<std::shared_ptr<Context>> flag_context;
     size_t flag_line_num = 0;
 
     auto def_str = [&]() {
@@ -1991,8 +1998,8 @@ Environment parse_defs(const std::vector<Token>& tokens) {
         // if (DEBUG_CERR) std::cerr << "[debug; parse loop] flag[def]: " << def_str() << ", token: " << tokens[idx] << std::endl;
         if (DEBUG_CERR) {
             std::cerr << "[debug; parse loop] flag[def]: " << def_str() << ", flag[flg]: " << flg_str() << ", token: " << tokens[idx] << "\t";  // << (tokens[idx].type() == TokenType::NewLine ? "<NL>" : tokens[idx].string()) << "\"\t";
-            std::cerr << "flag context dump (size: " << flag_context->size() << "): ";
-            for (auto&& c : *flag_context) {
+            std::cerr << "flag context dump (size: " << flag_context.size() << "): ";
+            for (auto&& c : flag_context) {
                 std::cerr << "[";
                 if (c) std::cerr << c;
                 else std::cerr << "NUL";
@@ -2126,7 +2133,7 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                     while (!temp_vars.empty()) {
                         auto q = temp_vars.front();
                         temp_vars.pop();
-                        (*flag_context)[flag_line_num]->emplace_back(q, expr->term());
+                        flag_context[flag_line_num]->emplace_back(q, expr->term());
                     }
                     read_flag_context_type = false;
                     read_lambda = false;
@@ -2147,9 +2154,9 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                 type = expr->term();
                 read_flag_stmt_type = false;
                 context = std::make_shared<Context>();
-                for (size_t i = 0; i < flag_line_num; ++i) *context += *(*flag_context)[i];
-                if (term) env->push_back(std::make_shared<Definition>(context, cname, term, type));
-                else env->push_back(std::make_shared<Definition>(context, cname, type));
+                for (size_t i = 0; i < flag_line_num; ++i) *context += *flag_context[i];
+                if (term) env.push_back(std::make_shared<Definition>(context, cname, term, type));
+                else env.push_back(std::make_shared<Definition>(context, cname, type));
             }
             continue;
         }
@@ -2196,12 +2203,12 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                 // add definition to env
                 read_def_end = false;
                 if (term) {
-                    env->push_back(std::make_shared<Definition>(
+                    env.push_back(std::make_shared<Definition>(
                         context,
                         cname,
                         term, type));
                 } else {
-                    env->push_back(std::make_shared<Definition>(
+                    env.push_back(std::make_shared<Definition>(
                         context,
                         cname,
                         type));
@@ -2213,7 +2220,7 @@ Environment parse_defs(const std::vector<Token>& tokens) {
             case TokenType::Character:
             case TokenType::String: {
                 if (read_def_name || read_flag_cname) {
-                    if (flag_line_num < flag_context->size()) flag_context->resize(flag_line_num);
+                    if (flag_line_num < flag_context.size()) flag_context.resize(flag_line_num);
                     cname = t.string();
                     bool name_confirmed = false;
                     while (tokens[idx + 1].type() != TokenType::NewLine && tokens[idx + 1].type() != TokenType::DefinedBy) {
@@ -2247,8 +2254,8 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                 read_flag_context = true;
                 read_flag_context_type = false;
                 read_lambda = true;
-                if (flag_line_num < flag_context->size()) flag_context->resize(flag_line_num);
-                flag_context->push_back(std::make_shared<Context>());
+                if (flag_line_num < flag_context.size()) flag_context.resize(flag_line_num);
+                flag_context.push_back(std::make_shared<Context>());
                 continue;
             }
             case TokenType::SquareBracketRight: {
@@ -2282,9 +2289,9 @@ Environment parse_defs(const std::vector<Token>& tokens) {
             case TokenType::Verticalbar: {
                 if (!vbar_head_of_line) throw ParseError("vertical bar '|' should be placed at the head of line", t);
                 ++flag_line_num;
-                if (flag_context->size() < flag_line_num || !(*flag_context)[flag_line_num - 1]) {
-                    std::cerr << "flag context dump (size: " << flag_context->size() << "): ";
-                    for (auto&& c : *flag_context) {
+                if (flag_context.size() < flag_line_num || !flag_context[flag_line_num - 1]) {
+                    std::cerr << "flag context dump (size: " << flag_context.size() << "): ";
+                    for (auto&& c : flag_context) {
                         std::cerr << "[";
                         if (c) std::cerr << c;
                         else std::cerr << "NUL";
@@ -2305,7 +2312,7 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                 throw ParseError("invalid token", t);
             }
             case TokenType::NewLine: {
-                if (!read_flag_context_end && flag_line_num < flag_context->size()) flag_context->resize(flag_line_num);
+                if (!read_flag_context_end && flag_line_num < flag_context.size()) flag_context.resize(flag_line_num);
                 flag_line_num = 0;
                 vbar_head_of_line = true;
                 read_flag_cname = true;
@@ -2318,5 +2325,5 @@ Environment parse_defs(const std::vector<Token>& tokens) {
                 throw ParseError("not implemented in parse_defs() (token = " + to_string(t) + ")", t);
         }
     }
-    return *env;
+    return env;
 }
