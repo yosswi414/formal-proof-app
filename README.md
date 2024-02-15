@@ -40,6 +40,172 @@ $ bin/verifier.out -f <input_file> [options...]
 - `--out-def out_def_file`: Extract the final environment from input script and output definitions to `def_file`
 - `--skip-check`: Bypass the inference rule applicability check through the script (Saves some time)
 
+## About the syntax sugars
+
+### Lambda expressions ( $\varepsilon$ )
+
+- Backward-compatible (Accepts any conventional notation)
+- Variable can have a longer name, just as constant does
+  - e.g. `%%Leq m_1 m_2` ($Leq\ m_1\ m_2$)
+    - Old style: `%(%(L)(M))(m)` (Variables could only have their name of length 1)
+  - Name collision (using the name of already defined constant as a variable) is prohibited
+- Binary operators (`->` (kind), `=>` (implies[]), `<=>` (equiv[]))
+  - e.g. `?P: S->* . (%P x => %P y)` $\left(\Pi P:S\rightarrow *\ .\ P\ x\Rightarrow P\ y\right)$
+    - Old style: `?P:(?x:(S).(*)).(implies[(%(P)(x)),(%(P)(y))])`
+
+### Definition file ( $\Delta$ )
+
+Including the conventional way, we have three ways to describe definitions.
+
+Examples below shows different way to describe the exact same definitions (`implies`, `implies_in`, `implies_el`, `contra`, `forall`, `refl`).
+
+Single-line comment (`//`) and multi-line comment (`/*` - `*/`) are also available.
+
+These three different notation can coexist in a single file.
+
+#### Method 1 (Conventional) (Output format option: `-c`)
+
+```plain
+def2
+2
+A
+*
+B
+*
+implies
+?a:(A).(B)
+*
+edef2
+
+def2
+3
+A
+*
+B
+*
+u
+?y:(A).(B)
+implies_in
+u
+implies[(A),(B)]
+edef2
+
+def2
+4
+A
+*
+B
+*
+u
+?x:(A).(B)
+v
+A
+implies_el
+%(u)(v)
+B
+edef2
+
+def2
+0
+contra
+?A:(*).(A)
+*
+edef2
+
+def2
+2
+S
+*
+P
+?a:(S).(*)
+forall
+?a:(S).(%(P)(a))
+*
+edef2
+
+def2
+2
+S
+*
+l
+?a:(S).(?b:(S).(*))
+refl
+forall[(S),($a:(S).(%(%(l)(a))(a)))]
+*
+edef2
+
+END
+```
+
+#### Method 2 (Newer) (Output format option: `-n`)
+
+```plain
+def2
+2
+A : *
+B : *
+implies := ?a.A.B : *
+edef2
+
+def2
+3
+A : *
+B : *
+u : ?y:A.B
+implies_in := u : implies[A, B]
+edef2
+
+def2
+4
+A : *
+B : *
+u : ?x:A.B
+v : A
+implies_el := %u v : B
+edef2
+
+def2
+0
+contra := ?a:*.a : *
+edef2
+
+def2
+2
+S : *
+P : ?a:S.*
+forall := ?a:S.%P a : *
+edef2
+
+def2
+2
+S : *
+l : ?a:S.?b:S.*
+refl := forall[S, $a:S.%%l a a] : *
+edef2
+
+END
+```
+
+#### Method 3 (Flag style-like notation)  (Output format option: N/A)
+```plain
+[A: *, B: *]
+| implies := A->B : *
+| [u: A->B]
+| | implies_in := u : implies[A, B] // alternative notation: A => B
+| | [v: A]
+| | | implies_el := %u v : B
+
+contra := ?A:*.A : *
+
+[S: *]
+| [P: S->*]
+| | forall := ?a:S.%P a : *
+| [Leq: S->S->*]
+| | refl := forall[S, $a:S.%%Leq a a] : *
+
+END
+```
+
 ## Reference
 
 - Textbook: [Type Theory and Formal Proof: An Introduction](https://www.cambridge.org/core/books/type-theory-and-formal-proof/0472640AAD34E045C7F140B46A57A67C) (PDF: Free as of 2023/12/21)
