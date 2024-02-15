@@ -774,3 +774,38 @@ void InferenceError::puterror(std::ostream& os) const {
     os << _msg << std::endl;
 }
 const std::string& InferenceError::str() const { return _msg; }
+
+std::set<std::string> extract_constant(const std::shared_ptr<Term>& term) {
+    std::set<std::string> constants;
+    switch (term->etype()) {
+        case EpsilonType::Star:
+        case EpsilonType::Square:
+        case EpsilonType::Variable:
+            break;
+        case EpsilonType::Application: {
+            auto a = appl(term);
+            constants = extract_constant(a->M());
+            set_union_inplace(constants, extract_constant(a->N()));
+            break;
+        }
+        case EpsilonType::AbstLambda: {
+            auto l = lambda(term);
+            constants = extract_constant(l->var().type());
+            set_union_inplace(constants, extract_constant(l->expr()));
+            break;
+        }
+        case EpsilonType::AbstPi: {
+            auto p = pi(term);
+            constants = extract_constant(p->var().type());
+            set_union_inplace(constants, extract_constant(p->expr()));
+            break;
+        }
+        case EpsilonType::Constant: {
+            auto c = constant(term);
+            constants.insert(c->name());
+            for (auto& arg : c->args()) set_union_inplace(constants, extract_constant(arg));
+            break;
+        }
+    }
+    return constants;
+}

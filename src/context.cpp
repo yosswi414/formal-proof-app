@@ -150,3 +150,13 @@ bool has_variable(const std::shared_ptr<Context>& g, const std::shared_ptr<Term>
 bool has_variable(const std::shared_ptr<Context>& g, char v) {
     return has_variable(g, std::make_shared<Variable>(v));
 }
+
+std::set<std::string> extract_constant(const Context& con) {
+    std::set<std::string> constants;
+    for (auto&& tv : con) set_union_inplace(constants, extract_constant(tv.type()));
+    return constants;
+}
+
+std::set<std::string> extract_constant(const std::shared_ptr<Context>& con) {
+    return extract_constant(*con);
+}

@@ -173,3 +173,5 @@ class DeductionError {
 };
 
 RulePtr _get_script(const std::shared_ptr<Term>& term, const Delta& delta, const Gamma& gamma);
+
+void generate_script(RulePtr& rule, TextData& data);

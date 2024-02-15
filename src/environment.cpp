@@ -547,3 +547,13 @@ bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>&
         "reached end of function, supposed to be unreachable",
         __FILE__, __LINE__, __func__);
 }
+
+std::set<std::string> extract_constant(const Environment& env) {
+    std::set<std::string> constants;
+    for (auto&& def : env) set_union_inplace(constants, extract_constant(def));
+    return constants;
+}
+
+std::set<std::string> extract_constant(const std::shared_ptr<Environment>& env) {
+    return extract_constant(*env);
+}

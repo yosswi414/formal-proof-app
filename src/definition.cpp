@@ -118,3 +118,15 @@ bool equiv_def(const std::shared_ptr<Definition>& a, const std::shared_ptr<Defin
     if (a == b) return true;
     return equiv_def(*a, *b);
 }
+
+std::set<std::string> extract_constant(const Definition& def) {
+    std::set<std::string> constants;
+    constants = extract_constant(def.context());
+    if (!def.is_prim()) set_union_inplace(constants, extract_constant(def.definiens()));
+    set_union_inplace(constants, extract_constant(def.type()));
+    return constants;
+}
+
+std::set<std::string> extract_constant(const std::shared_ptr<Definition>& def) {
+    return extract_constant(*def);
+}

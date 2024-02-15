@@ -50,3 +50,6 @@ class Definition {
 
 bool equiv_def(const Definition& a, const Definition& b);
 bool equiv_def(const std::shared_ptr<Definition>& a, const std::shared_ptr<Definition>& b);
+
+std::set<std::string> extract_constant(const Definition& def);
+std::set<std::string> extract_constant(const std::shared_ptr<Definition>& def);

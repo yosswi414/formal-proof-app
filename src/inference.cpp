@@ -80,7 +80,6 @@ std::shared_ptr<Term> get_type(const std::shared_ptr<Term>& term, const std::sha
     }
 }
 
-
 std::string to_string(const RuleType type) {
     switch (type) {
         case RuleType::Sort: return "sort";
@@ -148,64 +147,45 @@ std::vector<RulePtr>& Inst::k() { return _k; }
 const size_t& Inst::p() const { return _p; }
 
 DeductionError::DeductionError(const std::string& msg) : _msg(msg) {}
-void DeductionError::puterror(std::ostream& os) const { os << BOLD(RED("DeductionError")) ": " <<_msg << std::endl; }
+void DeductionError::puterror(std::ostream& os) const { os << BOLD(RED("DeductionError")) ": " << _msg << std::endl; }
 
-std::map<Delta, std::map<Gamma, std::map<std::shared_ptr<Term>, RulePtr>>> hist_inf;
+std::map<std::string, RulePtr> hist_inf;
 
-int func_called = 0;
-int cache_hit = 0;
+std::string hash_delta(const Delta& delta) {
+    std::string str;
+    // for (auto&& def : *delta) str += "@" + def->definiendum();
+    if (delta && delta->size() > 0) str = delta->back()->definiendum();
+    return str;
+}
+
+std::string hash_gamma(const Gamma& gamma) {
+    std::string str;
+    for (auto&& tv : *gamma) str += tv.value()->name() + "{" + tv.type()->string() + "}";
+    return str;
+}
+
+std::string hash_term(const std::shared_ptr<Term>& term) {
+    return term->string();
+}
+
+std::string hash_tuple(const Delta& delta, const Gamma& gamma, const std::shared_ptr<Term>& term) {
+    return hash_delta(delta) + "|" + hash_gamma(gamma) + "|" + hash_term(term);
+}
+
+// int func_called = 0;
+// int cache_hit = 0;
 
 RulePtr _get_script(const std::shared_ptr<Term>& term, const Delta& delta, const Gamma& gamma) {
-    ++func_called;
-    ++cache_hit;
-    // cache lookup by pointer address
-    bool hit_d = false, hit_g = false;
-    auto itr_d = hist_inf.find(delta);
-    decltype(itr_d->second.begin()) itr_g;
-    if (itr_d != hist_inf.end()) {
-        hit_d = true;
-        itr_g = itr_d->second.find(gamma);
-        if (itr_g != itr_d->second.end()) {
-            hit_g = true;
-            auto itr_t = itr_g->second.find(term);
-            if (itr_t != itr_g->second.end()) return itr_t->second;
-        }
-    }
-    const bool full_search = true;
-    // cache lookup by checking actual equivalence
-    if (full_search && !hit_d) {
-        for (auto&& itr = hist_inf.begin(); itr != hist_inf.end(); ++itr) {
-            if (equiv_env(delta, itr->first)) {
-                hit_d = true;
-                itr_d = itr;
-                break;
-            }
-        }
-    }
-    if (full_search && hit_d && !hit_g) {
-        auto retry = itr_d->second.find(gamma);
-        if (retry != itr_d->second.end()) {
-            hit_g = true;
-            itr_g = retry;
-        }
-        for (auto&& itr = itr_d->second.begin(); !hit_g && itr != itr_d->second.end(); ++itr) {
-            if (equiv_context(gamma, itr->first)) {
-                hit_g = true;
-                itr_g = itr;
-            }
-        }
-    }
-    if (full_search && hit_g) {
-        auto retry = itr_g->second.find(term);
-        if (retry != itr_g->second.end()) return retry->second;
-        for (auto&& itr = itr_g->second.begin(); itr != itr_g->second.end(); ++itr) {
-            if (alpha_comp(term, itr->first)) return itr->second;
-        }
-    }
+    // ++func_called;
+    // ++cache_hit;
+    std::string hash = hash_tuple(delta, gamma, term);
+    auto itr_n = hist_inf.find(hash);
+    if (itr_n != hist_inf.end()) return itr_n->second;
 
     // cache missed (body of deduction process)
-    --cache_hit;
+    // --cache_hit;
     RulePtr rule;
+    // std::cerr << "cache miss: " << hash << std::endl;
 
     switch (term->etype()) {
         case EpsilonType::Star: {
@@ -230,8 +210,7 @@ RulePtr _get_script(const std::shared_ptr<Term>& term, const Delta& delta, const
                     }
                     break;
                 }
-            }
-            else {
+            } else {
                 // Δ; Γ, x:A |- * : @
                 // weak
                 // left: Δ; Γ |- * : @
@@ -256,7 +235,7 @@ RulePtr _get_script(const std::shared_ptr<Term>& term, const Delta& delta, const
             std::string vname = gamma->back().value()->name();
             if (vname == t->name()) {
                 // Δ; Γ, x:A |- x:A
-                // var
+                // var (x: not in Γ )
                 // idx: Δ; Γ |- A : s
                 std::shared_ptr<Term> type = gamma->back().type();
                 Gamma gamma_new = std::make_shared<Context>(*gamma);
@@ -265,8 +244,7 @@ RulePtr _get_script(const std::shared_ptr<Term>& term, const Delta& delta, const
                 idx = _get_script(type, delta, gamma_new);
                 rule = std::make_shared<Var>(idx, vname);
                 break;
-            }
-            else {
+            } else {
                 // Δ; Γ, x:C |- A:B
                 // weak
                 // left: Δ; Γ |- A:B
@@ -287,10 +265,18 @@ RulePtr _get_script(const std::shared_ptr<Term>& term, const Delta& delta, const
             // appl
             // left: Δ; Γ |- M : ?x:A.B
             // right: Δ; Γ |- N : A
-            RulePtr left, right;
-            left = _get_script(t->M(), delta, gamma);
-            right = _get_script(t->N(), delta, gamma);
-            rule = std::make_shared<Appl>(left, right);
+            auto M = t->M();
+            auto N = t->N();
+            auto A = get_type(M, delta, gamma);
+            auto B = get_type(N, delta, gamma);
+            RulePtr rM, rN, rA, rB, Mconv, Nconv;
+            rM = _get_script(M, delta, gamma);
+            rN = _get_script(N, delta, gamma);
+            rA = _get_script(A, delta, gamma);
+            rB = _get_script(B, delta, gamma);
+            Mconv = std::make_shared<Conv>(rM, rA);
+            Nconv = std::make_shared<Conv>(rN, rB);
+            rule = std::make_shared<Appl>(Mconv, Nconv);
             break;
         }
         case EpsilonType::AbstLambda: {
@@ -324,32 +310,131 @@ RulePtr _get_script(const std::shared_ptr<Term>& term, const Delta& delta, const
         case EpsilonType::Constant: {
             auto t = constant(term);
             auto def = delta->lookup_def(t);
-            if (!def){
+            if (!def) {
                 throw DeductionError("Definition not found: " + t->name());
             }
-                // Δ; Γ |- a(U1...) : N[x1:=U1,...]
-                // inst-prim
-                // left: Δ; Γ |- * : @
-                // right:   Δ; Γ |- U1: A1
-                //          Δ; Γ |- U2: A2[x1:=U1]
-                //          Δ; Γ |- ...
-                //          Δ; Γ |- Uk: Ak[x1:=U1,...,xk-1:=Uk-1]
+            // Δ; Γ |- a(U1...) : N[x1:=U1,...]
+            // inst-prim
+            // left: Δ; Γ |- * : @
+            // right:   Δ; Γ |- U1: A1
+            //          Δ; Γ |- U2: A2[x1:=U1]
+            //          Δ; Γ |- ...
+            //          Δ; Γ |- Uk: Ak[x1:=U1,...,xk-1:=Uk-1]
             RulePtr left;
             std::vector<RulePtr> rights;
             left = _get_script(star, delta, gamma);
-            for(auto&& U: t->args()) {
+            for (auto&& U : t->args()) {
                 rights.push_back(_get_script(U, delta, gamma));
             }
             rule = std::make_shared<Inst>(left, rights.size(), rights, delta->lookup_index(t));
             break;
-
         }
         default:
             throw DeductionError("not implemented");
     }
 
     // cache register
-    hist_inf[delta][gamma][term] = rule;
+    hist_inf[hash] = rule;
 
     return rule;
+}
+
+void generate_script(RulePtr& rule, TextData& data) {
+    static size_t current_lno = 0;
+    if (rule->lno() >= 0) return;
+    switch (rule->rtype()) {
+        case RuleType::Sort: {
+            auto r = std::dynamic_pointer_cast<Sort>(rule);
+            r->lno() = current_lno++;
+            std::string script = std::to_string(r->lno()) + " sort";
+            data.push_back(script);
+            return;
+        }
+        case RuleType::Var: {
+            auto r = std::dynamic_pointer_cast<Var>(rule);
+            generate_script(r->idx(), data);
+            r->lno() = current_lno++;
+            std::string script = std::to_string(r->lno()) + " var " + std::to_string(r->idx()->lno()) + " " + r->var();
+            data.push_back(script);
+            return;
+        }
+        case RuleType::Weak: {
+            auto r = std::dynamic_pointer_cast<Weak>(rule);
+            generate_script(r->idx1(), data);
+            generate_script(r->idx2(), data);
+            r->lno() = current_lno++;
+            std::string script = std::to_string(r->lno()) + " weak " + std::to_string(r->idx1()->lno()) + " " + std::to_string(r->idx2()->lno()) + " " + r->var();
+            data.push_back(script);
+            return;
+        }
+        case RuleType::Form: {
+            auto r = std::dynamic_pointer_cast<Form>(rule);
+            generate_script(r->idx1(), data);
+            generate_script(r->idx2(), data);
+            r->lno() = current_lno++;
+            std::string script = std::to_string(r->lno()) + " form " + std::to_string(r->idx1()->lno()) + " " + std::to_string(r->idx2()->lno());
+            data.push_back(script);
+            return;
+        }
+        case RuleType::Appl: {
+            auto r = std::dynamic_pointer_cast<Appl>(rule);
+            generate_script(r->idx1(), data);
+            generate_script(r->idx2(), data);
+            r->lno() = current_lno++;
+            std::string script = std::to_string(r->lno()) + " appl " + std::to_string(r->idx1()->lno()) + " " + std::to_string(r->idx2()->lno());
+            data.push_back(script);
+            return;
+        }
+        case RuleType::Abst: {
+            auto r = std::dynamic_pointer_cast<Abst>(rule);
+            generate_script(r->idx1(), data);
+            generate_script(r->idx2(), data);
+            r->lno() = current_lno++;
+            std::string script = std::to_string(r->lno()) + " abst " + std::to_string(r->idx1()->lno()) + " " + std::to_string(r->idx2()->lno());
+            data.push_back(script);
+            return;
+        }
+        case RuleType::Conv: {
+            auto r = std::dynamic_pointer_cast<Conv>(rule);
+            generate_script(r->idx1(), data);
+            generate_script(r->idx2(), data);
+            r->lno() = current_lno++;
+            std::string script = std::to_string(r->lno()) + " conv " + std::to_string(r->idx1()->lno()) + " " + std::to_string(r->idx2()->lno());
+            data.push_back(script);
+            return;
+        }
+        case RuleType::Def: {
+            auto r = std::dynamic_pointer_cast<Def>(rule);
+            generate_script(r->idx1(), data);
+            generate_script(r->idx2(), data);
+            r->lno() = current_lno++;
+            std::string script = std::to_string(r->lno()) + " def " + std::to_string(r->idx1()->lno()) + " " + std::to_string(r->idx2()->lno()) + " " + r->name();
+            data.push_back(script);
+            return;
+        }
+        case RuleType::Defpr: {
+            auto r = std::dynamic_pointer_cast<Defpr>(rule);
+            generate_script(r->idx1(), data);
+            generate_script(r->idx2(), data);
+            r->lno() = current_lno++;
+            std::string script = std::to_string(r->lno()) + " defpr " + std::to_string(r->idx1()->lno()) + " " + std::to_string(r->idx2()->lno()) + " " + r->name();
+            data.push_back(script);
+            return;
+        }
+        case RuleType::Inst: {
+            auto r = std::dynamic_pointer_cast<Inst>(rule);
+            generate_script(r->idx(), data);
+            for (auto&& v : r->k()) { generate_script(v, data); }
+            r->lno() = current_lno++;
+            std::string script = std::to_string(r->lno()) + " inst " + std::to_string(r->idx()->lno()) + " " + std::to_string(r->k().size()) + " ";
+            for (auto&& v : r->k()) { script += std::to_string(v->lno()) + " "; }
+            script += std::to_string(r->p());
+            data.push_back(script);
+            return;
+        }
+        case RuleType::Cp:
+        case RuleType::Sp:
+        case RuleType::Tp:
+            throw DeductionError("generate_script(): not implemented");
+    }
 }

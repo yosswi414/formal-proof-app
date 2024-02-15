@@ -315,3 +315,5 @@ class InferenceError {
   private:
     std::string _msg;
 };
+
+std::set<std::string> extract_constant(const std::shared_ptr<Term>& term);

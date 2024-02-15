@@ -51,3 +51,6 @@ bool is_constant_defined(const std::string& cname, const Environment& delta);
 bool is_constant_primitive(const std::string& cname, const Environment& delta);
 
 bool is_convertible(const std::shared_ptr<Term>& a, const std::shared_ptr<Term>& b, const Environment& delta);
+
+std::set<std::string> extract_constant(const Environment& env);
+std::set<std::string> extract_constant(const std::shared_ptr<Environment>& env);

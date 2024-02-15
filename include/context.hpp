@@ -45,3 +45,6 @@ std::set<std::string> free_var(const Context& con, Ts... data) {
 bool is_free_var(const Context& con, const std::shared_ptr<Variable>& var);
 
 std::shared_ptr<Variable> get_fresh_var(const Context& con);
+
+std::set<std::string> extract_constant(const Context& con);
+std::set<std::string> extract_constant(const std::shared_ptr<Context>& con);

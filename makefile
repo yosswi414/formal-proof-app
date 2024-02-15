@@ -32,6 +32,12 @@ bin/def_conv.out: bin/def_conv.obj bin/common.obj bin/parser.obj $(OBJS_LAMBDA)
 bin/def_conv_leak.out: bin/def_conv_leak.obj bin/common_leak.obj bin/parser_leak.obj $(OBJS_LAMBDA_DEBUG)
 	g++ ${CPPFLAGS} ${DEBUGFLAGS} $^ -o $@
 
+bin/genscript.out: bin/genscript.obj $(OBJS_LAMBDA) $(OBJS_DEPEND)
+	g++ ${CPPFLAGS} ${OPTFLAG} $^ -o $@
+
+bin/genscript_leak.out: bin/genscript_leak.obj $(OBJS_LAMBDA_DEBUG) $(OBJS_DEPEND_DEBUG)
+	g++ ${CPPFLAGS} ${DEBUGFLAGS} $^ -o $@
+
 bin/test.out: bin/test.obj $(OBJS_LAMBDA) $(OBJS_DEPEND)
 	g++ ${CPPFLAGS} ${OPTFLAG} $^ -o $@
 
@@ -41,13 +47,13 @@ bin/test_leak.out: bin/test_leak.obj $(OBJS_LAMBDA_DEBUG) $(OBJS_DEPEND_DEBUG)
 src/def_file_nocomm: src/def_file bin/def_conv.out
 	bin/def_conv.out -f $< -c > $@
 
-.PHONY: test book parse clean test_read lambda conv test_leak book_leak conv_leak nocomm compile-% test_nocomm all
+.PHONY: test book parse clean test_read lambda conv test_leak book_leak conv_leak nocomm compile-% test_nocomm all gen gen_leak
 
 nocomm: src/def_file_nocomm
 
-TARGETS = bin/verifier.out bin/def_conv.out
+TARGETS = bin/verifier.out bin/def_conv.out bin/genscript.out
 
-all:
+all: $(TARGETS)
 
 # usage: $ make compile-<def_name>
 compile-%: bin/verifier.out
@@ -97,6 +103,12 @@ conv_leak: bin/def_conv_leak.out src/def_file
 	$< -n -f src/def_conv_out_c > src/def_conv_out_cn
 	diff -s src/def_conv_out_c src/def_conv_out_nc
 	diff -s src/def_conv_out_n src/def_conv_out_cn
+
+gen: bin/genscript.out ${DEF_FILE}
+	$< -f ${DEF_FILE} -s
+
+gen_leak: bin/genscript_leak.out ${DEF_FILE}
+	$< -f ${DEF_FILE} -s
 
 clean:
 	rm -f ./bin/*.out
