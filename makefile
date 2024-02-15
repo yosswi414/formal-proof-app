@@ -41,9 +41,13 @@ bin/test_leak.out: bin/test_leak.obj $(OBJS_LAMBDA_DEBUG) $(OBJS_DEPEND_DEBUG)
 src/def_file_nocomm: src/def_file bin/def_conv.out
 	bin/def_conv.out -f $< -c > $@
 
-.PHONY: test book parse clean test_read lambda conv test_leak book_leak conv_leak nocomm compile-% test_nocomm
+.PHONY: test book parse clean test_read lambda conv test_leak book_leak conv_leak nocomm compile-% test_nocomm all
 
 nocomm: src/def_file_nocomm
+
+TARGETS = bin/verifier.out bin/def_conv.out
+
+all:
 
 # usage: $ make compile-<def_name>
 compile-%: bin/verifier.out
