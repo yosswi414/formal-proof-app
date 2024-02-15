@@ -162,6 +162,8 @@ int main(int argc, char* argv[]) {
         alive1.store(false);
         e.puterror();
 
+        if (is_verbose) std::cerr << book.repr() << std::endl;
+
         if (efname.size() > 0) {
             std::cerr << "extracting the book / env dump... ";
             std::stringstream err;

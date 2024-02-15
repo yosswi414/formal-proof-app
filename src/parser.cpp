@@ -519,12 +519,6 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_new(const std::vector<Token>& tok
         return is_period_nameonly_stktop(stack_top_type);
     };
 
-    auto is_ps_sort = [](ParseStack& ps) {
-        return ps.ptype() == ParseType::Term &&
-               ps.terms().size() == 1 &&
-               is_sort(ps.terms()[0]);
-    };
-
     bool end_of_line = false;
     std::shared_ptr<ParseError> invalid_token_err;
 
@@ -1796,7 +1790,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda_old(const std::vector<Token>& tok
             size_t pos_left = idx;
             incr_idx("an expr or a closing square bracket", "a constant", identifier_hdr);
             std::vector<std::shared_ptr<Term>> parameters;
-            size_t pos_right = pos_left + 1, pos_comma = pos_left + 1;
+            size_t pos_right = pos_left + 1;  //, pos_comma = pos_left + 1;
             std::stack<TokenType> brackets;
             while (pos_right + 1 < end_of_token) {
                 bool endwhile = false;

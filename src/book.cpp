@@ -16,10 +16,6 @@ Book::Book(const FileData& fdata, size_t limit) : Book(false) {
 }
 
 void Book::read_script(const FileData& fdata, size_t limit){
-    this->read_script(fdata, false, limit);
-}
-
-void Book::read_script(const FileData& fdata, bool is_verbose, size_t limit) {
     std::stringstream ss;
     auto errmsg = [](const std::string& op, size_t lno) {
         return op + ": wrong format (line " + std::to_string(lno + 1) + ")";
@@ -152,7 +148,6 @@ void Book::read_script(const FileData& fdata, bool is_verbose, size_t limit) {
         }
         ss.clear();
         ss.str("");
-        if (is_verbose) std::cerr << this->repr(this->size() - 1);
     }
 }
 

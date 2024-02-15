@@ -42,7 +42,6 @@ class Book : public std::vector<Judgement> {
 
     void read_script(const std::string& scriptname, size_t limit = -1);
     void read_script(const FileData& fdata, size_t limit = -1);
-    void read_script(const FileData& fdata, bool is_verbose, size_t limit = -1);
 
     void read_def_file(const std::string& fname);
     const Environment& env() const;
