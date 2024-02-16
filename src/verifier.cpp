@@ -157,7 +157,7 @@ int main(int argc, char* argv[]) {
     });
     if (!is_verbose) th1.detach();
     try {
-        book.read_script(data, is_verbose);
+        book.read_script(data);
     } catch (InferenceError& e) {
         alive1.store(false);
         e.puterror();
