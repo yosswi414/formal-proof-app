@@ -34,7 +34,7 @@ $(DEF_NOCOMM): $(DEF_FILE) bin/def_conv.out
 	mkdir -p out
 	bin/def_conv.out -f $< -c > $@
 
-.PHONY: clean test test_leak book book_leak conv conv_leak nocomm compile-% test_nocomm all gen gen_leak
+.PHONY: clean test test_leak book book_leak conv conv_leak nocomm compile-% compile-noheader-% compile-fall-% test_nocomm all gen gen_leak
 
 nocomm: $(DEF_NOCOMM)
 
@@ -43,12 +43,22 @@ TARGETS = bin/verifier.out bin/def_conv.out bin/genscript.out
 all: $(TARGETS)
 
 # usage: $ make compile-<def_name>
-compile-%: bin/verifier.out
-	@rm -f $(DEF_NOCOMM)
-	@make nocomm
-	@./test_automake3 $(DEF_NOCOMM) $(@:compile-%=%) script_autotest > /dev/null
-	@bin/verifier.out -f script_autotest -d $(DEF_NOCOMM) -s || (echo "\033[1m\033[31mcheck #1 failed.\033[m"; exit 1)
-	@./test_book3 $(DEF_NOCOMM) script_autotest > /dev/null || (echo "\033[1m\033[31mcheck #2 failed.\033[m"; exit 1)
+# 	to get a script of <def_name> as out/<def_name>.script
+#   and its book as out/<def_name>.book
+compile-%: TARGET_DEF = $(@:compile-%=%)
+compile-%: bin/genscript.out bin/verifier.out $(DEF_FILE)
+	bin/genscript.out -f $(DEF_FILE) -t $(TARGET_DEF) -o out/$(TARGET_DEF).script || (make $(@:compile-%=compile-fail-%); exit 0)
+	bin/verifier.out -d $(DEF_FILE) -c -f out/$(TARGET_DEF).script -o out/$(TARGET_DEF).book
+
+compile-noheader-%: TARGET_DEF = $(@:compile-noheader-%=%)
+compile-noheader-%: bin/genscript.out bin/verifier.out $(DEF_FILE)
+	bin/genscript.out -f $(DEF_FILE) -t $(TARGET_DEF) -o out/$(TARGET_DEF).script || (make $(@:compile-%=compile-fail-%); exit 0)
+	bin/verifier.out -c -f out/$(TARGET_DEF).script -o out/$(TARGET_DEF).book
+
+compile-fall-%: bin/verifier.out $(DEF_NOCOMM)
+	@./test_automake3 $(DEF_NOCOMM) $(@:compile-fail-%=%) out/script_autotest > /dev/null
+	@bin/verifier.out -f out/script_autotest -d $(DEF_NOCOMM) -s || (echo "\033[1m\033[31mcheck #1 failed.\033[m"; exit 1)
+	@./test_book3 $(DEF_NOCOMM) out/script_autotest > /dev/null || (echo "\033[1m\033[31mcheck #2 failed.\033[m"; exit 1)
 	@echo "\033[1m\033[32mDefinition \""$(@:compile-%=%)"\" has been verified successfully\033[m"
 
 test_nocomm: $(DEF_NOCOMM)
