@@ -797,8 +797,6 @@ int main() {
     // test_get_type();
     // test_yaps();
 
-    test_inference(defs_mine, "forall");
-
     // test_parse2();
     // test_new_parser(defs_bez);
 }
