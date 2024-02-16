@@ -1,24 +1,10 @@
-# Prerequisites
-*.d
-
 # Compiled Object files
-*.slo
-*.lo
-*.o
 *.obj
-
-# Precompiled Headers
-*.gch
-*.pch
 
 # Compiled Dynamic libraries
 *.so
 *.dylib
 *.dll
-
-# Fortran module files
-*.mod
-*.smod
 
 # Compiled Static libraries
 *.lai
@@ -27,25 +13,14 @@
 *.lib
 
 # Executables
-*.exe
 *.out
-*.app
 
-test_read
-test_read_leak
-def_file_nocomm
-script*
-!src/script_test
-!src/script_test_result
-verifier_out*
-def_conv_out*
-log*
-def_file_bez*
-bezout_script*
-test_book3_out*
-test_automake3_out*
+def_file_bez
+bezout_script
+out/*
 
 # exclude given binaries
+test_read
 test_automake3
 test_book3
 
