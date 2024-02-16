@@ -41,7 +41,7 @@ verifier_out*
 def_conv_out*
 log*
 def_file_bez*
-!def_file_bez
+bezout_script*
 test_book3_out*
 test_automake3_out*
 
