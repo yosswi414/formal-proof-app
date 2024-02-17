@@ -13,11 +13,14 @@
 [[noreturn]] void usage(const std::string& execname, bool is_err = true) {
     std::cerr << "usage: " << execname << " [FILE] [OPTION]...\n"
               << std::endl;
-    std::cerr << "with no FILE, read stdin. options:\n"
+    std::cerr << "with no FILE, read stdin.\n"
+              << "without option -t, script of the last definition of input will be generated.\n"
+              <<"options:\n"
               << std::endl;
     std::cerr << "\t-f FILE      read FILE instead of stdin" << std::endl;
     std::cerr << "\t-o out_file  output script to out_file instead of stdout" << std::endl;
     std::cerr << "\t-t def       output script only containing def and dependent definitions" << std::endl;
+    std::cerr << "\t--dry-run    output dependency of def given with -t and exit" << std::endl;
     std::cerr << "\t-v           verbose output for debugging purpose" << std::endl;
     std::cerr << "\t-s           suppress output and just verify input (overrides -v)" << std::endl;
     std::cerr << "\t-h           display this help and exit" << std::endl;
@@ -30,6 +33,7 @@ int main(int argc, char* argv[]) {
     std::string fname(""), target_def_name(""), ofname("");
     bool is_verbose = false;
     bool is_quiet = false;
+    bool dry_run = false;
 
     for (int i = 1; i < argc; ++i) {
         std::string arg(argv[i]);
@@ -46,6 +50,7 @@ int main(int argc, char* argv[]) {
             } else if (arg == "-v") is_verbose = true;
             else if (arg == "-h") usage(argv[0], false);
             else if (arg == "-s") is_quiet = true;
+            else if (arg == "--dry-run") dry_run = true;
             else {
                 std::cerr << BOLD(RED("error")) << ": invalid token: " << arg << std::endl;
                 usage(argv[0]);
@@ -57,6 +62,10 @@ int main(int argc, char* argv[]) {
                 usage(argv[0]);
             }
         }
+    }
+    if (dry_run && target_def_name.size() == 0) {
+        std::cerr << BOLD(RED("error")) << ": target definition (-t) is not given" << std::endl;
+        usage(argv[0]);
     }
 
     if (fname.size() == 0) data = FileData(true);
@@ -110,7 +119,7 @@ int main(int argc, char* argv[]) {
             for (auto&& c : unres_next) unresolved.push({c, idx});
         }
 
-        if (!is_quiet && is_verbose) {
+        if (dry_run || (!is_quiet && is_verbose)) {
             for (auto&& [idx, cp] : resolved) {
                 const std::string& c = cp.first;
                 int par = cp.second;
