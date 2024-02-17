@@ -1,3 +1,6 @@
+# Prerequisites
+*.d
+
 # Compiled Object files
 *.obj
 
@@ -14,6 +17,7 @@
 
 # Executables
 *.out
+*.out~
 
 def_file_bez
 bezout_script
@@ -24,8 +28,6 @@ test_read
 test_automake3
 test_book3
 
-# test_automake3
-# test_book3
 .vscode/
 .clang-format
 

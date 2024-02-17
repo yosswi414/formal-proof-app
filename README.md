@@ -3,9 +3,9 @@
 This is a development project as part of the coursework in [Topics in Algebra (4Q, 2023)](https://www.kurims.kyoto-u.ac.jp/~tshun/2023q4t.html) to develop a verifier & type inference system, in reference to the textbook shown below.
 
 ## Setup
-
+Makefile builds all executables and generates symbolic links to these in the current directory.
 ```bash
-$ make all  # builds all executables
+$ make  
 ```
 
 ## Usage
@@ -13,18 +13,25 @@ $ make all  # builds all executables
 - Reads `input_file` as a definition file and outputs an identical definition file in different notation
 
 ```bash
-$ bin/def_conv.out -f <input_file> [options...]
+$ ./def_conv.out -f <input_file> [options...]
 ```
 
 - Reads `input_file` as a script file and outputs a book (Series of judgements)
 
 ```bash
-$ bin/verifier.out -f <input_file> [options...]
+$ ./verifier.out -f <input_file> [options...]
 ```
 
 - Reads `input_file` as a definition file and outputs a script file (series of inference rule)
 ```bash
-$ bin/genscript.out -f <input_file> [options...]
+$ ./genscript.out -f <input_file> [options...]
+```
+
+- If the target definition is in `resource/def_file`, you can generate its script and book in one line
+```bash
+$ make check-<target name>
+# example: when the target definition name is "a3_fig11.29"
+$ make check-a3_fig11.29
 ```
 
 ### Options (Common)
@@ -33,13 +40,13 @@ $ bin/genscript.out -f <input_file> [options...]
 - `-s`: Suppress output, only verifies the input
 - `-h`: Show help page and exit
 
-### Options (`bin/def_conv.out`)
+### Options (`def_conv.out`)
 
 - `-c`: Use the conventional notation (No syntax sugar)
 - `-n`: Use the new notation (Redundant brackets are omitted)
 - `-r`: Use the rich notation (Intended to be a human-readable format; not readable by above executables)
 
-### Options (`bin/verifier.out`)
+### Options (`verifier.out`)
 
 - `-c`: Use the conventional notation (No syntax sugar)
 - `-n`: Use the new notation (Redundant brackets are omitted)
@@ -53,10 +60,11 @@ $ bin/genscript.out -f <input_file> [options...]
 - `-v`: verbose output (debug purpose)
 
 
-### Options (`bin/genscript.out`)
+### Options (`genscript.out`)
 - `-f FILE`: Read `FILE` instead of stdin
 - `-o out_file`: Output to `out_file` instead of stdout
 - `-t target`: Choose a definition in input and only focus on it and its dependency
+- `--dry-run`: Print the dependency list of the target definition
 - `-v`: verbose output (debug purpose)
 
 ## About the syntax sugars

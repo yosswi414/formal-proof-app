@@ -1,99 +1,108 @@
-CPPFLAGS = -std=c++17 -Wall -Wextra
+CC := g++
+TARGET_NAME := def_conv.out verifier.out genscript.out test.out
+TARGET = $(addprefix $(BINDIR)/, $(TARGET_NAME))
+TARGET_D = $(addprefix $(BINDIR_D)/, $(TARGET_NAME))
+TARGET_PUB = $(addprefix $(BINDIR)/, $(filter-out test.out, $(TARGET_NAME)))
+
+SRCDIR := src
+INCDIR := include
+
+OUTDIR := out
+BINDIR := $(OUTDIR)/.bin
+BINDIR_D := $(OUTDIR)/.bin_d
+OBJDIR := $(OUTDIR)/.obj
+OBJDIR_D := $(OUTDIR)/.obj_d
+DEPDIR := $(OUTDIR)/.dep
+
+CPPFLAGS := -I$(INCDIR) -Wall -Wextra -O2 -std=c++17
 DEBUGFLAGS = -fsanitize=address -fno-omit-frame-pointer -g
-INCDIR = include
-INCFLAG = -I$(INCDIR)
-OPTFLAG = -O2
+DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
 
-DEF_FILE = resource/def_file
-DEF_NOCOMM = out/def_file_conventional
+SRCS := $(wildcard $(SRCDIR)/*.cpp)
+OBJS := $(addprefix $(OBJDIR)/, $(notdir $(SRCS:.cpp=.o)))
+OBJS_D := $(addprefix $(OBJDIR_D)/, $(notdir $(SRCS:.cpp=.o)))
+DEPS := $(addprefix $(DEPDIR)/, $(notdir $(SRCS:.cpp=.d)))
 
-SRCS_LAMBDA_BASE = lambda.cpp context.cpp definition.cpp environment.cpp judgement.cpp book.cpp
-SRCS_DEPEND_BASE = common.cpp parser.cpp inference.cpp
+$(BINDIR)/%.out: $(filter-out $(TARGET:out/.bin/%.out=out/.obj/%.o), $(OBJS)) $(OBJDIR)/%.o | $(BINDIR)
+	$(CC) $(CPPFLAGS) -o $@ $^
+$(BINDIR_D)/%.out: $(filter-out $(TARGET_D:out/.bin_d/%.out=out/.obj_d/%.o), $(OBJS_D)) $(OBJDIR_D)/%.o | $(BINDIR_D)
+	$(CC) $(CPPFLAGS) $(DEBUGFLAGS) -o $@ $^
 
-INCLUDES = $(INCDIR)/*
-OBJS_LAMBDA = $(addprefix bin/,$(SRCS_LAMBDA_BASE:.cpp=.obj))
-OBJS_DEPEND = $(addprefix bin/,$(SRCS_DEPEND_BASE:.cpp=.obj))
-OBJS_LAMBDA_DEBUG = $(addprefix bin/,$(SRCS_LAMBDA_BASE:.cpp=_leak.obj))
-OBJS_DEPEND_DEBUG = $(addprefix bin/,$(SRCS_DEPEND_BASE:.cpp=_leak.obj))
-OBJS = $(OBJS_LAMBDA) $(OBJS_DEPEND)
-OBJS_DEBUG = $(OBJS_LAMBDA_DEBUG) $(OBJS_DEPEND_DEBUG)
+$(OBJDIR)/%.o: $(SRCDIR)/%.cpp $(DEPDIR)/%.d | $(OBJDIR) $(DEPDIR)
+	$(CC) $(DEPFLAGS) $(CPPFLAGS) -c -o $@ $<
+$(OBJDIR_D)/%.o: $(SRCDIR)/%.cpp $(DEPDIR)/%.d | $(OBJDIR_D) $(DEPDIR)
+	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(DEBUGFLAGS) -c -o $@ $<
 
-bin/%_leak.obj: src/%.cpp $(INCLUDES)
-	g++ ${CPPFLAGS} ${DEBUGFLAGS} ${INCFLAG} -c -o $@ $<
+$(DEPS):
 
-bin/%.obj: src/%.cpp $(INCLUDES)
-	g++ ${CPPFLAGS} ${OPTFLAG} ${INCFLAG} -c -o $@ $<
+include $(wildcard $(DEPS))
 
-bin/%_leak.out: bin/%_leak.obj $(OBJS_DEBUG)
-	g++ ${CPPFLAGS} ${DEBUGFLAGS} $^ -o $@
+.SECONDARY:
 
-bin/%.out: bin/%.obj $(OBJS)
-	g++ ${CPPFLAGS} ${OPTFLAG} $^ -o $@
+$(BINDIR) $(OBJDIR) $(DEPDIR) $(BINDIR_D) $(OBJDIR_D):
+	mkdir -p $@
 
-$(DEF_NOCOMM): $(DEF_FILE) bin/def_conv.out
-	mkdir -p out
-	bin/def_conv.out -f $< -c > $@
+.PHONY: alias
+alias: $(TARGET_PUB)
+	-ln -b -s -t . $(TARGET_PUB)
 
-.PHONY: clean test test_leak book book_leak conv conv_leak nocomm compile-% compile-noheader-% compile-fall-% test_nocomm all gen gen_leak
+.PHONY: all_min
+all_min: $(TARGET_PUB) alias
 
-nocomm: $(DEF_NOCOMM)
+.DEFAULT_GOAL := all_min
 
-TARGETS = bin/verifier.out bin/def_conv.out bin/genscript.out
+.PHONY: all
+all: clean all_min
 
-all: $(TARGETS)
+.PHONY: all_min_d
+all_min_d: $(TARGET_D)
 
-# usage: $ make compile-<def_name>
-# 	to get a script of <def_name> as out/<def_name>.script
-#   and its book as out/<def_name>.book
-compile-%: TARGET_DEF = $(@:compile-%=%)
-compile-%: bin/genscript.out bin/verifier.out $(DEF_FILE)
-	bin/genscript.out -f $(DEF_FILE) -t $(TARGET_DEF) -o out/$(TARGET_DEF).script || (make $(@:compile-%=compile-fail-%); exit 0)
-	bin/verifier.out -d $(DEF_FILE) -c -f out/$(TARGET_DEF).script -o out/$(TARGET_DEF).book
+.PHONY: all_d
+all_d: clean all_min_d
 
-compile-noheader-%: TARGET_DEF = $(@:compile-noheader-%=%)
-compile-noheader-%: bin/genscript.out bin/verifier.out $(DEF_FILE)
-	bin/genscript.out -f $(DEF_FILE) -t $(TARGET_DEF) -o out/$(TARGET_DEF).script || (make $(@:compile-%=compile-fail-%); exit 0)
-	bin/verifier.out -c -f out/$(TARGET_DEF).script -o out/$(TARGET_DEF).book
 
-compile-fall-%: bin/verifier.out $(DEF_NOCOMM)
-	@./test_automake3 $(DEF_NOCOMM) $(@:compile-fail-%=%) out/script_autotest > /dev/null
-	@bin/verifier.out -f out/script_autotest -d $(DEF_NOCOMM) -s || (echo "\033[1m\033[31mcheck #1 failed.\033[m"; exit 1)
-	@./test_book3 $(DEF_NOCOMM) out/script_autotest > /dev/null || (echo "\033[1m\033[31mcheck #2 failed.\033[m"; exit 1)
-	@echo "\033[1m\033[32mDefinition \""$(@:compile-%=%)"\" has been verified successfully\033[m"
 
-test_nocomm: $(DEF_NOCOMM)
-	@./test_automake3 $(DEF_NOCOMM) implies script_autotest > /dev/null || (echo "\033[1m\033[31mcheck failed.\033[m"; exit 1)
-	@echo "\033[1m\033[32m$(DEF_NOCOMM) has been verified successfully\033[m"
-
-book: bin/verifier.out resource/script_test
-book_leak: bin/verifier_leak.out src/script_test
-book book_leak:
-	mkdir -p out
-	$< -c -f resource/script_test -o out/verifier_out
-	cmp -s out/verifier_out resource/script_test_result || (echo "\033[1m\033[31moutput book didn't match the answer.\033[m"; exit 1)
-
-test: bin/test.out ${DEF_FILE}
-test_leak: bin/test_leak.out ${DEF_FILE}
-test test_leak:
-	$<
-
-conv: bin/def_conv.out $(DEF_FILE)
-conv_leak: bin/def_conv_leak.out $(DEF_FILE)
-conv conv_leak:
-	mkdir -p out
-	@$< -c -f ${DEF_FILE} > out/def_conv_out_c
-	@$< -n -f ${DEF_FILE} > out/def_conv_out_n
-	@$< -c -f out/def_conv_out_n > out/def_conv_out_nc
-	@$< -n -f out/def_conv_out_c > out/def_conv_out_cn
-	@cmp -s out/def_conv_out_c out/def_conv_out_nc || (echo "\033[1m\033[31mformat conversion (n->c) failed.\033[m"; exit 1)
-	@cmp -s out/def_conv_out_n out/def_conv_out_cn || (echo "\033[1m\033[31mformat conversion (c->n) failed.\033[m"; exit 1)
-
-gen: bin/genscript.out ${DEF_FILE}
-gen_leak: bin/genscript_leak.out ${DEF_FILE}
-gen gen_leak:
-	$< -f ${DEF_FILE} -s
-
+.PHONY: clean
 clean:
-	rm -f ./bin/*.out
-	rm -f ./bin/*.obj
-	rm -f ./out/*
+	-rm -rf $(OUTDIR)
+	-rm -f ./*.out
+
+DEF_FILE := resource/def_file
+
+.PHONY: check
+check: bin/genscript.out bin/verifier.out $(DEF_FILE)
+	bin/genscript.out -f $(DEF_FILE) -o out/$(notdir DEF_FILE).script || (echo "\033[1m\033[31merror\033[m: failed to generate a script of \"$(TARGET_DEF)\""; exit 1)
+	bin/verifier.out -c -f out/$(TARGET_DEF).script -o out/out.book || (echo "\033[1m\033[31merror\033[m: failed to verify the script of \"$(TARGET_DEF)\""; exit 1)
+
+.PHONY: check-%
+check-%: TARGET_DEF = $(@:check-%=%)
+check-%: bin/genscript.out bin/verifier.out $(DEF_FILE)
+	bin/genscript.out -f $(DEF_FILE) -t $(TARGET_DEF) -o out/$(TARGET_DEF).script || (echo "\033[1m\033[31merror\033[m: failed to generate a script of \"$(TARGET_DEF)\""; exit 1)
+	bin/verifier.out -c -f out/$(TARGET_DEF).script -o out/out.book || (echo "\033[1m\033[31merror\033[m: failed to verify the script of \"$(TARGET_DEF)\""; exit 1)
+
+# test commands
+.PHONY: test test-%
+test: out/.bin_d/test.out $(DEF_FILE)
+	@$< || (echo "\033[1m\033[31merror\033[m: test.out exited with an error."; exit 1)
+	@echo "\033[1m\033[32mpassed\033[m: test.cpp"
+
+test-conv: out/.bin_d/def_conv.out $(DEF_FILE)
+	@$< -c -f $(DEF_FILE) > out/def_conv_out_c || (echo "\033[1m\033[31merror\033[m: format conversion (*->c) failed."; exit 1)
+	@$< -n -f $(DEF_FILE) > out/def_conv_out_n || (echo "\033[1m\033[31merror\033[m: format conversion (*->n) failed."; exit 1)
+	@$< -c -f out/def_conv_out_n > out/def_conv_out_nc || (echo "\033[1m\033[31merror\033[m: format conversion (n->c) failed."; exit 1)
+	@$< -n -f out/def_conv_out_c > out/def_conv_out_cn || (echo "\033[1m\033[31merror\033[m: format conversion (c->n) failed."; exit 1)
+	@cmp -s out/def_conv_out_c out/def_conv_out_nc || (echo "\033[1m\033[31merror\033[m: format conversion (n->c) didn't match the reference (*->c)."; exit 1)
+	@cmp -s out/def_conv_out_n out/def_conv_out_cn || (echo "\033[1m\033[31merror\033[m: format conversion (c->n) didn't match the reference (*->n)."; exit 1)
+	@echo "\033[1m\033[32mpassed\033[m: conv"
+
+test-verify: out/.bin_d/verifier.out resource/script_test resource/script_test_result
+	@$< -c -f resource/script_test -o out/test-verify.tmp || (echo "\033[1m\033[31merror\033[m: book generation failed."; exit 1)
+	@cmp -s out/test-verify.tmp resource/script_test_result || (echo "\033[1m\033[31merror\033[m: the result book didn't match the reference."; exit 1)
+	@echo "\033[1m\033[32mpassed\033[m: verify"
+
+test-gen: out/.bin_d/genscript.out $(DEF_FILE)
+	@$< -f $(DEF_FILE) -s || (echo "\033[1m\033[31merror\033[m: script generation failed."; exit 1)
+	@echo "\033[1m\033[32mpassed\033[m: gen"
+
+test-%:
+	@(echo "\033[1m\033[31merror\033[m: unknown test command: $(@:test-%=%)"; exit 1)
