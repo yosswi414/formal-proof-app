@@ -286,9 +286,15 @@ RulePtr _get_script(const std::shared_ptr<Term>& term, const Delta& delta, const
             // left: Δ; Γ, x: A |- M: B
             // right: Δ; Γ |- ?x:A.B : s
             Gamma gamma_new = std::make_shared<Context>(*gamma);
-            gamma_new->push_back(t->var());
+            std::shared_ptr<Variable> z = t->var().value();
+            std::shared_ptr<Term> expr = t->expr();
+            if (has_variable(gamma, z)) {
+                z = get_fresh_var(*gamma);
+                gamma_new->emplace_back(z, t->var().type());
+                expr = substitute(expr, t->var().value(), z);
+            } else gamma_new->push_back(t->var());
             RulePtr left, right;
-            left = _get_script(t->expr(), delta, gamma_new);
+            left = _get_script(expr, delta, gamma_new);
             right = _get_script(get_type(t, delta, gamma), delta, gamma);
             rule = std::make_shared<Abst>(left, right);
             break;
@@ -300,10 +306,16 @@ RulePtr _get_script(const std::shared_ptr<Term>& term, const Delta& delta, const
             // left: Δ; Γ |- A : s1
             // right: Δ; Γ, x:A |- B : s2
             Gamma gamma_new = std::make_shared<Context>(*gamma);
-            gamma_new->push_back(t->var());
+            std::shared_ptr<Variable> z = t->var().value();
+            std::shared_ptr<Term> expr = t->expr();
+            if (has_variable(gamma, z)) {
+                z = get_fresh_var(*gamma);
+                gamma_new->emplace_back(z, t->var().type());
+                expr = substitute(expr, t->var().value(), z);
+            } else gamma_new->push_back(t->var());
             RulePtr left, right;
             left = _get_script(t->var().type(), delta, gamma);
-            right = _get_script(t->expr(), delta, gamma_new);
+            right = _get_script(expr, delta, gamma_new);
             rule = std::make_shared<Form>(left, right);
             break;
         }
