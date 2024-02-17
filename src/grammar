@@ -1,7 +1,0 @@
-epsilon ::= V   // variable
-          | @   // square
-          | *   // star
-          | %(epsilon)(epsilon)     // application MN
-          | $x:(epsilon).(epsilon)  // abstraction λx:M.N
-          | ?x:(epsilon).(epsilon)  //             Πx:M.N
-          | c[(epsilon),...,(epsilon)]    // constant c(M1, ..., Mn)  (n >= 0)

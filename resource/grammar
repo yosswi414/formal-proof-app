@@ -1,0 +1,38 @@
+epsilon ::= V   // variable
+          | @   // square
+          | *   // star
+          | %(epsilon)(epsilon)     // application MN
+          | $x:(epsilon).(epsilon)  // abstraction λx:M.N
+          | ?x:(epsilon).(epsilon)  //             Πx:M.N
+          | c[(epsilon),...,(epsilon)]    // constant c(M1, ..., Mn)  (n >= 0)
+V ::= identifier
+
+NL ::= "\n" NL
+     | "\n"
+definitions ::= definition NL definitions
+              | definition NL "END"
+definition ::= definition_conv | definition_new | definition_flag
+term ::= epsilon | "#"
+definition_conv ::= "def2" NL context NL def_name NL term NL epsilon NL "edef2"
+context ::= num_of_vars NL var_types
+num_of_vars ::= [[nonnegative integer]]
+var_types ::= V NL epsilon NL var_types
+            | V NL epsilon
+def_name ::= identifier
+identifier ::= [A-Za-z_][0-9A-Za-z_-.]*
+
+declaration ::= def_name ":=" term ":" epsilon
+definition_new ::= "def2" NL context_new NL declaration NL "edef2"
+context_new ::= num_of_vars NL var_types_new
+var_types_new ::= V ":" epsilon NL var_types_new
+                | V ":" epsilon
+
+definition_flag ::= declaration
+                  | flagpoles flag
+                  | flagpoles declaration
+flagpoles ::= "|" flagpoles
+            | "|"
+flag ::= "[" var_types_new2 "]"
+var_types_new2 ::= V ":" epsilon "," var_types_new2
+                 | V ":" epsilon
+
