@@ -1,10 +1,10 @@
 #include <cstdio>
+#include <fstream>
 #include <functional>
 #include <iostream>
 #include <memory>
 #include <queue>
 #include <vector>
-#include <fstream>
 
 #include "book.hpp"
 #include "context.hpp"
@@ -288,14 +288,14 @@ void test_reduction1(const Environment& delta) {
     show(ansnB);
     test(is_convertible(exprB, ansnB, delta));
 
-    exprB = parse_lambda_old("?a:?a:A.or[B, A].?b:?b:B.or[B, A].or[B, A]");
-    ansnB = parse_lambda_old("?d:?c:A.?a:*.?d:?b:B.a.?e:?b:A.a.a.?e:?c:B.?a:*.?e:?b:B.a.?f:?b:A.a.a.?a:*.?c:?b:B.a.?f:?b:A.a.a");
+    exprB = parse_lambda("?a:?a:A.or[B, A].?b:?b:B.or[B, A].or[B, A]");
+    ansnB = parse_lambda("?d:?c:A.?a:*.?d:?b:B.a.?e:?b:A.a.a.?e:?c:B.?a:*.?e:?b:B.a.?f:?b:A.a.a.?a:*.?c:?b:B.a.?f:?b:A.a.a");
     show(exprB);
     show(ansnB);
     test(is_convertible(exprB, ansnB, delta));
 
-    exprB = parse_lambda_old("?d:S.?c:%P a.?g:%P d.?h:?e:S.*.?i:*.?e:?e:?e:%h a.%h d.?j:?j:%h d.%h a.i.i");
-    ansnB = parse_lambda_old("?g:S.?d:%P a.?f:%P g.?h:?c:S.*.?c:*.?e:?e:?e:%h a.%h g.?i:?i:%h g.%h a.c.c");
+    exprB = parse_lambda("?d:S.?c:%P a.?g:%P d.?h:?e:S.*.?i:*.?e:?e:?e:%h a.%h d.?j:?j:%h d.%h a.i.i");
+    ansnB = parse_lambda("?g:S.?d:%P a.?f:%P g.?h:?c:S.*.?c:*.?e:?e:?e:%h a.%h g.?i:?i:%h g.%h a.c.c");
     show(exprB);
     show(ansnB);
     test(is_convertible(exprB, ansnB, delta));
@@ -305,13 +305,13 @@ void test_reduction1(const Environment& delta) {
 
 void test_reduction2(const Environment& delta) {
     std::cerr << "[delta reduction test 2]" << std::endl;
-    auto exprB = parse_lambda_old("?a:A.A");
-    auto ansnB = parse_lambda_old("implies[A, A]");
+    auto exprB = parse_lambda("?a:A.A");
+    auto ansnB = parse_lambda("implies[A, A]");
     test(is_convertible(exprB, ansnB, delta));
     // bout(is_convertible(ansnB, exprB, delta));
     test(!is_delta_reducible(exprB, delta));
     test(is_delta_reducible(ansnB, delta));
-    test(alpha_comp(parse_lambda_old("A"), parse_lambda_old("A")));
+    test(alpha_comp(parse_lambda("A"), parse_lambda("A")));
     test_result();
 }
 
@@ -320,9 +320,9 @@ void test_reduction3(const Environment& delta) {
     std::shared_ptr<Term> exprB, ansnB;
 
     try {
-        exprB = parse_lambda_new("Rset_fig14.10[A, a, f, g, spec_rec_thD22C[A, a, f, g, e, v, b, u]]", delta);
+        exprB = parse_lambda("Rset_fig14.10[A, a, f, g, spec_rec_thD22C[A, a, f, g, e, v, b, u]]", delta);
         show(exprB);
-        ansnB = parse_lambda_new(
+        ansnB = parse_lambda(
             R"(?q:*.?r:?r:?j:*.?l:?l:?l:?c:integer[].?d:A.*.?c:?c:*.?k:?k:%%l zero[] a.?h:?h:integer[].?m:A.?i:*.?o:?n:?n:?n:*.?o:?o:?o:?d:integer[].*.?d:?d:*.?r:?r:%o zero[].?s:?s:integer[].?t:%o s.%o %Funcs[] s.d.d.%o iota[integer[], $r:integer[].eq[integer[], %Funcs[] r, %Funcs[] h], a12_14.3[%Funcs[] h]].?d:%%l h m.n.n.%%l %Funcs[] h %f m.?o:?o:?o:*.?r:?r:?r:?r:?d:integer[].*.?s:?s:*.?t:?t:%r zero[].?x:?x:integer[].?d:%r x.%r %Funcs[] x.s.s.%r iota[integer[], $d:integer[].eq[integer[], %Funcs[] d, h], a12_14.3[h]].?d:*.d.?d:%%l h m.o.o.%%l iota[integer[], $d:integer[].eq[integer[], %Funcs[] d, h], a12_14.3[h]] %g m.i.i.c.c.%%l zero[] a.?h:?h:?h:*.?d:?d:?d:?c:integer[].*.?c:*.?i:?i:?i:%d zero[].%d %Funcs[] e.?k:?k:%d %Funcs[] e.%d zero[].c.c.?i:?i:?c:A.*.?c:*.?k:?k:?k:%i a.%i b.?m:?m:%i b.%i a.c.c.h.h.?c:*.c.j.j.?s:?s:integer[].?n:A.?t:*.?x:?x:?m:?m:*.?x:?x:?h:?c:integer[].*.?c:?c:*.?i:?i:%h zero[].?j:?j:integer[].?d:%h j.%h %Funcs[] j.c.c.%h iota[integer[], $d:integer[].eq[integer[], %Funcs[] d, %Funcs[] s], a12_14.3[%Funcs[] s]].?y:?y:*.?z:?z:?z:?c:integer[].?d:A.*.?l:?l:*.?o:?o:%%z zero[] a.?B:?B:integer[].?k:A.?j:*.?i:?i:?h:?h:*.?i:?i:?i:?c:integer[].*.?d:?d:*.?c:?c:%i zero[].?C:?C:integer[].?D:%i C.%i %Funcs[] C.d.d.%i iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, %Funcs[] B], a12_14.3[%Funcs[] B]].?c:%%z B k.h.h.%%z %Funcs[] B %f k.?d:?d:?d:*.?h:?h:?h:?h:?c:integer[].*.?c:?c:*.?C:?C:%h zero[].?D:?D:integer[].?E:%h D.%h %Funcs[] D.c.c.%h iota[integer[], $C:integer[].eq[integer[], %Funcs[] C, B], a12_14.3[B]].?c:*.c.?c:%%z B k.d.d.%%z iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, B], a12_14.3[B]] %g k.j.j.l.l.%%z s n.?d:?d:?d:*.?i:?h:?c:?c:integer[].*.?h:*.?i:?i:?i:%c s.%c %Funcs[] e.?j:?j:%c %Funcs[] e.%c s.h.h.?i:?i:?c:A.*.?j:*.?c:?c:?c:%i n.%i b.?k:?k:%i b.%i n.j.j.d.d.?c:*.c.y.y.m.m.?x:*.?y:?y:?y:?c:integer[].?d:A.*.?l:?l:*.?o:?o:%%y zero[] a.?z:?z:integer[].?k:A.?j:*.?i:?i:?h:?h:*.?i:?i:?i:?c:integer[].*.?d:?d:*.?c:?c:%i zero[].?B:?B:integer[].?C:%i B.%i %Funcs[] B.d.d.%i iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, %Funcs[] z], a12_14.3[%Funcs[] z]].?c:%%y z k.h.h.%%y %Funcs[] z %f k.?d:?d:?d:*.?h:?h:?h:?h:?c:integer[].*.?c:?c:*.?B:?B:%h zero[].?C:?C:integer[].?D:%h C.%h %Funcs[] C.c.c.%h iota[integer[], $B:integer[].eq[integer[], %Funcs[] B, z], a12_14.3[z]].?c:*.c.?c:%%y z k.d.d.%%y iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, z], a12_14.3[z]] %g k.j.j.l.l.%%y %Funcs[] s %f n.?h:?h:?h:*.?i:?i:?d:?c:integer[].*.?c:*.?i:?i:?i:%d %Funcs[] s.%d %Funcs[] e.?j:?j:%d %Funcs[] e.%d %Funcs[] s.c.c.?j:?j:?c:A.*.?c:*.?d:?d:?d:%j %f n.%j b.?k:?k:%j b.%j %f n.c.c.h.h.?c:*.c.x.x.?y:?y:?m:*.?y:?y:?h:?h:?c:integer[].*.?c:?c:*.?i:?i:%h zero[].?j:?j:integer[].?d:%h j.%h %Funcs[] j.c.c.%h iota[integer[], $d:integer[].eq[integer[], %Funcs[] d, s], a12_14.3[s]].?c:*.c.?z:?z:*.?B:?B:?B:?c:integer[].?d:A.*.?l:?l:*.?o:?o:%%B zero[] a.?C:?C:integer[].?k:A.?j:*.?i:?i:?h:?h:*.?i:?i:?i:?c:integer[].*.?d:?d:*.?c:?c:%i zero[].?D:?D:integer[].?E:%i D.%i %Funcs[] D.d.d.%i iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, %Funcs[] C], a12_14.3[%Funcs[] C]].?c:%%B C k.h.h.%%B %Funcs[] C %f k.?d:?d:?d:*.?h:?h:?h:?h:?c:integer[].*.?c:?c:*.?D:?D:%h zero[].?E:?E:integer[].?F:%h E.%h %Funcs[] E.c.c.%h iota[integer[], $D:integer[].eq[integer[], %Funcs[] D, C], a12_14.3[C]].?c:*.c.?c:%%B C k.d.d.%%B iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, C], a12_14.3[C]] %g k.j.j.l.l.%%B s n.?d:?d:?d:*.?i:?h:?c:?c:integer[].*.?h:*.?i:?i:?i:%c s.%c %Funcs[] e.?j:?j:%c %Funcs[] e.%c s.h.h.?i:?i:?c:A.*.?j:*.?c:?c:?c:%i n.%i b.?k:?k:%i b.%i n.j.j.d.d.?c:*.c.z.z.m.m.?z:*.?m:?m:?i:?c:integer[].?d:A.*.?B:?B:*.?o:?o:%%i zero[] a.?C:?C:integer[].?l:A.?k:*.?j:?j:?h:?h:*.?j:?j:?j:?c:integer[].*.?m:?m:*.?c:?c:%j zero[].?D:?D:integer[].?d:%j D.%j %Funcs[] D.m.m.%j iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, %Funcs[] C], a12_14.3[%Funcs[] C]].?c:%%i C l.h.h.%%i %Funcs[] C %f l.?d:?d:?d:*.?h:?h:?h:?h:?c:integer[].*.?c:?c:*.?m:?m:%h zero[].?D:?D:integer[].?E:%h D.%h %Funcs[] D.c.c.%h iota[integer[], $m:integer[].eq[integer[], %Funcs[] m, C], a12_14.3[C]].?c:*.c.?c:%%i C l.d.d.%%i iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, C], a12_14.3[C]] %g l.k.k.B.B.%%i iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, s], a12_14.3[s]] %g n.?j:?j:?j:*.?i:?i:?i:?c:integer[].*.?d:*.?c:?c:?c:%i iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, s], a12_14.3[s]].%i %Funcs[] e.?h:?h:%i %Funcs[] e.%i iota[integer[], $k:integer[].eq[integer[], %Funcs[] k, s], a12_14.3[s]].d.d.?c:?c:?c:A.*.?d:*.?h:?h:?h:%c %g n.%c b.?k:?k:%c b.%c %g n.d.d.j.j.?c:*.c.z.z.t.t.q.q)", delta);
         show(ansnB);
     } catch (ExprError& e) {
@@ -373,7 +373,7 @@ void test_parse() {
     std::shared_ptr<Term> A;
 
     try {
-        A = parse_lambda_old("Rset_fig14.10[A, a, f, g, spec_rec_thD22C[A, a, f, g, e, v, b, u]]");
+        A = parse_lambda("Rset_fig14.10[A, a, f, g, spec_rec_thD22C[A, a, f, g, e, v, b, u]]");
     } catch (ExprError& e) {
         e.puterror();
         exit(EXIT_FAILURE);
@@ -386,8 +386,8 @@ void test_def_file() {
     std::shared_ptr<Term> a, b;
     try {
         delta = Environment("src/def_file");
-        a = parse_lambda_old(R"(?a:?a:T.*.implies[%a %f x, %a %f y])");
-        b = parse_lambda_old(R"(eq[T, %f x, %f y])");
+        a = parse_lambda(R"(?a:?a:T.*.implies[%a %f x, %a %f y])");
+        b = parse_lambda(R"(eq[T, %f x, %f y])");
     } catch (ParseError& e) {
         e.puterror();
         exit(EXIT_FAILURE);
@@ -421,273 +421,6 @@ void test_get_type() {
     test_result();
 }
 
-namespace yet_another_parser_system {
-
-class ParseFailedException : public std::runtime_error {
-  public:
-    ParseFailedException(const char* _Message) : runtime_error(_Message) {}
-};
-
-template <typename T = void*>
-class ParseResult {
-  public:
-    ParseResult() {}
-    ParseResult(bool status) : _success(status) {}
-    ParseResult(bool status, const T& data) : _success(status), _data(data) {}
-
-    bool result() const { return _success; }
-    const T& data() const {
-        // if (!result()) throw ParseFailedException("parse failed");
-        return _data;
-    }
-
-    operator bool() const { return _success; }
-
-  private:
-    bool _success;
-    T _data;
-};
-
-using Source = const std::string;
-
-std::map<Source*, size_t> _parse_str_pos;
-
-size_t position(Source& str) { return _parse_str_pos[&str]; }
-size_t& _position(Source& str) { return _parse_str_pos[&str]; }
-
-void resetState(Source& str, size_t new_pos = 0) {
-    _parse_str_pos[&str] = new_pos;
-}
-
-void resetAllState() {
-    std::map<Source*, size_t>().swap(_parse_str_pos);
-}
-
-template <typename T = void*>
-using Parser = std::function<ParseResult<T>(Source&)>;
-
-template <typename T>
-ParseResult<T> alwaystrue(Source& str) {
-    (void)str;  // suppressing unused parameter warning
-    return ParseResult<T>(true, T());
-};
-
-template <typename T>
-ParseResult<T> alwaysfalse(Source& str) {
-    (void)str;  // suppressing unused parameter warning
-    return ParseResult<T>(false);
-};
-
-Parser<> endOfStr = [](Source& str) {
-    if (str.size() == position(str)) return ParseResult<>(true);
-    else return ParseResult<>(false);
-};
-
-Parser<char> satisfy(const std::function<bool(char)>& func) {
-    return [=](Source& str) {
-        size_t& pos = _position(str);
-        if (str.size() <= pos || !func(str[pos])) return ParseResult<char>(false);
-        return ParseResult<char>(true, str[pos++]);
-    };
-}
-
-bool isDigit(char ch) { return '0' <= ch && ch <= '9'; }
-bool isLower(char ch) { return 'a' <= ch && ch <= 'z'; }
-bool isUpper(char ch) { return 'A' <= ch && ch <= 'Z'; }
-bool isAlpha(char ch) { return isLower(ch) || isUpper(ch); }
-bool isAlNum(char ch) { return isAlpha(ch) || isDigit(ch); }
-
-auto digit = satisfy(isDigit);
-auto alphabet = satisfy(isAlpha);
-auto alnum = satisfy(isAlNum);
-
-Parser<char> anychar = satisfy([](char) { return true; });
-
-Parser<char> onechar(char ch) {
-    return satisfy([=](char c) { return c == ch; });
-}
-
-template <typename T>
-std::ostream& operator<<(std::ostream& os, const ParseResult<T>& pr) {
-    if (!pr.result()) return os << "[parse failed]";
-    return os << pr.data();
-}
-
-template <>
-std::ostream& operator<<(std::ostream& os, const ParseResult<void*>& pr) {
-    return os << (pr.result() ? "success" : "failed");
-}
-
-template <typename T1, typename T2>
-Parser<std::string> operator+(const Parser<T1>& p1, const Parser<T2>& p2) {
-    return [=](Source& str) {
-        size_t pos_begin = position(str);
-        auto res1 = p1(str);
-        auto res2 = p2(str);
-        if (!res1 || !res2) {
-            resetState(str, pos_begin);
-            return ParseResult<std::string>(false);
-        }
-        std::ostringstream oss;
-        oss << res1.data() << res2.data();
-        return ParseResult<std::string>(true, oss.str());
-    };
-}
-
-template <typename T1, typename T2>
-Parser<std::string>& operator+=(Parser<T1>& p1, const Parser<T2>& p2) {
-    return p1 = (p1 + p2);
-}
-
-template <typename T>
-Parser<std::string> operator*(const Parser<T>& p, int n) {
-    return [=](Source& str) {
-        size_t pos_begin = position(str);
-        std::ostringstream oss;
-        for (int i = 0; i < n; ++i) {
-            auto res = p(str);
-            if (!res) {
-                resetState(str, pos_begin);
-                return ParseResult<std::string>(false);
-            }
-            oss << res.data();
-        }
-        return ParseResult<std::string>(true, oss.str());
-    };
-}
-
-template <typename T>
-Parser<std::string> operator*(int n, const Parser<T>& p) { return p * n; }
-
-template <typename T>
-Parser<std::string> geq_zero(const Parser<T>& p) {
-    return [=](Source& str) {
-        std::ostringstream oss;
-        while (true) {
-            size_t pos_begin_sub = position(str);
-            auto res = p(str);
-            if (!res) {
-                resetState(str, pos_begin_sub);
-                return ParseResult<std::string>(true, oss.str());
-            }
-            oss << res.data();
-        }
-    };
-}
-
-template <typename T>
-Parser<std::string> more_than_zero(const Parser<T>& p) {
-    return p + geq_zero(p);
-}
-
-template <typename T>
-const Parser<T> operator||(const Parser<T>& p1, const Parser<T>& p2) {
-    return [=](Source& str) {
-        size_t pos_begin = position(str);
-        auto res1 = p1(str);
-        if (res1) return res1;
-        resetState(str, pos_begin);
-        auto res2 = p2(str);
-        if (res2) return res2;
-        return ParseResult<T>(false);
-    };
-}
-
-Parser<std::string> string(Source& cmp) {
-    Parser<std::string> psum = alwaystrue<std::string>;
-    for (size_t i = 0; i < cmp.size(); ++i) psum += onechar(cmp[i]);
-    return psum;
-}
-
-Parser<char> either(Source& cmp) {
-    return [=](Source& str) {
-        // std::cerr << "[debug] either(): str = " << str << ", pos = " << position(str) << ", &str = " << &str << std::endl;
-        for (size_t i = 0; i < cmp.size(); ++i) {
-            size_t pos_begin = position(str);
-            auto res = onechar(cmp[i])(str);
-            if (!res) resetState(str, pos_begin);
-            else return res;
-        }
-        return ParseResult<char>(false);
-    };
-    Parser<char> psum = alwaysfalse<char>;
-    for (size_t i = 0; i < cmp.size(); ++i) psum = psum || onechar(cmp[i]);
-    return psum;
-}
-
-template <typename T1, typename T2>
-Parser<T1> operator<(const Parser<T1>& p1, const Parser<T2>& p2) {
-    return [=](Source& str) {
-        size_t pos_begin = position(str);
-        ParseResult<T1> res;
-        if (!(res = p1(str)) || !p2(str)) {
-            resetState(str, pos_begin);
-            return ParseResult<T1>(false);
-        }
-        return res;
-    };
-}
-
-template <typename T1, typename T2>
-Parser<T2> operator>(const Parser<T1>& p1, const Parser<T2>& p2) {
-    return [=](Source& str) {
-        size_t pos_begin = position(str);
-        ParseResult<T2> res;
-        if (!p1(str) || !(res = p2(str))) {
-            resetState(str, pos_begin);
-            return ParseResult<T2>(false);
-        }
-        return res;
-    };
-}
-};  // namespace yet_another_parser_system
-
-namespace yaps = yet_another_parser_system;
-
-void test_yaps() {
-    std::string str1 = "hehhe";
-    std::string str2 = "world,hoge";
-    for (auto p = yaps::anychar(str1); p; p = yaps::anychar(str1)) {
-        std::cout << "str1 : " << p << std::endl;
-    }
-    std::cout << "str2 : " << (yaps::anychar * 3)(str2) << std::endl;
-    std::string str3 = "123";
-    std::cout << "str3 : " << yaps::digit(str3) << std::endl;
-    std::cout << "str3 : " << yaps::digit(str3) << std::endl;
-    std::cout << "str3 : " << yaps::digit(str3) << std::endl;
-    std::cout << "str3 end : " << yaps::endOfStr(str3) << std::endl;
-    yaps::resetState(str3);
-
-    std::cout << "str3 : " << yaps::onechar('1')(str3) << std::endl;
-    std::cout << "str3 : " << yaps::onechar('3')(str3) << std::endl;
-    std::cout << "str3 : " << yaps::onechar('2')(str3) << std::endl;
-    std::cout << "str3 end : " << yaps::endOfStr(str3) << std::endl;
-    std::cout << "str2 : " << (yaps::anychar * 3)(str2) << std::endl;
-    yaps::resetState(str2);
-    std::cout << "str2 ([a-z]*) : " << yaps::geq_zero(yaps::alphabet)(str2) << std::endl;
-    std::cout << "str2 (.) : " << yaps::anychar(str2) << std::endl;
-    std::cout << "str2 ([a-z]*) : " << yaps::geq_zero(yaps::alphabet)(str2) << std::endl;
-
-    std::string str4 = "acb";
-    std::cout << "str4 : " << (yaps::onechar('a') + yaps::onechar('b') || yaps::onechar('c') + yaps::onechar('b'))(str4) << std::endl;
-    std::cout << "str4 : " << (yaps::onechar('a') + yaps::onechar('c') || yaps::onechar('c') + yaps::onechar('b'))(str4) << std::endl;
-    yaps::resetState(str2);
-    std::cout << "str2 ([a-z]*) : " << yaps::string("world,h")(str2) << std::endl;
-    std::string str5 = "$z:A.B";
-    std::cout << "str5 : " << ((yaps::onechar('$') > yaps::alphabet) + (yaps::onechar(':') > yaps::alphabet) + (yaps::onechar('.') > yaps::alphabet))(str5) << std::endl;
-    yaps::resetState(str5);
-    std::cout << "str5 : " << ((yaps::onechar('$') < yaps::alphabet) + (yaps::onechar(':') < yaps::alphabet) + (yaps::onechar('.') < yaps::alphabet))(str5) << std::endl;
-    std::string str6 = "abcd";
-    std::cout << "str6 : " << ((yaps::alphabet > yaps::alphabet) + (yaps::alphabet < yaps::alphabet))(str6) << std::endl;
-    std::string str7 = "S -> A -> B -> *";
-    auto spaces = yaps::geq_zero(yaps::onechar(' '));
-    auto name = yaps::more_than_zero(yaps::alnum || yaps::either("_*"));
-    auto chainArrow = name + yaps::geq_zero((spaces > yaps::string("->")) + (spaces > name));
-    std::cout << "str7: " << chainArrow(str7) << std::endl;
-
-    std::string expr = R"(equiv_in[%P x, %P x, $u:%P x.u, $u:%P x.u])";
-}
-
 void test_parse2() {
     try {
         // {
@@ -699,7 +432,7 @@ void test_parse2() {
         // }
         {
             std::string test_expr_3_str = R"(?q:*.?r:?r:?j:*.?l:?l:?l:?c:integer[].?d:A.*.?c:?c:*.?k:?k:%%l zero[] a.?h:?h:integer[].?m:A.?i:*.?o:?n:?n:?n:*.?o:?o:?o:?d:integer[].*.?d:?d:*.?r:?r:%o zero[].?s:?s:integer[].?t:%o s.%o %Funcs[] s.d.d.%o iota[integer[], $r:integer[].eq[integer[], %Funcs[] r, %Funcs[] h], a12_14.3[%Funcs[] h]].?d:%%l h m.n.n.%%l %Funcs[] h %f m.?o:?o:?o:*.?r:?r:?r:?r:?d:integer[].*.?s:?s:*.?t:?t:%r zero[].?x:?x:integer[].?d:%r x.%r %Funcs[] x.s.s.%r iota[integer[], $d:integer[].eq[integer[], %Funcs[] d, h], a12_14.3[h]].?d:*.d.?d:%%l h m.o.o.%%l iota[integer[], $d:integer[].eq[integer[], %Funcs[] d, h], a12_14.3[h]] %g m.i.i.c.c.%%l zero[] a.?h:?h:?h:*.?d:?d:?d:?c:integer[].*.?c:*.?i:?i:?i:%d zero[].%d %Funcs[] e.?k:?k:%d %Funcs[] e.%d zero[].c.c.?i:?i:?c:A.*.?c:*.?k:?k:?k:%i a.%i b.?m:?m:%i b.%i a.c.c.h.h.?c:*.c.j.j.?s:?s:integer[].?n:A.?t:*.?x:?x:?m:?m:*.?x:?x:?h:?c:integer[].*.?c:?c:*.?i:?i:%h zero[].?j:?j:integer[].?d:%h j.%h %Funcs[] j.c.c.%h iota[integer[], $d:integer[].eq[integer[], %Funcs[] d, %Funcs[] s], a12_14.3[%Funcs[] s]].?y:?y:*.?z:?z:?z:?c:integer[].?d:A.*.?l:?l:*.?o:?o:%%z zero[] a.?B:?B:integer[].?k:A.?j:*.?i:?i:?h:?h:*.?i:?i:?i:?c:integer[].*.?d:?d:*.?c:?c:%i zero[].?C:?C:integer[].?D:%i C.%i %Funcs[] C.d.d.%i iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, %Funcs[] B], a12_14.3[%Funcs[] B]].?c:%%z B k.h.h.%%z %Funcs[] B %f k.?d:?d:?d:*.?h:?h:?h:?h:?c:integer[].*.?c:?c:*.?C:?C:%h zero[].?D:?D:integer[].?E:%h D.%h %Funcs[] D.c.c.%h iota[integer[], $C:integer[].eq[integer[], %Funcs[] C, B], a12_14.3[B]].?c:*.c.?c:%%z B k.d.d.%%z iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, B], a12_14.3[B]] %g k.j.j.l.l.%%z s n.?d:?d:?d:*.?i:?h:?c:?c:integer[].*.?h:*.?i:?i:?i:%c s.%c %Funcs[] e.?j:?j:%c %Funcs[] e.%c s.h.h.?i:?i:?c:A.*.?j:*.?c:?c:?c:%i n.%i b.?k:?k:%i b.%i n.j.j.d.d.?c:*.c.y.y.m.m.?x:*.?y:?y:?y:?c:integer[].?d:A.*.?l:?l:*.?o:?o:%%y zero[] a.?z:?z:integer[].?k:A.?j:*.?i:?i:?h:?h:*.?i:?i:?i:?c:integer[].*.?d:?d:*.?c:?c:%i zero[].?B:?B:integer[].?C:%i B.%i %Funcs[] B.d.d.%i iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, %Funcs[] z], a12_14.3[%Funcs[] z]].?c:%%y z k.h.h.%%y %Funcs[] z %f k.?d:?d:?d:*.?h:?h:?h:?h:?c:integer[].*.?c:?c:*.?B:?B:%h zero[].?C:?C:integer[].?D:%h C.%h %Funcs[] C.c.c.%h iota[integer[], $B:integer[].eq[integer[], %Funcs[] B, z], a12_14.3[z]].?c:*.c.?c:%%y z k.d.d.%%y iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, z], a12_14.3[z]] %g k.j.j.l.l.%%y %Funcs[] s %f n.?h:?h:?h:*.?i:?i:?d:?c:integer[].*.?c:*.?i:?i:?i:%d %Funcs[] s.%d %Funcs[] e.?j:?j:%d %Funcs[] e.%d %Funcs[] s.c.c.?j:?j:?c:A.*.?c:*.?d:?d:?d:%j %f n.%j b.?k:?k:%j b.%j %f n.c.c.h.h.?c:*.c.x.x.?y:?y:?m:*.?y:?y:?h:?h:?c:integer[].*.?c:?c:*.?i:?i:%h zero[].?j:?j:integer[].?d:%h j.%h %Funcs[] j.c.c.%h iota[integer[], $d:integer[].eq[integer[], %Funcs[] d, s], a12_14.3[s]].?c:*.c.?z:?z:*.?B:?B:?B:?c:integer[].?d:A.*.?l:?l:*.?o:?o:%%B zero[] a.?C:?C:integer[].?k:A.?j:*.?i:?i:?h:?h:*.?i:?i:?i:?c:integer[].*.?d:?d:*.?c:?c:%i zero[].?D:?D:integer[].?E:%i D.%i %Funcs[] D.d.d.%i iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, %Funcs[] C], a12_14.3[%Funcs[] C]].?c:%%B C k.h.h.%%B %Funcs[] C %f k.?d:?d:?d:*.?h:?h:?h:?h:?c:integer[].*.?c:?c:*.?D:?D:%h zero[].?E:?E:integer[].?F:%h E.%h %Funcs[] E.c.c.%h iota[integer[], $D:integer[].eq[integer[], %Funcs[] D, C], a12_14.3[C]].?c:*.c.?c:%%B C k.d.d.%%B iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, C], a12_14.3[C]] %g k.j.j.l.l.%%B s n.?d:?d:?d:*.?i:?h:?c:?c:integer[].*.?h:*.?i:?i:?i:%c s.%c %Funcs[] e.?j:?j:%c %Funcs[] e.%c s.h.h.?i:?i:?c:A.*.?j:*.?c:?c:?c:%i n.%i b.?k:?k:%i b.%i n.j.j.d.d.?c:*.c.z.z.m.m.?z:*.?m:?m:?i:?c:integer[].?d:A.*.?B:?B:*.?o:?o:%%i zero[] a.?C:?C:integer[].?l:A.?k:*.?j:?j:?h:?h:*.?j:?j:?j:?c:integer[].*.?m:?m:*.?c:?c:%j zero[].?D:?D:integer[].?d:%j D.%j %Funcs[] D.m.m.%j iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, %Funcs[] C], a12_14.3[%Funcs[] C]].?c:%%i C l.h.h.%%i %Funcs[] C %f l.?d:?d:?d:*.?h:?h:?h:?h:?c:integer[].*.?c:?c:*.?m:?m:%h zero[].?D:?D:integer[].?E:%h D.%h %Funcs[] D.c.c.%h iota[integer[], $m:integer[].eq[integer[], %Funcs[] m, C], a12_14.3[C]].?c:*.c.?c:%%i C l.d.d.%%i iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, C], a12_14.3[C]] %g l.k.k.B.B.%%i iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, s], a12_14.3[s]] %g n.?j:?j:?j:*.?i:?i:?i:?c:integer[].*.?d:*.?c:?c:?c:%i iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, s], a12_14.3[s]].%i %Funcs[] e.?h:?h:%i %Funcs[] e.%i iota[integer[], $k:integer[].eq[integer[], %Funcs[] k, s], a12_14.3[s]].d.d.?c:?c:?c:A.*.?d:*.?h:?h:?h:%c %g n.%c b.?k:?k:%c b.%c %g n.d.d.j.j.?c:*.c.z.z.t.t.q.q)";
-            auto test_expr_3_lam = parse_lambda_old(test_expr_3_str);
+            auto test_expr_3_lam = parse_lambda(test_expr_3_str);
             show(test_expr_3_str);
             // show(test_expr_3_lam);
             std::string test_expr_3_prs = test_expr_3_lam->repr_new();
@@ -731,14 +464,14 @@ void test_new_parser(const Environment& delta) {
     try {
         if (false) {
             std::string test_expr_1_str = "?a:*.?b:?c:?d:*.?e:?f:?g:?h:contra[].?i:A.*.T1.T2.T3.T4.T5";
-            auto test_expr_1_lam = parse_lambda_new(test_expr_1_str, delta);
+            auto test_expr_1_lam = parse_lambda(test_expr_1_str, delta);
             show(test_expr_1_str);
             show(test_expr_1_lam);
             show(test_expr_1_lam->repr());
         }
         if (true) {
             std::string test_expr_3_str = R"(?q:*.?r:?r:?j:*.?l:?l:?l:?c:integer[].?d:A.*.?c:?c:*.?k:?k:%%l zero[] a.?h:?h:integer[].?m:A.?i:*.?o:?n:?n:?n:*.?o:?o:?o:?d:integer[].*.?d:?d:*.?r:?r:%o zero[].?s:?s:integer[].?t:%o s.%o %Funcs[] s.d.d.%o iota[integer[], $r:integer[].eq[integer[], %Funcs[] r, %Funcs[] h], a12_14.3[%Funcs[] h]].?d:%%l h m.n.n.%%l %Funcs[] h %f m.?o:?o:?o:*.?r:?r:?r:?r:?d:integer[].*.?s:?s:*.?t:?t:%r zero[].?x:?x:integer[].?d:%r x.%r %Funcs[] x.s.s.%r iota[integer[], $d:integer[].eq[integer[], %Funcs[] d, h], a12_14.3[h]].?d:*.d.?d:%%l h m.o.o.%%l iota[integer[], $d:integer[].eq[integer[], %Funcs[] d, h], a12_14.3[h]] %g m.i.i.c.c.%%l zero[] a.?h:?h:?h:*.?d:?d:?d:?c:integer[].*.?c:*.?i:?i:?i:%d zero[].%d %Funcs[] e.?k:?k:%d %Funcs[] e.%d zero[].c.c.?i:?i:?c:A.*.?c:*.?k:?k:?k:%i a.%i b.?m:?m:%i b.%i a.c.c.h.h.?c:*.c.j.j.?s:?s:integer[].?n:A.?t:*.?x:?x:?m:?m:*.?x:?x:?h:?c:integer[].*.?c:?c:*.?i:?i:%h zero[].?j:?j:integer[].?d:%h j.%h %Funcs[] j.c.c.%h iota[integer[], $d:integer[].eq[integer[], %Funcs[] d, %Funcs[] s], a12_14.3[%Funcs[] s]].?y:?y:*.?z:?z:?z:?c:integer[].?d:A.*.?l:?l:*.?o:?o:%%z zero[] a.?B:?B:integer[].?k:A.?j:*.?i:?i:?h:?h:*.?i:?i:?i:?c:integer[].*.?d:?d:*.?c:?c:%i zero[].?C:?C:integer[].?D:%i C.%i %Funcs[] C.d.d.%i iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, %Funcs[] B], a12_14.3[%Funcs[] B]].?c:%%z B k.h.h.%%z %Funcs[] B %f k.?d:?d:?d:*.?h:?h:?h:?h:?c:integer[].*.?c:?c:*.?C:?C:%h zero[].?D:?D:integer[].?E:%h D.%h %Funcs[] D.c.c.%h iota[integer[], $C:integer[].eq[integer[], %Funcs[] C, B], a12_14.3[B]].?c:*.c.?c:%%z B k.d.d.%%z iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, B], a12_14.3[B]] %g k.j.j.l.l.%%z s n.?d:?d:?d:*.?i:?h:?c:?c:integer[].*.?h:*.?i:?i:?i:%c s.%c %Funcs[] e.?j:?j:%c %Funcs[] e.%c s.h.h.?i:?i:?c:A.*.?j:*.?c:?c:?c:%i n.%i b.?k:?k:%i b.%i n.j.j.d.d.?c:*.c.y.y.m.m.?x:*.?y:?y:?y:?c:integer[].?d:A.*.?l:?l:*.?o:?o:%%y zero[] a.?z:?z:integer[].?k:A.?j:*.?i:?i:?h:?h:*.?i:?i:?i:?c:integer[].*.?d:?d:*.?c:?c:%i zero[].?B:?B:integer[].?C:%i B.%i %Funcs[] B.d.d.%i iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, %Funcs[] z], a12_14.3[%Funcs[] z]].?c:%%y z k.h.h.%%y %Funcs[] z %f k.?d:?d:?d:*.?h:?h:?h:?h:?c:integer[].*.?c:?c:*.?B:?B:%h zero[].?C:?C:integer[].?D:%h C.%h %Funcs[] C.c.c.%h iota[integer[], $B:integer[].eq[integer[], %Funcs[] B, z], a12_14.3[z]].?c:*.c.?c:%%y z k.d.d.%%y iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, z], a12_14.3[z]] %g k.j.j.l.l.%%y %Funcs[] s %f n.?h:?h:?h:*.?i:?i:?d:?c:integer[].*.?c:*.?i:?i:?i:%d %Funcs[] s.%d %Funcs[] e.?j:?j:%d %Funcs[] e.%d %Funcs[] s.c.c.?j:?j:?c:A.*.?c:*.?d:?d:?d:%j %f n.%j b.?k:?k:%j b.%j %f n.c.c.h.h.?c:*.c.x.x.?y:?y:?m:*.?y:?y:?h:?h:?c:integer[].*.?c:?c:*.?i:?i:%h zero[].?j:?j:integer[].?d:%h j.%h %Funcs[] j.c.c.%h iota[integer[], $d:integer[].eq[integer[], %Funcs[] d, s], a12_14.3[s]].?c:*.c.?z:?z:*.?B:?B:?B:?c:integer[].?d:A.*.?l:?l:*.?o:?o:%%B zero[] a.?C:?C:integer[].?k:A.?j:*.?i:?i:?h:?h:*.?i:?i:?i:?c:integer[].*.?d:?d:*.?c:?c:%i zero[].?D:?D:integer[].?E:%i D.%i %Funcs[] D.d.d.%i iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, %Funcs[] C], a12_14.3[%Funcs[] C]].?c:%%B C k.h.h.%%B %Funcs[] C %f k.?d:?d:?d:*.?h:?h:?h:?h:?c:integer[].*.?c:?c:*.?D:?D:%h zero[].?E:?E:integer[].?F:%h E.%h %Funcs[] E.c.c.%h iota[integer[], $D:integer[].eq[integer[], %Funcs[] D, C], a12_14.3[C]].?c:*.c.?c:%%B C k.d.d.%%B iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, C], a12_14.3[C]] %g k.j.j.l.l.%%B s n.?d:?d:?d:*.?i:?h:?c:?c:integer[].*.?h:*.?i:?i:?i:%c s.%c %Funcs[] e.?j:?j:%c %Funcs[] e.%c s.h.h.?i:?i:?c:A.*.?j:*.?c:?c:?c:%i n.%i b.?k:?k:%i b.%i n.j.j.d.d.?c:*.c.z.z.m.m.?z:*.?m:?m:?i:?c:integer[].?d:A.*.?B:?B:*.?o:?o:%%i zero[] a.?C:?C:integer[].?l:A.?k:*.?j:?j:?h:?h:*.?j:?j:?j:?c:integer[].*.?m:?m:*.?c:?c:%j zero[].?D:?D:integer[].?d:%j D.%j %Funcs[] D.m.m.%j iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, %Funcs[] C], a12_14.3[%Funcs[] C]].?c:%%i C l.h.h.%%i %Funcs[] C %f l.?d:?d:?d:*.?h:?h:?h:?h:?c:integer[].*.?c:?c:*.?m:?m:%h zero[].?D:?D:integer[].?E:%h D.%h %Funcs[] D.c.c.%h iota[integer[], $m:integer[].eq[integer[], %Funcs[] m, C], a12_14.3[C]].?c:*.c.?c:%%i C l.d.d.%%i iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, C], a12_14.3[C]] %g l.k.k.B.B.%%i iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, s], a12_14.3[s]] %g n.?j:?j:?j:*.?i:?i:?i:?c:integer[].*.?d:*.?c:?c:?c:%i iota[integer[], $c:integer[].eq[integer[], %Funcs[] c, s], a12_14.3[s]].%i %Funcs[] e.?h:?h:%i %Funcs[] e.%i iota[integer[], $k:integer[].eq[integer[], %Funcs[] k, s], a12_14.3[s]].d.d.?c:?c:?c:A.*.?d:*.?h:?h:?h:%c %g n.%c b.?k:?k:%c b.%c %g n.d.d.j.j.?c:*.c.z.z.t.t.q.q)";
-            auto test_expr_3_lam = parse_lambda_new(test_expr_3_str, delta);
+            auto test_expr_3_lam = parse_lambda(test_expr_3_str, delta);
             show(test_expr_3_str);
             // show(test_expr_3_lam);
             std::string test_expr_3_prs = test_expr_3_lam->repr_new();
@@ -758,7 +491,7 @@ void test_new_parser(const Environment& delta) {
 
         if (false) {
             std::string test_expr_4_str = "?x.a.:?y.b.:var1.var2.var3.var4.var5";
-            auto test_expr_4_lam = parse_lambda_new(test_expr_4_str, delta);
+            auto test_expr_4_lam = parse_lambda(test_expr_4_str, delta);
             show(test_expr_4_str);
             show(test_expr_4_lam);
             show(test_expr_4_lam->repr());
@@ -775,8 +508,8 @@ void test_new_parser(const Environment& delta) {
 int main() {
     Environment defs_bez, defs_mine;
     try {
-        // defs_bez = Environment("def_file_bez");
-        defs_mine = Environment("src/def_file");
+        // defs_bez = Environment("resource/def_file_bez");
+        defs_mine = Environment("resource/def_file");
     } catch (ParseError& e) {
         e.puterror();
         exit(EXIT_FAILURE);
@@ -795,7 +528,6 @@ int main() {
     // test_def_file();
 
     // test_get_type();
-    // test_yaps();
 
     // test_parse2();
     // test_new_parser(defs_bez);
