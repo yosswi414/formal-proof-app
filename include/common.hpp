@@ -116,10 +116,15 @@ std::string to_string(const std::set<T>& s) {
     std::stringstream ss;
     ss << "{";
     auto itr = s.begin();
-    if (!s.empty()) ss << *itr;
-    for (++itr; itr != s.end(); ++itr) ss << ", " << *itr;
+    if (!s.empty()) ss << *(itr++);
+    while(itr != s.end()) ss << ", " << *(itr++);
     ss << "}";
     return ss.str();
+}
+
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const std::set<T>& s) {
+    return os << to_string(s);
 }
 
 template <class T>
