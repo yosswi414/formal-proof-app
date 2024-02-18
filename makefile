@@ -3,6 +3,7 @@ TARGET_NAME := def_conv.out verifier.out genscript.out test.out
 TARGET = $(addprefix $(BINDIR)/, $(TARGET_NAME))
 TARGET_D = $(addprefix $(BINDIR_D)/, $(TARGET_NAME))
 TARGET_PUB = $(addprefix $(BINDIR)/, $(filter-out test.out, $(TARGET_NAME)))
+TARGET_ROOT = $(addprefix ./, $(filter-out test.out, $(TARGET_NAME)))
 
 SRCDIR := src
 INCDIR := include
@@ -43,9 +44,11 @@ include $(wildcard $(DEPS))
 $(BINDIR) $(OBJDIR) $(DEPDIR) $(BINDIR_D) $(OBJDIR_D):
 	mkdir -p $@
 
+$(TARGET_ROOT): $(TARGET_PUB)
+	-ln --backup=none -s -t . $(@:%.out=./$(BINDIR)/%.out)
+
 .PHONY: alias
-alias: $(TARGET_PUB)
-	-ln -b -s -t . $(TARGET_PUB)
+alias: $(TARGET_ROOT)
 
 .PHONY: all_min
 all_min: $(TARGET_PUB) alias
@@ -71,16 +74,16 @@ clean:
 DEF_FILE := resource/def_file
 
 .PHONY: check
-check: bin/genscript.out bin/verifier.out $(DEF_FILE)
-	@bin/genscript.out -f $(DEF_FILE) -o out/$(notdir DEF_FILE).script || (echo "\033[1m\033[31merror\033[m: failed to generate a script of last definition in $(DEF_FILE)"; exit 1)
-	@bin/verifier.out -c -f out/$(DEF_FILE).script -o out/out.book || (echo "\033[1m\033[31merror\033[m: failed to verify the script of last definition in $(DEF_FILE)"; exit 1)
-	@echo "\033[1m\033[32mOK\033[m: script -> out/$(DEF_FILE), book -> out/out.book"
+check: genscript.out verifier.out $(DEF_FILE)
+	@./genscript.out -f $(DEF_FILE) -o out/$(notdir $(DEF_FILE)).script || (echo "\033[1m\033[31merror\033[m: failed to generate a script of last definition in $(DEF_FILE)"; exit 1)
+	@./verifier.out -c -f out/$(DEF_FILE).script -o out/out.book -e out/verifier_out.log || (echo "\033[1m\033[31merror\033[m: failed to verify the script of last definition in $(DEF_FILE)"; exit 1)
+	@echo "\033[1m\033[32mOK\033[m: script -> out/$(DEF_FILE).script, book -> out/out.book"
 
 .PHONY: check-%
 check-%: TARGET_DEF = $(@:check-%=%)
-check-%: bin/genscript.out bin/verifier.out $(DEF_FILE)
-	@bin/genscript.out -f $(DEF_FILE) -t $(TARGET_DEF) -o out/$(TARGET_DEF).script || (echo "\033[1m\033[31merror\033[m: failed to generate a script of \"$(TARGET_DEF)\""; exit 1)
-	@bin/verifier.out -c -f out/$(TARGET_DEF).script -o out/out.book || (echo "\033[1m\033[31merror\033[m: failed to verify the script of \"$(TARGET_DEF)\""; exit 1)
+check-%: genscript.out verifier.out $(DEF_FILE)
+	@./genscript.out -f $(DEF_FILE) -t $(TARGET_DEF) -o out/$(TARGET_DEF).script || (echo "\033[1m\033[31merror\033[m: failed to generate a script of \"$(TARGET_DEF)\""; exit 1)
+	@./verifier.out -c -f out/$(TARGET_DEF).script -o out/out.book -e out/$(TARGET_DEF).log || (echo "\033[1m\033[31merror\033[m: failed to verify the script of \"$(TARGET_DEF)\""; exit 1)
 	@echo "\033[1m\033[32mOK\033[m: script -> out/$(TARGET_DEF).script, book -> out/out.book"
 
 # test commands
