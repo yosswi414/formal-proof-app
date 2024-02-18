@@ -50,13 +50,33 @@ std::string Definition::string() const {
     res += " >";
     return res;
 }
+
 std::string Definition::repr() const {
     std::string res;
     res = "def2\n";
-    res += _context->repr();
+    Context con_new = *_context;
+    auto term = _definiens ? copy(_definiens) : nullptr;
+    auto type = copy(_type);
+    for (size_t i = 0; i < con_new.size(); ++i) {
+        auto& tv = con_new[i];
+        if (tv.value()->name().size() == 1) continue;
+        auto var_old = tv.value();
+        auto var_new = get_fresh_var(con_new);
+        tv.value() = var_new;
+        for (size_t j = i + 1; j < con_new.size(); ++j) {
+            con_new[j].type() = substitute(con_new[j].type(), var_old, var_new);
+        }
+        tv.type() = rename_var_short(tv.type());
+        if (term) term = substitute(term, var_old, var_new);
+        type = substitute(type, var_old, var_new);
+    }
+    term = rename_var_short(term);
+    type = rename_var_short(type);
+
+    res += con_new.repr();
     res += _definiendum + "\n";
-    res += (_definiens ? _definiens->repr() : "#") + "\n";
-    res += _type->repr() + "\n";
+    res += (term ? term->repr() : "#") + "\n";
+    res += type->repr() + "\n";
     res += "edef2\n";
     return res;
 }
