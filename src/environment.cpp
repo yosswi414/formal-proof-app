@@ -134,7 +134,10 @@ bool has_definition(const std::shared_ptr<Environment>& env, const std::shared_p
 
 std::shared_ptr<Term> delta_reduce(const std::shared_ptr<Constant>& term, const Environment& delta) {
     const std::shared_ptr<Definition> D = delta.lookup_def(term);
-
+    if (!D) {
+        std::cerr << "delta_reduce(): error: no such definition found: " << term->name() << std::endl;
+        exit(EXIT_FAILURE);
+    }
     if (D->is_prim()) return term;
 
     auto M = D->definiens();
