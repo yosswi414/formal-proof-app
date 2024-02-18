@@ -45,9 +45,9 @@ std::string to_string(const EpsilonType& k);
 
 template <typename PtrType, typename std::enable_if_t<std::is_pointer<PtrType>::value || std::is_same<PtrType, std::unique_ptr<typename PtrType::element_type>>::value || std::is_same<PtrType, std::shared_ptr<typename PtrType::element_type>>::value, int> = 0>
 std::ostream& operator<<(std::ostream& os, const PtrType& ptr) {
-  if (ptr) os << ptr->string();
-  else os << "(n/a)";
-  return os;
+    if (ptr) os << ptr->string();
+    else os << "(n/a)";
+    return os;
 }
 
 std::ostream& operator<<(std::ostream& os, const EpsilonType& k);
@@ -91,14 +91,20 @@ class Square : public Term {
 
 class Variable : public Term {
   public:
-    Variable(char ch);
+    // Variable(char ch);
+    // Variable(int idx);
     Variable(const std::string& name);
     std::string string() const override;
     // std::string string_db(std::vector<char> bound = {}) const override;
     const std::string& name() const;
-    std::string& name();
+    // void change_name(const std::string& new_name);
+    bool has_name() const;
+    const int& index() const;
+    // void change_index(int new_idx);
+    bool has_index() const;
 
   private:
+    int _index;  // de Bruijn index
     std::string _var_name;
 };
 
@@ -208,7 +214,7 @@ class Constant : public Term {
 };
 
 // shared_ptr constructors
-std::shared_ptr<Variable> variable(const char& ch);
+std::shared_ptr<Variable> variable(int idx);
 std::shared_ptr<Variable> variable(const std::string& ch);
 extern std::shared_ptr<Star> star;
 extern std::shared_ptr<Square> sq;
@@ -265,8 +271,9 @@ std::shared_ptr<Variable> get_fresh_var(const std::shared_ptr<Term>& term, Ts...
     set_minus_inplace(univ, free_var(term, data...));
     if (!univ.empty()) {
         for (auto&& ch : _preferred_names) {
-            auto itr = univ.find({ch});
-            if (itr != univ.end()) return variable({ch});
+            std::string vname({ch});
+            auto itr = univ.find(vname);
+            if (itr != univ.end()) return variable(vname);
         }
         return variable(*univ.begin());
     }

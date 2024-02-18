@@ -61,12 +61,15 @@ Context Context::operator+(const Context& c) const {
 // }
 std::set<std::string> free_var(const Context& con) {
     std::set<std::string> FV;
-    for (auto&& tv : con) FV.insert(tv.value()->name());
+    for (auto&& tv : con) {
+        if (tv.value()->has_name()) FV.insert(tv.value()->name());
+    }
     return FV;
 }
 
 bool is_free_var(const Context& con, const std::shared_ptr<Variable>& var) {
     auto fv = free_var(con);
+    if (!var->has_name()) return false;
     return fv.find(var->name()) != fv.end();
 }
 
@@ -82,8 +85,9 @@ std::shared_ptr<Variable> get_fresh_var(const Context& con) {
     set_minus_inplace(univ, free_var(con));
     if (!univ.empty()) {
         for (auto&& ch : _preferred_names) {
-            auto itr = univ.find({ch});
-            if (itr != univ.end()) return variable({ch});
+            std::string vname(1, ch);
+            auto itr = univ.find(vname);
+            if (itr != univ.end()) return variable(vname);
         }
         return variable(*univ.begin());
     }
@@ -147,8 +151,8 @@ bool has_variable(const std::shared_ptr<Context>& g, const std::shared_ptr<Term>
     return has_variable(g, variable(v));
 }
 
-bool has_variable(const std::shared_ptr<Context>& g, char v) {
-    return has_variable(g, std::make_shared<Variable>(v));
+bool has_variable(const std::shared_ptr<Context>& g, const std::string& v) {
+    return has_variable(g, variable(v));
 }
 
 std::set<std::string> extract_constant(const Context& con) {

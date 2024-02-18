@@ -19,8 +19,8 @@ class Book : public std::vector<Judgement> {
 
     // inference rules
     void sort();
-    void var(size_t m, char x);
-    void weak(size_t m, size_t n, char x);
+    void var(size_t m, const std::string& x);
+    void weak(size_t m, size_t n, const std::string& x);
     void form(size_t m, size_t n);
     void appl(size_t m, size_t n);
     void abst(size_t m, size_t n);
@@ -53,8 +53,8 @@ class Book : public std::vector<Judgement> {
     bool _skip_check = false;
 };
 
-bool is_var_applicable(const Book& book, size_t idx, char var);
-bool is_weak_applicable(const Book& book, size_t idx1, size_t idx2, char var);
+bool is_var_applicable(const Book& book, size_t idx, const std::string& var);
+bool is_weak_applicable(const Book& book, size_t idx1, size_t idx2, const std::string& var);
 bool is_form_applicable(const Book& book, size_t idx1, size_t idx2);
 bool is_appl_applicable(const Book& book, size_t idx1, size_t idx2);
 bool is_abst_applicable(const Book& book, size_t idx1, size_t idx2);

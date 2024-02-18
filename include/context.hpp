@@ -29,7 +29,7 @@ bool equiv_context(const std::shared_ptr<Context>& a, const std::shared_ptr<Cont
 
 bool has_variable(const std::shared_ptr<Context>& g, const std::shared_ptr<Variable>& v);
 bool has_variable(const std::shared_ptr<Context>& g, const std::shared_ptr<Term>& v);
-bool has_variable(const std::shared_ptr<Context>& g, char v);
+bool has_variable(const std::shared_ptr<Context>& g, const std::string& v);
 
 // std::set<char> free_var(const Context& con);
 std::set<std::string> free_var(const Context& con);

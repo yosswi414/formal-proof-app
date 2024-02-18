@@ -31,7 +31,7 @@ void Book::read_script(const FileData& fdata, size_t limit){
             sort();
         } else if (op == "var") {
             size_t idx;
-            char x;
+            std::string x;
             check_true_or_exit(
                 ss >> idx >> x,
                 errmsg(op, i),
@@ -40,7 +40,7 @@ void Book::read_script(const FileData& fdata, size_t limit){
             var(idx, x);
         } else if (op == "weak") {
             size_t idx1, idx2;
-            char x;
+            std::string x;
             check_true_or_exit(
                 ss >> idx1 >> idx2 >> x,
                 errmsg(op, i),
@@ -163,7 +163,7 @@ void Book::sort() {
         star,
         sq);
 }
-void Book::var(size_t m, char x) {
+void Book::var(size_t m, const std::string& x) {
     if (!_skip_check && !is_var_applicable(*this, m, x)) {
         throw InferenceError()
             << "var at line "
@@ -179,7 +179,7 @@ void Book::var(size_t m, char x) {
         std::make_shared<Context>(*judge.context() + Typed<Variable>(vx, A)),
         vx, A);
 }
-void Book::weak(size_t m, size_t n, char x) {
+void Book::weak(size_t m, size_t n, const std::string& x) {
     if (!_skip_check && !is_weak_applicable(*this, m, n, x)) {
         throw InferenceError()
             << "weak at line "
@@ -469,7 +469,7 @@ int Book::def_num(const std::shared_ptr<Definition>& def) const {
     return _env.lookup_index(def->definiendum());
 }
 
-bool is_var_applicable(const Book& book, size_t idx, char var) {
+bool is_var_applicable(const Book& book, size_t idx, const std::string& var) {
     const auto& judge = book[idx];
     check_true_or_ret_false_err(
         is_sort(judge.type()),
@@ -484,7 +484,7 @@ bool is_var_applicable(const Book& book, size_t idx, char var) {
     return true;
 }
 
-bool is_weak_applicable(const Book& book, size_t idx1, size_t idx2, char var) {
+bool is_weak_applicable(const Book& book, size_t idx1, size_t idx2, const std::string& var) {
     const auto& judge1 = book[idx1];
     const auto& judge2 = book[idx2];
     check_true_or_ret_false_err(

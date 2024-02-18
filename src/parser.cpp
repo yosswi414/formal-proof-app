@@ -401,10 +401,13 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
     using stk_t = std::stack<ParseStack>;
     using stk_pt = std::shared_ptr<stk_t>;
 
-    std::queue<stk_pt> tree;
-    tree.emplace(std::make_shared<stk_t>());
+    using abstv_t = std::deque<std::shared_ptr<Term>>;
+    using abstv_pt = std::shared_ptr<abstv_t>;
 
-    stk_pt stk = tree.front();
+    std::queue<std::pair<stk_pt, abstv_pt>> tree;
+    tree.emplace(std::make_shared<stk_t>(), std::make_shared<abstv_t>());
+
+    stk_pt stk = tree.front().first;
     stk->emplace();
 
     /* successful condition:
@@ -424,13 +427,6 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
                 - return the last Term if any invalid token is found
     */
 
-    /*
-        [TODO]
-        - argument check (argc match) by `definitions`
-            - automatically cut off the extra part when '+' is used and |+| > argc
-                - maybe not a good idea, such notation would not be intuitive
-    */
-
     std::set<std::string> defined_names;
     for (auto&& def : definitions) defined_names.insert(def->definiendum());
     auto exists_cand_const = [&defined_names](const std::string& cname_part) {
@@ -442,6 +438,8 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
 
     std::stack<ParseType> atmosphere;
     atmosphere.push(ParseType::Undefined);
+
+    abstv_pt abst_vars = tree.front().second;
 
     auto is_arrow = [](ParseType type) {
         switch (type) {
@@ -594,7 +592,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
                 if (needs_branch) {
                     stk_pt branch = std::make_shared<stk_t>(*stk);
                     branch->emplace(branch_type, idx);
-                    tree.push(branch);
+                    tree.emplace(branch, std::make_shared<abstv_t>(*abst_vars));
                 }
                 break;
             }
@@ -779,7 +777,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
             return reduced;
         };
 
-        auto contract_top_term = [&tokens, &stack_dump, &got_term](stk_pt stk, bool is_term_decided = false) -> bool {
+        auto contract_top_term = [&abst_vars, &tokens, &stack_dump, &got_term](stk_pt stk, bool is_term_decided = false) -> bool {
             bool reduced = false;
 
             // debug("contract_top_term(): " << fstr(is_term_decided) << ", stack = " << stack_dump(stk));
@@ -824,6 +822,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
                         const auto expr = s1.terms()[0];
                         if (is_lambda) s0.terms() = {lambda(var, type, expr)};
                         else s0.terms() = {pi(var, type, expr)};
+                        abst_vars->pop_back();
                         s0.change_ptype(ParseType::Term);
                         s0.end() = s1.end();
                         stk->push(s0);
@@ -1244,6 +1243,7 @@ std::shared_ptr<ParseLambdaToken> parse_lambda(const std::vector<Token>& tokens,
                                     stash[0].change_ptype(wait_t);
                                     stash[0].end() = end;
                                     stash[0].terms() = {var};
+                                    abst_vars->push_back(var);
                                     flush(1);
                                     reduced = true;
 
@@ -1471,7 +1471,7 @@ std::vector<std::shared_ptr<FileData>> raw_string_fds;
 
 std::shared_ptr<Term> parse_lambda(const std::string& str, const std::vector<std::shared_ptr<Context>>& flag_context, const Environment& definitions) {
     size_t idx = 0;
-    std::shared_ptr<FileData> fdp = std::make_shared<FileData>(FileData({str}, "raw_string[parse_lambda_new]"));
+    std::shared_ptr<FileData> fdp = std::make_shared<FileData>(FileData({str}, "[from raw string]"));
     raw_string_fds.push_back(fdp);
     auto tokens = tokenize(*fdp);
     return parse_lambda(tokens, idx, tokens.size(), true, flag_context, definitions)->term();

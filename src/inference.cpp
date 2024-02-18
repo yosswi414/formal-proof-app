@@ -21,7 +21,7 @@ std::shared_ptr<Term> get_type(const std::shared_ptr<Term>& term, const std::sha
         case EpsilonType::Variable: {
             auto t = variable(term);
             for (auto&& tv : *gamma) {
-                if (tv.value()->name() == t->name()) {
+                if (alpha_comp(tv.value(), t)) {
                     return NF(tv.type(), delta);
                 }
             }
@@ -160,7 +160,7 @@ std::string hash_delta(const Delta& delta) {
 
 std::string hash_gamma(const Gamma& gamma) {
     std::string str;
-    for (auto&& tv : *gamma) str += tv.value()->name() + "{" + tv.type()->string() + "}";
+    for (auto&& tv : *gamma) str += tv.value()->string() + "{" + tv.type()->string() + "}";
     return str;
 }
 
@@ -232,6 +232,7 @@ RulePtr _get_script(const std::shared_ptr<Term>& term, const Delta& delta, const
             throw DeductionError("Square (type of kind) cannot be typed");
         case EpsilonType::Variable: {
             auto t = variable(term);
+            // de Bruijn index to be handled properly
             std::string vname = gamma->back().value()->name();
             if (vname == t->name()) {
                 // Δ; Γ, x:A |- x:A
