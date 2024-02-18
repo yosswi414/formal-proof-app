@@ -336,7 +336,8 @@ RulePtr _get_script(const std::shared_ptr<Term>& term, const Delta& delta, const
             RulePtr left;
             std::vector<RulePtr> rights;
             left = _get_script(star, delta, gamma);
-            for (auto&& U : t->args()) {
+            for (size_t i = 0; i < t->args().size(); ++i) {
+                const auto& U = t->args()[i];
                 rights.push_back(_get_script(U, delta, gamma));
             }
             rule = std::make_shared<Inst>(left, rights.size(), rights, delta->lookup_index(t));
