@@ -45,7 +45,9 @@ $(BINDIR) $(OBJDIR) $(DEPDIR) $(BINDIR_D) $(OBJDIR_D):
 	mkdir -p $@
 
 $(TARGET_ROOT): $(TARGET_PUB)
-	-ln --backup=none -s -t . $(@:%.out=./$(BINDIR)/%.out)
+$(TARGET_ROOT): SOURCE_BIN = $(@:%.out=./$(BINDIR)/%.out)
+$(TARGET_ROOT):
+	-test -h $@ || test -e $@ || ln -bs -t . $(SOURCE_BIN)
 
 .PHONY: alias
 alias: $(TARGET_ROOT)
@@ -101,7 +103,7 @@ test test_d:
 test-conv: out/.bin/def_conv.out $(DEF_FILE)
 test_d-conv: out/.bin_d/def_conv.out $(DEF_FILE)
 test-conv test_d-conv:
-	@echo "running test: conv$(IS_DEBUG)..."
+	@echo "running test: conv"$(IS_DEBUG)"..."
 	@$< -c -f $(DEF_FILE) > out/def_conv_out_c || (echo "\033[1m\033[31merror\033[m: format conversion (*->c) failed."; exit 1)
 	@$< -n -f $(DEF_FILE) > out/def_conv_out_n || (echo "\033[1m\033[31merror\033[m: format conversion (*->n) failed."; exit 1)
 	@$< -c -f out/def_conv_out_n > out/def_conv_out_nc || (echo "\033[1m\033[31merror\033[m: format conversion (n->c) failed."; exit 1)
@@ -109,32 +111,32 @@ test-conv test_d-conv:
 	@$< -n -f out/def_conv_out_c > out/def_conv_out_cn || (echo "\033[1m\033[31merror\033[m: format conversion (c->n) failed."; exit 1)
 	@$< -c -f out/def_conv_out_cn > out/def_conv_out_cnc || (echo "\033[1m\033[31merror\033[m: format conversion (c->n->c) failed."; exit 1)
 	@cmp out/def_conv_out_c out/def_conv_out_cnc || (echo "\033[1m\033[31merror\033[m: format conversion (c->n->c) didn't match the reference (*->c)."; exit 1)
-	@echo "\033[1m\033[32mpassed\033[m: conv$(IS_DEBUG)"
+	@echo "\033[1m\033[32mpassed\033[m: conv"$(IS_DEBUG)
 
 test-verify: out/.bin/verifier.out resource/script_test resource/script_test_result
 test_d-verify: out/.bin_d/verifier.out resource/script_test resource/script_test_result
 test-verify test_d-verify:
-	@echo "running test: verify$(IS_DEBUG)..."
+	@echo "running test: verify"$(IS_DEBUG)"..."
 	@$< -c -f resource/script_test -o out/test-verify.tmp || (echo "\033[1m\033[31merror\033[m: book generation failed."; exit 1)
 	@cmp out/test-verify.tmp resource/script_test_result || (echo "\033[1m\033[31merror\033[m: the result book didn't match the reference."; exit 1)
-	@echo "\033[1m\033[32mpassed\033[m: verify$(IS_DEBUG)"
+	@echo "\033[1m\033[32mpassed\033[m: verify"$(IS_DEBUG)
 
 test-gen: out/.bin/genscript.out $(DEF_FILE)
 test_d-gen: out/.bin_d/genscript.out $(DEF_FILE)
 test-gen test_d-gen:
-	@echo "running test: gen$(IS_DEBUG)..."
+	@echo "running test: gen"$(IS_DEBUG)"..."
 	@$< -f $(DEF_FILE) -s || (echo "\033[1m\033[31merror\033[m: script generation failed."; exit 1)
-	@echo "\033[1m\033[32mpassed\033[m: gen$(IS_DEBUG)"
+	@echo "\033[1m\033[32mpassed\033[m: gen"$(IS_DEBUG)
 
 test-all: TESTTYPE = "test"
 test_d-all: TESTTYPE = "test_d"
 test-all test_d-all:
-	@echo "running test: all$(IS_DEBUG)..."
-	@(make $(TEST_TYPE)) || (echo "\033[1m\033[31merror\033[m: test test.cpp$(IS_DEBUG) failed."; exit 1)
-	@(make $(TEST_TYPE)-conv) || (echo "\033[1m\033[31merror\033[m: test conv$(IS_DEBUG) failed."; exit 1)
-	@(make $(TEST_TYPE)-verify) || (echo "\033[1m\033[31merror\033[m: test verify$(IS_DEBUG) failed."; exit 1)
-	@(make $(TEST_TYPE)-gen) || (echo "\033[1m\033[31merror\033[m: test gen$(IS_DEBUG) failed."; exit 1)
-	@echo "\033[1m\033[32mpassed\033[m: all$(IS_DEBUG)"
+	@echo "running test: all"$(IS_DEBUG)"..."
+	@(make $(TEST_TYPE)) || (echo "\033[1m\033[31merror\033[m: test test.cpp"$(IS_DEBUG)" failed."; exit 1)
+	@(make $(TEST_TYPE)-conv) || (echo "\033[1m\033[31merror\033[m: test conv"$(IS_DEBUG)" failed."; exit 1)
+	@(make $(TEST_TYPE)-verify) || (echo "\033[1m\033[31merror\033[m: test verify"$(IS_DEBUG)" failed."; exit 1)
+	@(make $(TEST_TYPE)-gen) || (echo "\033[1m\033[31merror\033[m: test gen"$(IS_DEBUG)" failed."; exit 1)
+	@echo "\033[1m\033[32mpassed\033[m: all"$(IS_DEBUG)
 
 test-%:
 	@(echo "\033[1m\033[31merror\033[m: unknown test command: $(@:test-%=%)"; exit 1)
