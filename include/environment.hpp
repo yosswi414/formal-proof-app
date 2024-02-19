@@ -15,6 +15,7 @@ class Environment : public std::vector<std::shared_ptr<Definition>> {
     Environment(const std::string& fname);
     std::string string(bool inSingleLine = true, size_t indentSize = 0) const;
     std::string string_brief(bool inSingleLine, size_t indentSize) const;
+    std::string string_simple() const;
     std::string repr() const;
     std::string repr_new() const;
 

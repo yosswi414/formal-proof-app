@@ -45,6 +45,15 @@ std::string Environment::string_brief(bool inSingleLine, size_t indentSize) cons
     return res;
 }
 
+std::string Environment::string_simple() const {
+    std::string res = "";
+    if (this->size() == 0) return SYMBOL_EMPTY;
+    res += HEADER_ENV + "{" + std::to_string(this->size());
+    if (this->size() > 0) res += ":" + this->back()->definiendum();
+    res += "}";
+    return res;
+}
+
 std::string Environment::repr() const {
     std::string res = "";
     for (auto&& def : *this) res += def->repr() + "\n";

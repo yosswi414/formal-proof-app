@@ -45,6 +45,16 @@ std::string Judgement::string_brief(bool inSingleLine, size_t indentSize) const 
     return res;
 }
 
+std::string Judgement::string_simple() const {
+    std::string res("");
+    res += _env->string_simple();
+    res += " ; " + _context->string();
+    res += " " + TURNSTILE + " ";
+    res += (_term ? _term->string() : DOUBLE_BOTTOM);
+    res += " : " + _type->string();
+    return res;
+}
+
 const std::shared_ptr<Environment>& Judgement::env() const { return _env; }
 const std::shared_ptr<Context>& Judgement::context() const { return _context; }
 const std::shared_ptr<Term>& Judgement::term() const { return _term; }
