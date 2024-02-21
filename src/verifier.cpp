@@ -266,7 +266,7 @@ int main(int argc, char* argv[]) {
             "#J denotes the number of judgements on the book.\n"
             "#D denotes the number of defined definitions (by def or defpr).\n"
             "@n represents that the n-th judgement is refered to as the current context\n"
-            "(if ommited, the last judgement is referred to)\n"
+            "(if ommited, the last judgement is being referred to)\n"
             "\n";
         {
             std::stringstream ss;
@@ -476,10 +476,16 @@ int main(int argc, char* argv[]) {
                     int l, r;
                     bool is_j = (args[0] == "jshow");
                     size_t limit = is_j ? book.size() : delta.size();
-                    if (!read_nonneg(l, args[1], limit)) break;
+                    if (!read_index(l, args[1], limit)) break;
                     r = l;
-                    if (args.size() == 3 && !read_nonneg(r, args[2], limit)) break;
+                    if (args.size() == 3 && !read_index(r, args[2], limit)) break;
                     auto show = is_j ? print_judge : print_def;
+                    if (l < 0) l += limit;
+                    if (r < 0) r += limit;
+                    if (l > r) {
+                        std::cerr << BOLD(RED("error")) ": l should be no more than r\n";
+                        break;
+                    }
                     for (int i = l; i <= r; ++i) show(i);
                 } while (false);
             } else if (args[0] == "dnlookup") {
@@ -512,7 +518,7 @@ int main(int argc, char* argv[]) {
                     n = std::min(1ul, book.size());
                     if (args.size() == 2 && !read_index(n, args[1], book.size())) break;
                     book.resize(book.size() - n, judge_dummy);
-                    script.clear();
+                    script.resize(book.size() - n);
                 } while (false);
             } else if (args[0] == "load") {
                 do {
@@ -528,7 +534,7 @@ int main(int argc, char* argv[]) {
                     th.detach();
                     try {
                         data = FileData(ifname);
-                        book.read_script(data);
+                        script = book.read_script(data);
                     } catch (FileError& e) {
                         alive1.store(false);
                         e.puterror();
@@ -548,29 +554,13 @@ int main(int argc, char* argv[]) {
                 if (book.size() == 0) {
                     std::cerr << "The book is empty.\n";
                 } else {
-                    std::string book_data;
-                    std::cout << "Converting book to text... " << std::flush;
-                    switch (notation) {
-                        case Conventional:
-                            book_data = book.repr();
-                            break;
-                        case New:
-                            book_data = book.repr_new();
-                            break;
-                        case Rich:
-                            book_data = book.string();
-                            break;
-                        default:
-                            check_true_or_exit(
-                                false,
-                                "invalid notation value = " << notation,
-                                __FILE__, __LINE__, __func__);
-                    }
-                    std::cout << BOLD(GREEN("OK")) << "\n";
-                    std::cout << "Writing data (" << strbytes(book_data.size()) << ") to " << ofname << "... " << std::flush;
+                    std::string script_data;
+                    for (auto&& l : script) script_data += l + "\n";
+                    script_data += "-1\n";
+                    std::cout << "Writing data (" << strbytes(script_data.size()) << ") to " << ofname << "... " << std::flush;
 
                     std::FILE* fp = std::fopen(ofname.c_str(), "wb");
-                    std::fwrite(book_data.data(), sizeof(book_data[0]), book_data.size(), fp);
+                    std::fwrite(script_data.data(), sizeof(script_data[0]), script_data.size(), fp);
                     std::fclose(fp);
 
                     std::cout << BOLD(GREEN("OK")) << "\n";
@@ -776,7 +766,7 @@ int main(int argc, char* argv[]) {
                           << ": command \"" << args[0] << "\" on cmd_list not implemented\n";
             }
             if (inf_success) {
-                script.push_back(line);
+                script.push_back(std::to_string(script.size()) + " " + line);
                 std::cout << "res ";
                 print_judge(book.size() - 1);
             }

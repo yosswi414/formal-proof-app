@@ -15,17 +15,22 @@ Book::Book(const FileData& fdata, size_t limit) : Book(false) {
     read_script(fdata, limit);
 }
 
-void Book::read_script(const FileData& fdata, size_t limit){
+TextData Book::read_script(const FileData& fdata, size_t limit){
     std::stringstream ss;
     auto errmsg = [](const std::string& op, size_t lno) {
         return op + ": wrong format (line " + std::to_string(lno + 1) + ")";
     };
-    for (size_t i = 0; i < limit; ++i) {
+    size_t i;
+    bool is_eof = false;
+    for (i = 0; i < limit; ++i) {
         ss << fdata[i];
         int lno;
         std::string op;
         ss >> lno;
-        if (lno == -1) break;
+        if (lno == -1) {
+            is_eof = true;
+            break;
+        }
         ss >> op;
         if (op == "sort") {
             sort();
@@ -149,10 +154,14 @@ void Book::read_script(const FileData& fdata, size_t limit){
         ss.clear();
         ss.str("");
     }
+    if (limit == 0) return TextData();
+    if (i == 0 && is_eof) return TextData();
+    if (!is_eof) ++i;
+    return TextData(fdata.begin(), fdata.begin() + i);
 }
 
-void Book::read_script(const std::string& scriptname, size_t limit) {
-    read_script(FileData(scriptname), limit);
+TextData Book::read_script(const std::string& scriptname, size_t limit) {
+    return read_script(FileData(scriptname), limit);
 }
 
 // inference rules
