@@ -7,8 +7,8 @@
 TypeError::TypeError(const std::string& str, const std::shared_ptr<Term>& term, const std::shared_ptr<Context>& con) : msg(str), term(term), con(con) {}
 
 void TypeError::puterror(std::ostream& os) {
-    os << BOLD(RED("TypeError")) << msg << "\n";
-    os << "at term = " << term << ", context = " << con << std::endl;
+    os << BOLD(RED("TypeError")) << ": " << msg << "\n";
+    os << "\tat term = " << term << ", context = " << con << std::endl;
 }
 
 std::shared_ptr<Term> get_type(const std::shared_ptr<Term>& term, const std::shared_ptr<Environment>& delta, const std::shared_ptr<Context>& gamma) {
