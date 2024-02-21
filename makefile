@@ -15,7 +15,7 @@ OBJDIR := $(OUTDIR)/.obj
 OBJDIR_D := $(OUTDIR)/.obj_d
 DEPDIR := $(OUTDIR)/.dep
 
-CPPFLAGS := -I$(INCDIR) -Wall -Wextra -std=c++17
+CPPFLAGS := -I$(INCDIR) -Wall -Wextra -std=c++17 -pthread
 OPTFLAG := -O2
 DEBUGFLAGS = -fsanitize=address -fno-omit-frame-pointer -g
 DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
