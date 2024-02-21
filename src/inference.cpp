@@ -40,6 +40,7 @@ std::shared_ptr<Term> get_type(const std::shared_ptr<Term>& term, const std::sha
         case EpsilonType::Constant: {
             auto t = constant(term);
             auto def = delta->lookup_def(t->name());
+            if (!def) throw TypeError("An undefined constant: \"" + t->name() + "\"", term, gamma);
             auto N = def->type();
             std::vector<std::shared_ptr<Variable>> xs;
             for (auto&& tv : *def->context()) xs.push_back(tv.value());
