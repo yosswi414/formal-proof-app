@@ -12,6 +12,7 @@ void TypeError::puterror(std::ostream& os) {
 }
 
 std::shared_ptr<Term> get_type(const std::shared_ptr<Term>& term, const std::shared_ptr<Environment>& delta, const std::shared_ptr<Context>& gamma) {
+    // std::cerr << "[debug @ get_type] " << term << ", " << delta->string_simple() << ", " << gamma << std::endl;
     std::shared_ptr<Term> type = nullptr;
     switch (term->etype()) {
         case EpsilonType::Star:
@@ -66,6 +67,7 @@ std::shared_ptr<Term> get_type(const std::shared_ptr<Term>& term, const std::sha
             std::shared_ptr<Term> s;
             if (is_free_var(*gamma, x)) {
                 auto z = get_fresh_var(*gamma);
+                // std::cerr << "[debug @ get_type / AbstPi] z = " << z << std::endl;
                 s = get_type(substitute(B, x, z), delta, std::make_shared<Context>(*gamma + Typed<Variable>(z, A)));
             } else {
                 s = get_type(B, delta, std::make_shared<Context>(*gamma + Typed<Variable>(x, A)));
@@ -99,7 +101,9 @@ std::string to_string(const RuleType type) {
     return "[RuleType::to_string: unknown type: " + std::to_string((int)type) + "]";
 }
 
-Rule::Rule(RuleType rtype) : _rtype(rtype) {}
+size_t issued_rules = 0;
+
+Rule::Rule(RuleType rtype) : _rtype(rtype) { ++issued_rules; }
 RuleType Rule::rtype() const { return _rtype; }
 int& Rule::lno() { return _lno; }
 
@@ -174,13 +178,20 @@ std::string hash_tuple(const Delta& delta, const Gamma& gamma, const std::shared
 
 // int func_called = 0;
 // int cache_hit = 0;
+size_t cache_hit = 0;
+size_t genscr_called = 0;
 
-RulePtr _get_script(const std::shared_ptr<Term>& term, const Delta& delta, const Gamma& gamma) {
-    // ++func_called;
-    // ++cache_hit;
+RulePtr get_script(const std::shared_ptr<Term>& term, const Delta& delta, const Gamma& gamma) {
+    // std::cerr << "[debug @ get_script] " << term << ", " << delta->string_simple() << ", " << gamma << std::endl;
+    ++genscr_called;
+
     std::string hash = hash_tuple(delta, gamma, term);
     auto itr_n = hist_inf.find(hash);
-    if (itr_n != hist_inf.end()) return itr_n->second;
+    if (itr_n != hist_inf.end()) {
+        // std::cerr << "[debug @ get_script / cache-hit] " << term << ", " << delta->string_simple() << ", " << gamma << std::endl;
+        ++cache_hit;
+        return itr_n->second;
+    }
 
     // cache missed (body of deduction process)
     // --cache_hit;
@@ -198,14 +209,14 @@ RulePtr _get_script(const std::shared_ptr<Term>& term, const Delta& delta, const
                     RulePtr left, right;
                     Delta delta_new = std::make_shared<Environment>(*delta);
                     delta_new->pop_back();
-                    left = _get_script(term, delta_new, gamma);
+                    left = get_script(term, delta_new, gamma);
                     if (def->is_prim()) {
                         // Judgement(delta, def->context(), def->type());
-                        right = _get_script(def->type(), delta_new, def->context());
+                        right = get_script(def->type(), delta_new, def->context());
                         rule = std::make_shared<Defpr>(left, right, def->definiendum());
                     } else {
                         // Judgement(delta, def->context(), def->definiens(), def->type());
-                        right = _get_script(def->definiens(), delta_new, def->context());
+                        right = get_script(def->definiens(), delta_new, def->context());
                         rule = std::make_shared<Def>(left, right, def->definiendum());
                     }
                     break;
@@ -220,8 +231,8 @@ RulePtr _get_script(const std::shared_ptr<Term>& term, const Delta& delta, const
                 Gamma gamma_new = std::make_shared<Context>(*gamma);
                 gamma_new->pop_back();
                 RulePtr left, right;
-                left = _get_script(star, delta, gamma_new);
-                right = _get_script(type, delta, gamma_new);
+                left = get_script(star, delta, gamma_new);
+                right = get_script(type, delta, gamma_new);
                 rule = std::make_shared<Weak>(left, right, vname);
                 break;
             }
@@ -233,6 +244,7 @@ RulePtr _get_script(const std::shared_ptr<Term>& term, const Delta& delta, const
         case EpsilonType::Variable: {
             auto t = variable(term);
             // de Bruijn index to be handled properly
+            // if (gamma->empty()) throw DeductionError("[INTERNAL ERROR] variable " + t->name() + " to be defined within empty context");
             std::string vname = gamma->back().value()->name();
             if (vname == t->name()) {
                 // Δ; Γ, x:A |- x:A
@@ -242,7 +254,7 @@ RulePtr _get_script(const std::shared_ptr<Term>& term, const Delta& delta, const
                 Gamma gamma_new = std::make_shared<Context>(*gamma);
                 gamma_new->pop_back();
                 RulePtr idx;
-                idx = _get_script(type, delta, gamma_new);
+                idx = get_script(type, delta, gamma_new);
                 rule = std::make_shared<Var>(idx, vname);
                 break;
             } else {
@@ -254,8 +266,8 @@ RulePtr _get_script(const std::shared_ptr<Term>& term, const Delta& delta, const
                 Gamma gamma_new = std::make_shared<Context>(*gamma);
                 gamma_new->pop_back();
                 RulePtr left, right;
-                left = _get_script(term, delta, gamma_new);
-                right = _get_script(C, delta, gamma_new);
+                left = get_script(term, delta, gamma_new);
+                right = get_script(C, delta, gamma_new);
                 rule = std::make_shared<Weak>(left, right, vname);
                 break;
             }
@@ -271,10 +283,10 @@ RulePtr _get_script(const std::shared_ptr<Term>& term, const Delta& delta, const
             auto A = get_type(M, delta, gamma);
             auto B = get_type(N, delta, gamma);
             RulePtr rM, rN, rA, rB, Mconv, Nconv;
-            rM = _get_script(M, delta, gamma);
-            rN = _get_script(N, delta, gamma);
-            rA = _get_script(A, delta, gamma);
-            rB = _get_script(B, delta, gamma);
+            rM = get_script(M, delta, gamma);
+            rN = get_script(N, delta, gamma);
+            rA = get_script(A, delta, gamma);
+            rB = get_script(B, delta, gamma);
             Mconv = std::make_shared<Conv>(rM, rA);
             Nconv = std::make_shared<Conv>(rN, rB);
             rule = std::make_shared<Appl>(Mconv, Nconv);
@@ -287,16 +299,24 @@ RulePtr _get_script(const std::shared_ptr<Term>& term, const Delta& delta, const
             // left: Δ; Γ, x: A |- M: B
             // right: Δ; Γ |- ?x:A.B : s
             Gamma gamma_new = std::make_shared<Context>(*gamma);
-            std::shared_ptr<Variable> z = t->var().value();
-            std::shared_ptr<Term> expr = t->expr();
-            if (has_variable(gamma, z)) {
+            std::shared_ptr<Variable> x = t->var().value(), z;
+            std::shared_ptr<Term> A = t->var().type();
+            // std::cerr << "abst: " << gamma_new << " |- x: A = " << x << " : " << A << std::flush;
+            std::shared_ptr<Term> M = t->expr();
+            // std::cerr << ", M: B = " << M << " : " << std::flush;
+            if (has_variable(gamma, x)) {
                 z = get_fresh_var(*gamma);
-                gamma_new->emplace_back(z, t->var().type());
-                expr = substitute(expr, t->var().value(), z);
+                gamma_new->emplace_back(z, A);
+                M = substitute(M, x, z);
+                // x = z;
             } else gamma_new->push_back(t->var());
-            RulePtr left, right;
-            left = _get_script(expr, delta, gamma_new);
-            right = _get_script(get_type(t, delta, gamma), delta, gamma);
+            std::shared_ptr<Term> B = get_type(M, delta, gamma_new);
+            // std::cerr << B << std::endl;
+            RulePtr left, right, sM, sB;
+            sM = get_script(M, delta, gamma_new);
+            sB = get_script(B, delta, gamma_new);
+            left = std::make_shared<Conv>(sM, sB);
+            right = get_script(pi(z ? z : x, A, B), delta, gamma);
             rule = std::make_shared<Abst>(left, right);
             break;
         }
@@ -315,8 +335,8 @@ RulePtr _get_script(const std::shared_ptr<Term>& term, const Delta& delta, const
                 expr = substitute(expr, t->var().value(), z);
             } else gamma_new->push_back(t->var());
             RulePtr left, right;
-            left = _get_script(t->var().type(), delta, gamma);
-            right = _get_script(expr, delta, gamma_new);
+            left = get_script(t->var().type(), delta, gamma);
+            right = get_script(expr, delta, gamma_new);
             rule = std::make_shared<Form>(left, right);
             break;
         }
@@ -335,10 +355,39 @@ RulePtr _get_script(const std::shared_ptr<Term>& term, const Delta& delta, const
             //          Δ; Γ |- Uk: Ak[x1:=U1,...,xk-1:=Uk-1]
             RulePtr left;
             std::vector<RulePtr> rights;
-            left = _get_script(star, delta, gamma);
+            left = get_script(star, delta, gamma);
+            std::vector<std::shared_ptr<Variable>> vars;
+            std::vector<std::shared_ptr<Term>> exprs;
+            // std::cerr << "[debug @ get_type / inst] def = " << def << std::endl;
             for (size_t i = 0; i < t->args().size(); ++i) {
-                const auto& U = t->args()[i];
-                rights.push_back(_get_script(U, delta, gamma));
+                const auto& U = t->args()[i];  // substitute(t->args()[i], vars, exprs);
+
+                const auto& U_type = get_type(U, delta, gamma);
+                const auto& V = substitute((*def->context())[i].type(), vars, exprs);  // (*def->context())[i].type();
+                const auto& x = (*def->context())[i].value();
+                // std::stringstream ss;
+                // std::cerr << "[debug @ get_type / inst] def " << def->definiendum() << " " << i << "-th arg: " << U << " : " << U_type << " (get_type) aka " << V << " (expected, NF: " << NF(V, delta) << ")" << std::endl;
+                // std::cerr << "[debug @ get_type / inst] U = " << U << " : " << U_type << " ?= V = " << V << ", def = " << def->definiendum() << std::endl;
+                RulePtr U_scr, V_scr, Uconv;
+                U_scr = get_script(U, delta, gamma);
+                if (!alpha_comp(U_type, V)) {
+                    // conv required
+                    //
+                    // U: U_type, V: *
+                    // conv(U, V)
+                    // std::cerr << "[debug @ get_type / inst / conv_required]: " << U_type << "(" << NF(U_type, delta) << ") -> " << V << "(" << NF(V, delta) << ")" << std::endl;
+
+                    V_scr = get_script(V, delta, gamma);
+                    // std::cerr << "[debug @ get_type / inst / conv_required / script_generated]: " << U_type << " -> " << V << std::endl;
+                    Uconv = std::make_shared<Conv>(U_scr, V_scr);
+                    // std::cerr << "[debug @ get_type / inst / conv_required / conv-ed]: " << U_type << " -> " << V << std::endl;
+                } else {
+                    // std::cerr << "[debug @ get_type / inst / conv_not-necessary]" << std::endl;
+                }
+                // std::cerr << ss.str();
+                rights.push_back(Uconv ? Uconv : U_scr);
+                vars.push_back(x);
+                exprs.push_back(U);
             }
             rule = std::make_shared<Inst>(left, rights.size(), rights, delta->lookup_index(t));
             break;
@@ -349,7 +398,7 @@ RulePtr _get_script(const std::shared_ptr<Term>& term, const Delta& delta, const
 
     // cache register
     hist_inf[hash] = rule;
-
+    // std::cerr << "[debug @ get_script / cache-missed] " << term << ", " << delta->string_simple() << ", " << gamma << std::endl;
     return rule;
 }
 
