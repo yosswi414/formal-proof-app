@@ -69,7 +69,128 @@ $ make check-a3_fig11.29
 - `-o out_file`: Output to `out_file` instead of stdout
 - `-t target`: Choose a definition in input and only focus on it and its dependency
 - `--dry-run`: Print the dependency list of the target definition
-- `-v`: verbose output (debug purpose)
+- `-v`: Verbose output (debug purpose)
+
+## Interactive verification (`verifier.out -i`)
+You can try to apply the deduction rules of $\lambda \mathrm{D}$ on your own to see how they work. In other words, this interactive mode helps you edit a script file by your hand. If you have your own script generator and it has some flaws that the generated script can't verify a definition, this might be an essential debugging tool to investigate the cause of verification failure.
+
+### Usage
+```
+$ ./verifier.out -i
+[Interactive mode]
+Type "help" for available commands.
+
+[#J: 0, #D: 0] $ 
+```
+
+See the help text for the detailed features.
+
+### Demo
+```
+[#J: 0, #D: 0] $ help
+[prompt]
+#J denotes the number of judgements on the book.
+#D denotes the number of defined definitions (by def or defpr).
+@n represents that the n-th judgement is refered to as the current context
+(if ommited, the last judgement is being referred to)
+
+
+[general command]
+name       args       description
+----------------------------------
+help                  show this help
+exit                  end interactive mode and exit
+... (omitted) ...
+
+[derivation command]
+name    args         
+---------------------
+sort                 
+var     i var_name   
+weak    i j var_name 
+form    i j          
+... (omitted) ...
+
+[#J: 0, #D: 0] $ load out/test.script
+Reading script from out/test.script...
+OK: The script has been loaded successfully.
+
+[#J: 10, #D: 0] $ jshow 0 -1
+[0]: ∅ ; ∅ ⊢ * : □
+[1]: ∅ ; Γ{A:*} ⊢ A : *
+[2]: ∅ ; Γ{A:*} ⊢ * : □
+[3]: ∅ ; Γ{A:*, B:*} ⊢ B : *
+[4]: ∅ ; Γ{A:*, B:*} ⊢ * : □
+[5]: ∅ ; Γ{A:*, B:*} ⊢ A : *
+[6]: ∅ ; Γ{A:*, B:*, a:A} ⊢ a : A
+[7]: ∅ ; Γ{A:*, B:*, a:A} ⊢ * : □
+[8]: ∅ ; Γ{A:*, B:*, a:A} ⊢ B : *
+[9]: ∅ ; Γ{A:*, B:*} ⊢ Πa:A.B : *
+
+[#J: 10, #D: 0] $ def 0 9 implies
+res [10]: Δ{1:implies} ; ∅ ⊢ * : □
+
+[#J: 11, #D: 1] $ weak 10 10 v1
+res [11]: Δ{1:implies} ; Γ{v1:*} ⊢ * : □
+
+[#J: 12, #D: 1] $ weak 11 11 v2
+res [12]: Δ{1:implies} ; Γ{v1:*, v2:*} ⊢ * : □
+
+[#J: 13, #D: 1] $ var 10 v1
+res [13]: Δ{1:implies} ; Γ{v1:*} ⊢ v1 : *
+
+[#J: 14, #D: 1] $ var 11 v2
+res [14]: Δ{1:implies} ; Γ{v1:*, v2:*} ⊢ v2 : *
+
+[#J: 15, #D: 1] $ weak 13 11 v2
+res [15]: Δ{1:implies} ; Γ{v1:*, v2:*} ⊢ v1 : *
+
+[#J: 16, #D: 1] $ tail
+[11]: Δ{1:implies} ; Γ{v1:*} ⊢ * : □
+[12]: Δ{1:implies} ; Γ{v1:*, v2:*} ⊢ * : □
+[13]: Δ{1:implies} ; Γ{v1:*} ⊢ v1 : *
+[14]: Δ{1:implies} ; Γ{v1:*, v2:*} ⊢ v2 : *
+[15]: Δ{1:implies} ; Γ{v1:*, v2:*} ⊢ v1 : *
+
+[#J: 16, #D: 1] $ dnlookup implies
+implies -> {0}: Def< Γ{A:*, B:*} ▷ implies := Πa:A.B : * >
+
+[#J: 16, #D: 1] $ inst 12 2 14 15 0
+res [16]: Δ{1:implies} ; Γ{v1:*, v2:*} ⊢ implies[v2, v1] : *
+
+[#J: 17, #D: 1] $ save out/implies.test
+Writing data (233 Bytes) to out/implies.test... OK
+
+[#J: 17, #D: 1] $ init
+
+[#J: 0, #D: 0] $ load out/implies.test
+Reading script from out/implies.test...
+OK: The script has been loaded successfully.
+
+[#J: 17, #D: 1] $ tail
+[12]: Δ{1:implies} ; Γ{v1:*, v2:*} ⊢ * : □
+[13]: Δ{1:implies} ; Γ{v1:*} ⊢ v1 : *
+[14]: Δ{1:implies} ; Γ{v1:*, v2:*} ⊢ v2 : *
+[15]: Δ{1:implies} ; Γ{v1:*, v2:*} ⊢ v1 : *
+[16]: Δ{1:implies} ; Γ{v1:*, v2:*} ⊢ implies[v2, v1] : *
+
+[#J: 17, #D: 1] $ jump 14
+
+[#J: 17, #D: 1] @14 $ type v2
+Δ{{ implies }} ; Γ{v1:*, v2:*} ⊢ v2 : *
+
+[#J: 17, #D: 1] @14 $ type implies[v1, v2]
+Δ{{ implies }} ; Γ{v1:*, v2:*} ⊢ implies[v1, v2] : *
+
+[#J: 17, #D: 1] @14 $ type @ 
+TypeError: square is not typable
+        at term = □, context = Γ{v1:*, v2:*}
+
+[#J: 17, #D: 1] @14 $ jump -1
+
+[#J: 17, #D: 1] $ exit
+$
+```
 
 ## About the syntax sugars
 
