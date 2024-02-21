@@ -170,12 +170,14 @@ int main(int argc, char* argv[]) {
 
     if (data.size() > 0) {
         auto th1 = std::thread(progress_check);
+        bool is_success = true;
         if (!is_verbose) alive1.store(true);
         th1.detach();
         try {
             book.read_script(data);
         } catch (InferenceError& e) {
             alive1.store(false);
+            is_success = false;
             e.puterror();
 
             if (!interactive) {
@@ -206,7 +208,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        std::cerr << BOLD(GREEN("verification finished.")) << std::endl;
+        if (is_success) std::cerr << BOLD(GREEN("verification finished.")) << std::endl;
         alive1.store(false);
     }
 
@@ -525,7 +527,7 @@ int main(int argc, char* argv[]) {
                     alive1.store(true);
                     th.detach();
                     try {
-                        FileData data(ifname);
+                        data = FileData(ifname);
                         book.read_script(data);
                     } catch (FileError& e) {
                         alive1.store(false);
@@ -834,11 +836,12 @@ int main(int argc, char* argv[]) {
         auto alive2 = std::atomic_bool(true);
         auto progress_check_io = [&alive2, &time_counter, &time_unit_ms, &maxlen]() {
             const std::chrono::milliseconds interval(time_unit_ms);
+            std::this_thread::sleep_for(interval);
             while (alive2.load()) {
                 auto start = std::chrono::system_clock::now();
                 std::stringstream ss;
                 if (time_counter > 0) std::cerr << "\033[F" << '\r' << std::flush;
-                ss << "[" << (time_counter++) * time_unit_ms / 1000 << " secs] waiting for file I/O...";
+                ss << "[" << (++time_counter) * time_unit_ms / 1000 << " secs] waiting for file I/O...";
                 std::string text = ss.str();
                 if (text.size() > maxlen) maxlen = text.size();
                 else text += std::string(maxlen - text.size(), ' ');
