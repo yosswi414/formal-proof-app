@@ -10,21 +10,21 @@ $ make
 
 ## Usage
 
-- Reads `input_file` as a definition file and outputs an identical definition file in different notation
+- Reads `input_file` as a definition file and outputs an identical definitions in different notation
 
 ```bash
 $ ./def_conv.out -f <input_file> [options...]
+```
+
+- Reads `input_file` as a definition file and outputs a script file (series of inference rule)
+```bash
+$ ./genscript.out -f <input_file> [options...]
 ```
 
 - Reads `input_file` as a script file and outputs a book (Series of judgements)
 
 ```bash
 $ ./verifier.out -f <input_file> [options...]
-```
-
-- Reads `input_file` as a definition file and outputs a script file (series of inference rule)
-```bash
-$ ./genscript.out -f <input_file> [options...]
 ```
 
 - If the target definition is in `resource/def_file`, you can generate its script and book in one line
@@ -38,30 +38,34 @@ $ make check-a3_fig11.29
 
 - `-f FILE`: Read `FILE` instead of stdin
 - `-s`: Suppress output, only verifies the input
-- `-h`: Show help page and exit
+- `-h`: Show option help and exit
 
 ### Options (`def_conv.out`)
-
+#### Output format
 - `-c`: Use the conventional notation (No syntax sugar)
 - `-n`: Use the new notation (Redundant brackets are omitted)
 - `-r`: Use the rich notation (Intended to be a human-readable format; not readable by above executables)
 
 ### Options (`verifier.out`)
 
-- `-c`: Use the conventional notation (No syntax sugar)
-- `-n`: Use the new notation (Redundant brackets are omitted)
-- `-r`: Use the rich notation (Intended to be a human-readable format; not readable by above executables)
+#### Input file
 - `-l LINES`: Read first `LINES` lines of input and ignore the rest
 - `-d def_file`: Read `def_file` for definition reference (The name of definition will be referred to in the output book)
+#### Output file
 - `-o out_file`: Output to `out_file` instead of stdout
 - `-e log_file`: Output the error output to `log_file` instead of stderr
 - `--out-def out_def_file`: Extract the final environment from input script and output definitions to `def_file`
-- `--skip-check`: Bypass the inference rule applicability check through the script (Saves some time)
-- `-v`: verbose output (debug purpose)
 
+#### Output format
+- `-c`: Use the conventional notation (No syntax sugar)
+- `-n`: Use the new notation (Redundant brackets are omitted)
+- `-r`: Use the rich notation (Intended to be a human-readable format; not readable by above executables)
+- `-v`: Verbose output (debug purpose)
+#### Verification process
+- `--skip-check`: Bypass the inference rule applicability check through the script (Saves some time)
+- `-i`: Launch in interactive mode (You can edit the script file and see the result immediately)
 
 ### Options (`genscript.out`)
-- `-f FILE`: Read `FILE` instead of stdin
 - `-o out_file`: Output to `out_file` instead of stdout
 - `-t target`: Choose a definition in input and only focus on it and its dependency
 - `--dry-run`: Print the dependency list of the target definition
