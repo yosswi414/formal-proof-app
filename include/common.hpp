@@ -8,6 +8,13 @@
 
 using TextData = std::vector<std::string>;
 
+class FileError {
+    std::string _msg;
+  public:
+    FileError(const std::string& str);
+    void puterror(std::ostream& os = std::cerr) const;
+};
+
 TextData read_lines(const std::string& fname);
 TextData read_lines(std::istream& is);
 
@@ -23,6 +30,9 @@ class FileData : public TextData {
   private:
     std::string _filename;
 };
+#define chmin(x, cmp)   ((x) > (cmp) ? (x) = (cmp) : (x))
+
+size_t edit_distance(const std::string_view& a, const std::string_view& b);
 
 // ### CONFIG ###
 inline constexpr const bool OnlyAscii = false;
